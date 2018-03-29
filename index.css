@@ -1,0 +1,13 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+}
+
+/* card内标题样式 */
+.title111 {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  color: rgba(0, 0, 0, 0.85);
+}

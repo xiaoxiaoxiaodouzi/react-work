@@ -1,0 +1,12 @@
+.Formitems.ant-form-item-label label{
+  color: white
+}
+.logful{
+  font-family: 'Microsoft YaHei' ,SimSun , Arial, Helvetica, sans-serif
+  !important; line-height:1; font-weight: 400; font-size: 12px;    overflow-x: scroll; white-space: nowrap; 
+}
+.logtime{
+  font-family: 'Microsoft YaHei' ,SimSun , Arial, Helvetica, sans-serif !important;
+  line-height:1; font-weight: 400;font-size: 12px;    overflow-x: scroll; 
+  white-space: nowrap; 
+}
