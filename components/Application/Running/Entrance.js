@@ -2,6 +2,7 @@ import React, { Component } from 'react'
 import { Card, Table, Button, Input,message, Popconfirm, Divider, Select ,Icon } from 'antd';
 import {entrypoints,addEntrypoints,editEntrypoints,deleteEntrypoints} from '../../../services/running'
 import IconSelectModal from '../../../common/IconSelectModal'
+import constants from '../../../services/constants'
 
 const Option = Select.Option;
 class Entrance extends Component {
@@ -25,7 +26,7 @@ class Entrance extends Component {
     index = 0;
     cacheOriginData=[];
     newMember = () => {
-			if(!this.state.isEditing){
+		if(!this.state.isEditing){
         const newData = this.state.data.map(item => ({ ...item }));
         newData.push({
             key: `NEW_TEMP_ID_${this.index}`,
@@ -69,9 +70,9 @@ class Entrance extends Component {
 				loading:true
 			})
 			if(record.isNew){
-				const key=record.key
-				const newData = this.state.data.map(item => ({ ...item }));
-				const target = newData.filter(item => key === item.key)[0];
+				// const key=record.key
+				// const newData = this.state.data.map(item => ({ ...item }));
+				// const target = newData.filter(item => key === item.key)[0];
 			}	
 			const appid=this.props.appid;
 			const id=record.id;
@@ -111,7 +112,7 @@ class Entrance extends Component {
 						})
 						return;
 					}
-					let regex=/^(?:http(?:s|):\/\/|)(?:(?:\w*?)\.|)(?:\w*?)\.(?:\w{2,4})(?:\?.*|\/.*|)$/ig;
+					let regex = constants.reg.host;
 					//地址验证成功
 					if(regex.test(target.url)){
 						addEntrypoints(appid,target).then(data=>{
@@ -146,7 +147,7 @@ class Entrance extends Component {
 						message.error('入口配置地址未填写')
 						return;
 					}
-					let regex=/^(?:http(?:s|):\/\/|)(?:(?:\w*?)\.|)(?:\w*?)\.(?:\w{2,4})(?:\?.*|\/.*|)$/ig;
+					let regex=constants.reg.host;
 					if(regex.test(target.url)){
 						editEntrypoints(appid,target.id,target).then(data=>{
 								entrypoints(appid).then(datas=>{
@@ -334,7 +335,7 @@ class Entrance extends Component {
                             </Select>
                         );
                     }
-                    return text==='_self'?"本窗口":"新窗口";
+                    return text;
                 }
             },
             {
@@ -346,7 +347,7 @@ class Entrance extends Component {
 									if(text){
 										if (record.editable) {
 											return (
-												<IconSelectModal  renderButton={ <Button style={{marginTop:15}} type="dashed" icon={text} />} selectIcon={(icon)=>this.selectIcon(icon,record)}/>
+												<IconSelectModal  renderButton={ <Button type="dashed" icon={text} />} selectIcon={(icon)=>this.selectIcon(icon,record)}/>
 											);
 										}else{
 											return  <Icon style={{fontSize:16}} type={text}/>	//<Button type="dashed" icon={text}/>;
@@ -385,7 +386,7 @@ class Entrance extends Component {
                         </div>
                     )
                 }
-            }];
+						}];
         return (
             <Card title="入口配置" style={{ margin: 24 }} bordered={false}>
 								<Table

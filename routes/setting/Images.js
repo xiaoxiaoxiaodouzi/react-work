@@ -4,6 +4,7 @@ import PageHeaderLayout from './layouts/PageHeaderLayout'
 import ImagesTabMine from '../../components/Setting/Images/ImagesTabMine'
 import {base} from '../../services/base'
 import ImageTaskList from '../../components/Setting/Images/ImageTaskList'
+
 const breadcrumbList=[{
   title: '高级设置',
   href:'/'
@@ -39,7 +40,7 @@ class ImagesForm extends Component{
     })
   }
   render(){
-    let history = this.props.history;
+    const {history}=this.props
     return (
       <div>
       <PageHeaderLayout
@@ -49,7 +50,7 @@ class ImagesForm extends Component{
       tabList={tabList}
       tabActiveKey={this.state.key}
       >
-      {this.state.key==='mine'?(<ImagesTabMine tenant={base.tenant} history={history}/>):(this.state.key==='taskList'?<ImageTaskList />:<ImagesTabMine tenant='c2cloud' history={history}/>)}
+          {this.state.key === 'mine' ? (<ImagesTabMine tenant={base.tenant} history={history} />) : (this.state.key === 'taskList' ? <ImageTaskList /> : <ImagesTabMine tenant='c2cloud' history={history}/>)}
       </PageHeaderLayout>
       </div>
     )

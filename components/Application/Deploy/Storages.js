@@ -1,8 +1,7 @@
 import React, { PureComponent } from 'react';
 import { queryMountableVolumes,createVolumes } from '../../../services/deploy';
-import { Button,Card,Table,Popconfirm,Input,message,Modal,Divider,Select,Form } from 'antd';
+import { Button,Table,Input,message,Modal,Divider,Select,Form } from 'antd';
 import showConfirmModal from './ShowConfirmModal';
-const confirm = Modal.confirm;
 const Option = Select.Option;
 const FormItem = Form.Item;
 /* 部署页面存储卷,props(volumes,afterstorage)
@@ -24,7 +23,6 @@ class Storages extends PureComponent {
   constructor(props){
     super(props);
     const {volumes} = props;
-    let data = [];
     if(volumes){
       volumes.forEach((element,index) => {
         element.key = index;
@@ -36,7 +34,6 @@ class Storages extends PureComponent {
     queryMountableVolumes().then((data)=>{
       if(data && data.contents){
         this.setState({mountableVolumes:data.contents});
-        //console.log("mountablevolumes",data);
       }
     });
   }
@@ -44,14 +41,14 @@ class Storages extends PureComponent {
     this.getMountableVolumes();
   }
   componentWillReceiveProps (nextProps){
-    console.log("storage");
     const {volumes,operationkey} = nextProps;
     if(nextProps.isAddApp && volumes !== this.props.volumes){
       volumes.forEach((element,index) => {
         element.key = index;
       });
-      this.setState({ data:volumes,operationkey });
-    }else if(volumes !== this.props.volumes){
+      this.setState({ data:volumes });
+    }
+    if(!nextProps.isAddApp && volumes !== this.props.volumes){
       this.setState({data:volumes,operationkey});
     }
   } 
@@ -90,6 +87,7 @@ class Storages extends PureComponent {
       e.target.focus();
       return;
     }
+    // eslint-disable-next-line
     let patt = /^\/[0-9a-zA-Z\u4e00-\u9fa5.\/_-]*[0-9a-zA-Z\u4e00-\u9fa5_.\/-]+$/;
     if(!patt.test(target.mountPath)){
       message.error('挂载路径只能输入数字、字母、中文、下划线、横线、点、斜线,以斜线开头,如:/data');
@@ -158,6 +156,7 @@ class Storages extends PureComponent {
       e.target.focus();
       return;
     }
+    // eslint-disable-next-line
     let patt = /^\/[0-9a-zA-Z\u4e00-\u9fa5.\/_-]*[0-9a-zA-Z\u4e00-\u9fa5_.\/-]+$/;
     if(!patt.test(target.mountPath)){
       message.error('挂载路径只能输入数字、字母、中文、下划线、横线、点、斜线,以斜线开头,如:/data');
@@ -174,7 +173,6 @@ class Storages extends PureComponent {
     }
     delete target.editable;
     if(this.props.afterstorage){
-      console.log("afterStorage",this.state.data);
       this.props.afterstorage(this.state.data);
     }else{
       this.props.onEditStorages(this.state.data);
@@ -226,7 +224,7 @@ class Storages extends PureComponent {
       },
     };
     const columns = [{
-      title: '存储卷名称',
+      title: '名称',
       dataIndex: 'name',
       key: 'name',
       width:'30%',
@@ -240,7 +238,6 @@ class Storages extends PureComponent {
                   record.name = value.split('--')[0];
                   record.additionalProperties.storage = value.split('--')[1];
                   this.setState({storageValue:value});
-                  //console.log("data",data,value);
                 }
               }}>
               <Option value="add">创建存储卷</Option>
@@ -293,16 +290,17 @@ class Storages extends PureComponent {
           );
         }
         return (
-          <a onClick={e =>this.props.isAddApp? this.remove(record.key):this.showConfirmDelete(e,record.key)}>删除</a>
+          <a onClick={e =>this.props.isAddApp? this.remove(record.key):this.showConfirmDelete(e,record.key)}>取消挂载</a>
         );
       },
     }];
     return (
       <div>
-        <div className="title111">存储卷</div>
+        <div className="card-title">存储卷</div>
         <Table
           pagination={false}
           dataSource={data} 
+          loading={this.props.storageLoading}
           columns={columns} 
           rowKey="id"
         />

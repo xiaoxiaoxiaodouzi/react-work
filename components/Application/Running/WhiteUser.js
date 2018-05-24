@@ -166,7 +166,7 @@ class WhiteUsersForm extends Component{
             </Form>
           </div>
           <div style={{marginBottom:24}}>
-            <UserSelectModal dataIndex={{dataIdIndex:"userId",dataNameIndex:"userName"}} disabled={this.state.whiteUsers} onOk={(users) => { this.addUsers(users)}} renderButton={()=>{return <Button type="primary" >新增</Button>}}/>
+          <UserSelectModal description='白名单用户也可以访问应用下的机构' dataIndex={{dataIdIndex:"userId",dataNameIndex:"userName"}} disabled={this.state.whiteUsers} onOk={(users) => { this.addUsers(users)}} renderButton={()=>{return <Button type="primary" >新增</Button>}}/>
 					</div>
           <Table
           rowKey={record => record.key}

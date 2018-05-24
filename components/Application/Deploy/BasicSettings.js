@@ -3,6 +3,8 @@ import { Modal,Form,Select,Radio,Row,Col } from 'antd';
 import DescriptionList from 'ant-design-pro/lib/DescriptionList';
 import { queryContainerConfig,queryImageVersions } from '../../../services/deploy';
 import showConfirmModal from './ShowConfirmModal';
+import ShareLicense from './ShareLicense';
+import HealthCheck from './HealthCheck';
 import moment from 'moment';
 const RadioGroup = Radio.Group;
 const Option = Select.Option;
@@ -28,8 +30,9 @@ class BasicSettings extends PureComponent {
     quotaList:[],      //容器配额
     quotaValue:0,
   };
+  quotaValue = 0;
   getImageVersions = ( tenant,artifact) => {
-    queryImageVersions(tenant,artifact, { page: 1, rows: 10 }).then(data => {
+    queryImageVersions(tenant,artifact, { page: 1, rows: 999 }).then(data => {
       if(data && Array.isArray(data.contents)){
         this.setState({versionList:data.contents});
       }
@@ -37,10 +40,12 @@ class BasicSettings extends PureComponent {
   }
   showConfirmEdit = ()=>{
     const { appCode,operationkey } = this.props;
-    const { isDockerConfigChange,isVersionChange,version,dockerConfig } = this.state;
+    const { isDockerConfigChange,isVersionChange,version,quotaValue } = this.state;
+    let quota = this.state.quotaList[quotaValue];
+    let dockerConfig = quota.cpu+'-'+quota.memory+'Gi';
     showConfirmModal(()=>{
       this.props.onChangeBasicInfo(version,dockerConfig,isVersionChange,isDockerConfigChange);
-      this.setState({visibleBasicModal:false});
+      this.setState({visibleBasicModal:false,dockerConfig});
     },()=>{
       this.setState({visibleBasicModal:false});
     },{
@@ -79,15 +84,16 @@ class BasicSettings extends PureComponent {
     this.showConfirmEdit();
   }
   radioChange = (e) => {
-    let quota = this.state.quotaList[e.target.value];
-    let dockerConfig = quota.cpu+'-'+quota.memory+'Gi';
+    /* let quota = this.state.quotaList[e.target.value];
+    let dockerConfig = quota.cpu+'-'+quota.memory+'Gi'; */
     this.setState({
-      dockerConfig,
+      //dockerConfig,
       isDockerConfigChange:true,
       quotaValue:e.target.value
     });
   }
   onClickEdit = ()=>{
+    this.quotaValue = this.state.quotaValue;
     this.setState({visibleBasicModal:true});
   }
   render() {
@@ -111,11 +117,27 @@ class BasicSettings extends PureComponent {
           <Description term="版本">
             {version}
           </Description>
-          <Description term="节点">
+          <Description term="主机">
             { node /* 10.100.12.125，10.100.12.125 */}
           </Description>
           <Description term="容器配置">
-            { dockerConfig.indexOf('-')>0 && `${dockerConfig.split('-')[0]} 核CPU ${parseInt(dockerConfig.split('-')[1])}GB 内存` /* 2X（16G 内存 / 8核CPU） */}
+            { dockerConfig.indexOf('-')>0 ?`${dockerConfig.split('-')[0]} 核CPU ${parseInt(dockerConfig.split('-')[1],10)}GB 内存`:'未限制'}
+          </Description>
+          <Description term="健康检查">
+            <HealthCheck 
+              appCode={this.props.appCode}
+              operationkey={this.props.operationkey}
+              probe={this.props.probe}
+              onChangeProbe={this.props.onChangeProbe}
+            />
+          </Description>
+          <Description term="共享许可">
+            <ShareLicense 
+              appCode={this.props.appCode}
+              operationkey={this.props.operationkey}
+              configs={this.props.configs}
+              onChangeShareLicense={this.props.onChangeShareLicense}
+            />
           </Description>
         </DescriptionList>
         <Modal 
@@ -129,6 +151,7 @@ class BasicSettings extends PureComponent {
               version:this.props.version,
               node:this.props.node,
               dockerConfig:this.props.dockerConfig,
+              quotaValue:this.quotaValue
             });
           }}>
           <Form>

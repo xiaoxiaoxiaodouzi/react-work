@@ -1,10 +1,11 @@
 import React, { Fragment,Component } from 'react';
-import {Table,Row, Col, Form, Input, Select,  Button, Divider, message ,Card,Switch,Modal} from 'antd';
+import {Table,Row, Col, Form, Input,  Button, Divider ,Card} from 'antd';
 import PageHeaderLayout from './layouts/PageHeaderLayout';
+import { getRoutersList, getupstream} from '../../services/domainList'
+import moment from 'moment'
 
 
 const FormItem = Form.Item;
-const { Option } = Select;
 const breadcrumbList = [{
   title: '高级设置',
   href: '/#/setting',
@@ -14,12 +15,34 @@ const breadcrumbList = [{
 class DomainListForm extends Component{
   state={
     loading:false,
-    isOpen:false,
-    visible:false,  ///打开路由配置模态框
-    visibleClose:false,     //关闭路由模态框状态
+    data:[],
   }
   componentDidMount(){
-    
+    getRoutersList().then(data=>{
+      let array = [];
+      data.forEach(items=>{
+        let tr = {};
+        tr.createdAt = items.createdAt;
+        if(items.hosts&&items.hosts.length>0){
+          tr.host = items.hosts[0];
+            getupstream(items.name).then(datas=>{
+              if(Array.isArray(datas)){
+                //遍历集群获取应用名称 以及IP
+                let str='';
+                datas.forEach(i=>{
+                  str+=i+','
+                })
+                tr.ip = str.substring(0, str.length - 1);
+                tr.name=datas.name;
+              }
+            })
+        }
+        array.push(tr);
+      })
+      this.setState({
+        data: array
+      })
+    })
   }
 
   handleSearch=(e)=>{
@@ -49,28 +72,28 @@ class DomainListForm extends Component{
     const columns = [
       {
         title:"域名",
-        dataIndex: 'userName',
+        dataIndex: 'host',
         width: '16%',
       },
       {
         title: '应用',
-        dataIndex: 'orgName',
+        dataIndex: 'name',
         width: '16%',
       },
       {
         title: '应用地址',
-        dataIndex: 'role',
-        width: '16%',
-      },
-      {
-        title: '应用标签',
-        dataIndex: 'status',
+        dataIndex: 'ip',
         width: '16%',
       },
       {
         title:'创建时间',
-        dataIndex:'time',
-        width:'16%'
+        dataIndex:'createdAt',
+        width:'16%',
+        render:(text,record)=>{
+          if(text){
+            return moment(text).format('YYYY-MM-DD HH:mm:ss')
+          }
+        }
       },
       {
         title: '操作',
@@ -87,7 +110,7 @@ class DomainListForm extends Component{
       }
     ];
     return (
-    <Card type='inner'>
+    <Card>
       <div className='tableList'>
         <Form onSubmit={this.handleSearch} layout="inline">
           <Row  style={{ marginBottom: 24 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
@@ -117,12 +140,11 @@ class DomainListForm extends Component{
       <div>
         <div style={{marginBottom:24}}>
           <Button type='primary'>新建</Button>
-          <Button>批量删除</Button>
         </div>
         <Table
         rowKey={record => record.key}
         columns={columns}
-        dataSource={this.state.whiteUsers}
+        dataSource={this.state.data}
         loading={this.state.loading}
         />       
       </div>
@@ -130,73 +152,15 @@ class DomainListForm extends Component{
    )
   }
 
-  //switch 更改状态
-  handleClick=(check)=>{
-    //打开路由配置
-    if(check){
-      this.setState({
-        visible:true,
-      })
-    }else{
-      this.setState({
-        visibleClose:true,
-      })
-    }
-  }
-
-  //路由配置打开模态框
-  handleOpen=()=>{
-    this.setState({
-      isOpen:true,
-      visible:false
-    })
-  }
-
-  handleCancle=()=>{
-    this.setState({
-      visible:false,
-      visibleClose:false,
-    })
-  }
-
-// 关闭路由配置
-  handleClose=()=>{
-    this.setState({
-      isOpen:false,
-      visibleClose:false,
-    })
-  }
+  
 
   render(){
-    const title =(
-      <Fragment>
-        <span style={{marginRight:24}}>全局动态路由配置</span>
-        <Switch checkedChildren="开" unCheckedChildren="关" checked={this.state.isOpen} onClick={this.handleClick}/>
-      </Fragment>
-    )
     return(
       <PageHeaderLayout
         title="域名列表"
         content=""
         breadcrumbList={breadcrumbList}>
-        <Card title={title} >
-          {this.state.isOpen?this.renderOpen():<span>温馨提示：如需使用统一域名管理，请先启用动态路由配置。</span>}
-       </Card>
-       <Modal
-       title='全局动态路由配置'
-       visible={this.state.visible}
-       onOk={this.handleOpen}
-       onCancel={this.handleCancle}
-       >
-       </Modal>
-
-       <Modal
-        title='关闭路由配置？'
-        visible={this.state.visibleClose}
-        onOk={this.handleClose}
-        onCancle={this.handleCancle}
-       >
-       </Modal>
+          {this.renderOpen()}
       </PageHeaderLayout>
     )
   }

@@ -5,11 +5,10 @@ import { getMiddleware,addMiddleware,deleteMiddleware } from '../../../services/
 import { Button,Table,Modal,Badge,message,Popconfirm,Icon } from 'antd';
 import Link from 'react-router-dom/Link';
 import {base} from '../../../services/base'
-const confirm = Modal.confirm;
 //status={statusMap[text]} text={status[text]} 
 
-const statusMap = [ 'success', 'processing',  'error', 'default' ];
-const status = [ '运行中', '启动中', '停止', '等待'];
+const statusMap = { 'succeeded': 'success', 'running': 'processing', 'stop': 'default', 'pending': 'processing', 'exception':'warning','failed':'error' };
+const status = { 'succeeded': '运行中', 'running': '启动中', 'stop': '停止', 'pending': '等待', 'exception':'异常','failed':'失败' };
 /* 部署页面中间件,props(operationkey,appId)
  * operationkey str 容器名称
  * appId str 应用Id
@@ -38,25 +37,19 @@ export default class Middleware extends PureComponent {
       this.getMiddlewareByAppId(this.props.appId);
     }
   }
-  /* {
-  "id": "string",
-  "appId": "string",
-  "middlewareId": "string"
-  } */
   addMiddlewareWithApp = (appId,middlewareId) =>{
     let params = {
       appId:appId,
       middlewareId:middlewareId,
     }
-    //console.log("addd",appId,middlewareId);
     addMiddleware(appId,params).then(()=>{
       //设置添加state
+      message.success('中间件关联成功');
       this.getMiddlewareByAppId(appId);
     });
   }
   getMiddlewareByAppId = (appId) =>{
     getMiddleware(appId).then(middleware=>{
-      //console.log("middleware app",middleware);
       let middlewares = [];
       let appIds = [];
       middleware.forEach(element => {
@@ -73,7 +66,6 @@ export default class Middleware extends PureComponent {
         });
       });
       queryAppCCE({ appIds }).then(app => {
-        //console.log("middlewares",app);
         middlewares.forEach(element=>{
           if(app[element.code]){
             element.imageList = app[element.code].imageList;
@@ -85,7 +77,6 @@ export default class Middleware extends PureComponent {
     });
   }
   onSelectChange = (selectedRowKeys) => {
-    //console.log('selectedRowKeys',selectedRowKeys);
     this.setState({ selectedRowKeys });
   }
   getAllMiddleware = (page,row)=>{
@@ -104,7 +95,6 @@ export default class Middleware extends PureComponent {
           createtime:element.createtime
         });
       });
-      //console.log("data",data);
       this.setState({
         modalData,
         loadingModalData:false,
@@ -114,19 +104,9 @@ export default class Middleware extends PureComponent {
       });
     });
   }
-  showConfirm = (e)=>{
-    let index = e.target.getAttribute('data-index');
-    confirm({
-      title: '是否删除此条记录?',
-      onOk: () => {
-        //console.log("delete",index);
-      },
-    });
-  }
   remove(key) {
     const newData = this.state.data.filter(item => item.key !== key);
     const selectedRowKeys = this.state.selectedRowKeys.filter(item => item !==key);
-    //console.log("aaaa",this.state.appId,key);
     deleteMiddleware(this.state.appId,key).then(()=>{
       this.setState({ data: newData,selectedRowKeys });
       message.success('中间件取消关联成功');
@@ -136,15 +116,22 @@ export default class Middleware extends PureComponent {
     return (newData || this.state.data).filter(item => item.key === key)[0];
   }
   handleModalOk = ()=>{
-    //console.log("handlemodal ok111",this.state.selectedRowKeys);
-    const { selectedRowKeys,appId } = this.state;
-    selectedRowKeys.forEach(element=>{
+    const { selectedRowKeys,appId,addRowKeys } = this.state;
+    let keys = selectedRowKeys.filter((item)=>{
+      let flag = true;
+      addRowKeys.forEach(element=>{
+        if(element === item){
+          flag = false;
+        }
+      });
+      return flag;
+    })
+    keys.forEach(element=>{
       this.addMiddlewareWithApp(appId,element);
     });
     this.setState({visibleModal:false});
   }
   onOpenModal = ()=>{
-    //console.log("open",this.state.selectedRowKeys.join(",").indexOf("sJWibHYiaISLC0vRO8yEoOcg")>-1);
     let selectedRowKeys = [];
     this.state.data.forEach(element=>{
       selectedRowKeys.push(element.key);
@@ -155,7 +142,7 @@ export default class Middleware extends PureComponent {
   render() {
     const { data,loading,visibleModal,modalData,loadingModalData,modalPage,modalRow,modalTotal,selectedRowKeys } = this.state;
     const columns = [{
-      title: '中间件名称',
+      title: '名称',
       dataIndex: 'name',
       width:'15%',
     }, {
@@ -192,7 +179,7 @@ export default class Middleware extends PureComponent {
       dataIndex: 'status',
       width:'10%',
        render: (text, record) => {
-        return <Badge status={statusMap[text]} text={status[text]} />;
+        return <Badge status={statusMap[text]} text={status[text]} />
       } 
     }, {
       title: '操作',
@@ -209,7 +196,7 @@ export default class Middleware extends PureComponent {
       },
     }];
     const columnsModal = [{
-      title: '中间件名称',
+      title: '名称',
       dataIndex: 'name'  
     }, {
       title: '集群',
@@ -233,13 +220,13 @@ export default class Middleware extends PureComponent {
       selectedRowKeys,
       onChange: this.onSelectChange,
       getCheckboxProps: record => ({
-        disabled: this.state.addRowKeys.join(",").indexOf(record.key)>-1, // Column configuration not to be checked
+        disabled: this.state.addRowKeys.filter(item => item === record.key).length > 0, // Column configuration not to be checked
         name: record.name,
       }),
     };
     return (
       <div>
-        <div className="title111">关联中间件</div>
+        <div className="card-title">关联中间件</div>
         <Button style={{marginBottom: 16}} type="primary" 
           onClick={this.onOpenModal}>新增</Button>
         <Table
@@ -257,18 +244,11 @@ export default class Middleware extends PureComponent {
           <Table 
             dataSource={modalData} 
             columns={columnsModal} 
+            size='small'
             pagination={paginationModal} 
             rowSelection={rowSelection}
             loading={loadingModalData} />
         </Modal>
-        {/* <Button
-          style={{ width: '100%', marginTop: 16, marginBottom: 8 }}
-          type="dashed"
-          onClick={this.newRecord}
-          icon="plus"
-        >
-          添加关联中间件
-        </Button> */}
       </div>
     );
   }

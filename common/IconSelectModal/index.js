@@ -1,5 +1,5 @@
 import React from 'react'
-import { Row, Col,Card,Modal } from 'antd';
+import { Modal } from 'antd';
 import './index.css'
 import IconSelect from './IconSelect'
 
@@ -36,12 +36,11 @@ class IconSelectModal extends React.Component {
             {this.props.renderButton}
           </a>)
     } else {
-        dom =  <a onClick={e=>this.showModal()}><p style={{marginTop:15}}>请选择</p></a> 
+        dom =  <a onClick={e=>this.showModal()}><p style={{marginTop:'15px'}}>请选择</p></a> 
     }
     return (
       <div>
         {dom}
-        <p>{this.state.icon}</p>
         <Modal
         width='800px'
         bodyStyle={{height:500,overflow:'auto'}}

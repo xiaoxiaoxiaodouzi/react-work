@@ -1,5 +1,5 @@
 import React, { PureComponent,Fragment } from 'react';
-import { Button,Table,Modal,Select,message,Divider,InputNumber,Tooltip,Icon } from 'antd';
+import { Button,Table,Select,message,Divider,InputNumber,Tooltip,Icon } from 'antd';
 import showConfirmModal from './ShowConfirmModal';
 const Option = Select.Option;
 /* 部署页面网络配置,props(networkConfigs,node)
@@ -9,10 +9,9 @@ const Option = Select.Option;
  */
 export default class NetworkConfig extends PureComponent {
   state = {
-    loading:false,
     data:[],
     flag:'111',
-    node:this.props.node,
+    //node:this.props.node,
     innerSelect:'close',
     outerSelect:'close',
   };
@@ -21,14 +20,9 @@ export default class NetworkConfig extends PureComponent {
     this.state.data = this.props.networkConfigs.slice();
   }
   componentWillReceiveProps (nextProps){
-    console.log("componentwillreceivenetwork");
-    if(nextProps !== this.props){
       this.setState({
-        data:[...nextProps.networkConfigs],
-        node:nextProps.node,
-        loading:nextProps.networkLoading
-      })
-    }
+        data:[...nextProps.networkConfigs]
+      });
   }
   showConfirmAddOrEdit = (e,key,temp)=>{
     const { appCode,operationkey } = this.props;
@@ -90,7 +84,6 @@ export default class NetworkConfig extends PureComponent {
     }
   }
   saveRow(e, key) {
-    console.log("saveRow");
     const { data,innerSelect,outerSelect } = this.state;
     let flag=false;
     const target = this.getRowByKey(key) || {};
@@ -111,10 +104,10 @@ export default class NetworkConfig extends PureComponent {
         flag ++;
       }
       if(element.inneraddress){
-        element.innerPort = parseInt(element.inneraddress.split(':')[1]);
+        element.innerPort = parseInt(element.inneraddress.split(':')[1],10);
       }
       if(element.outaddress){
-        element.outerPort = parseInt(element.outaddress.split(':')[1]);
+        element.outerPort = parseInt(element.outaddress.split(':')[1],10);
       }
     });
     if(flag > 1){
@@ -123,7 +116,6 @@ export default class NetworkConfig extends PureComponent {
     }
     delete target.editable;
     if(this.props.afternetconf){
-      console.log("afternetconf",data);
       this.props.afternetconf(data);
     }else{
       this.props.onAddNetworkConfig(target,innerSelect,outerSelect);
@@ -133,7 +125,7 @@ export default class NetworkConfig extends PureComponent {
     return (newData || this.state.data).filter(item => item.key === key)[0];
   }
   handleFieldChange(e, fieldName, key) {
-    const { node } = this.state;
+    //const { node } = this.state;
     if(fieldName === 'port'){
       const newData = this.state.data.map(item => ({ ...item }));
       const target = this.getRowByKey(key, newData);
@@ -145,7 +137,7 @@ export default class NetworkConfig extends PureComponent {
       const newData = this.state.data.map(item => ({ ...item }));
       const target = this.getRowByKey(key, newData);
       if (target) {
-        target[fieldName] =node +':'+ e;
+        target[fieldName] =this.props.node +':'+ e;
         this.setState({ data: newData });
       }
     }
@@ -199,7 +191,7 @@ export default class NetworkConfig extends PureComponent {
           <Icon type="info-circle-o" />
       </Tooltip>
     )
-    const { data,loading,innerSelect,outerSelect } = this.state;
+    const { data,innerSelect,outerSelect } = this.state;
     const columns = [{
       title: '容器端口',
       dataIndex: 'port',
@@ -302,9 +294,9 @@ export default class NetworkConfig extends PureComponent {
     }];
     return (
       <div>
-        <div className="title111">网络配置</div>
+        <div className="card-title">网络配置</div>
         <Table
-          loading={loading}
+          loading={this.props.networkLoading}
           pagination={false}
           dataSource={data} 
           columns={columns} 

@@ -1,8 +1,10 @@
 import React, { PureComponent } from 'react';
-import { Button,Table,Alert,Popconfirm,Divider,Input,message,Select,Badge } from 'antd';
+import { Button,Table,Alert,Popconfirm,Divider,Input,message,Select,Badge,Modal,Row,Col } from 'antd';
 import {appStart} from '../../../services/appdetail';
-import { queryEnvs,addEnvs,editEnvs,deleteEnvs,resetEnv } from '../../../services/deploy';
+import { queryEnvs,addEnvs,editEnvs,deleteEnvs,resetEnv,batchAddEnvs } from '../../../services/deploy';
 const Option = Select.Option;
+const { TextArea } = Input;
+const envRegexp = /^[A-Za-z_]([A-Z0-9a-z_])*$/;
 const sourceList = ['自定义','系统注入','中间件']; //环境变量来源 0:自定义,1:系统注入,2:中间件
 const statusList = {
   default:'新建',
@@ -16,6 +18,7 @@ const statusMap = {
   effect:'success',
   delete:'error'
 }
+
 /* 部署页面环境变量,props(operationkey,afterenvconf)
  * operationkey str 容器
  * afterenvconf func 保存或删除操作回调
@@ -25,9 +28,12 @@ export default class EnvVariables extends PureComponent {
   cacheOriginData = {};
   state = {
     showWarning:false,
+    loading:false,
     appCode:this.props.appCode,
     operationkey:this.props.operationkey,
     data: [],
+    visibleModal:false,
+    textEnvs:'',
   };
   
   componentDidMount() {
@@ -37,19 +43,19 @@ export default class EnvVariables extends PureComponent {
     }
   }
   componentWillReceiveProps (nextProps){
-    console.log("envvariables");
     const { appCode,operationkey,isAddApp,envData } = nextProps;
     if(isAddApp && envData !== this.props.envData){
       this.setState({data:envData});
     }
     if(!isAddApp){
+      this.setState({appCode,operationkey});
       this.loadData(appCode,operationkey);
     }
   }
   //获取所有env
   loadData = (appCode,operationkey) =>{
-    //console.log("env loaddata",appCode,operationkey);
     let showWarning = false;
+    this.setState({loading:false});
     queryEnvs(appCode,operationkey).then(envs=>{
       envs.forEach((element)=>{
         if(element.operateWay !=='effect'){
@@ -58,12 +64,13 @@ export default class EnvVariables extends PureComponent {
         element.name = element.key;
         element.key = element.id;
       });
-      this.setState({data:envs,showWarning});
+      this.setState({data:envs,showWarning,loading:false});
+    }).catch(()=>{
+      this.setState({data:[],loading:false});
     });
   }
   //添加env  flag=true表示撤销操作
   addData = (target)=>{
-    //console.log("addData",target);
     const {appCode,operationkey} = this.state;
     let params = {
       key: target.name,
@@ -71,18 +78,38 @@ export default class EnvVariables extends PureComponent {
       desc: target.desc,
       source: target.source
     };
+    this.setState({loading:true});
     addEnvs(appCode,operationkey,params).then(()=>{
       //this.setState({showWarning:true});
       this.loadData(appCode,operationkey);
       message.success("环境变量添加成功");
+    }).catch(()=>{
+      this.loadData(appCode,operationkey);
+      message.error("环境变量添加失败");
+    });
+  }
+  //添加env  flag=true表示撤销操作
+  batchAddData = (envs)=>{
+    const {appCode,operationkey} = this.state;
+    this.setState({loading:true});
+    batchAddEnvs(appCode,operationkey,envs).then(()=>{
+      this.loadData(appCode,operationkey);
+      message.success("环境变量导入成功");
+    }).catch(()=>{
+      this.loadData(appCode,operationkey);
+      message.error("环境变量导入失败");
     });
   }
   //删除env
   deleteData = (key)=>{
     const {appCode,operationkey} = this.state;
+    this.setState({loading:true});
     deleteEnvs(appCode,operationkey,key).then(()=>{
       this.loadData(appCode,operationkey);
       message.success("环境变量删除成功");
+    }).catch(()=>{
+      this.loadData(appCode,operationkey);
+      message.error("环境变量删除失败");
     });
   }
   //修改env 
@@ -94,11 +121,13 @@ export default class EnvVariables extends PureComponent {
       desc: target.desc,
       source: target.source
     };
-    //console.log("editData",target,params);
+    this.setState({loading:true});
     editEnvs(appCode,operationkey,params,key).then(()=>{
       message.success("环境变量修改成功");
-      //this.setState({showWarning:true});
       this.loadData(appCode,operationkey);
+    }).catch(()=>{
+      this.loadData(appCode,operationkey);
+      message.error("环境变量修改失败");
     });
   }
   toggleEditable=(e, key) => {
@@ -181,7 +210,6 @@ export default class EnvVariables extends PureComponent {
     }
   }
   saveRow(e, key,add) {
-    let envRegexp = /^[A-Za-z_]([A-Z0-9a-z_])*$/;
     e.persist();
     let flag = 0;
     if (this.clickedCancel) {
@@ -191,12 +219,12 @@ export default class EnvVariables extends PureComponent {
     const target = this.getRowByKey(key) || {};
     if(!target.source) target.source = 0;
     if (!target.name) {
-      message.error('请输入环境变量key值');
+      message.error('环境变量key未填写，请输入环境变量key值再保存');
       e.target.focus();
       return;
     }
     if (!target.value) {
-      message.error('请输入环境变量value');
+      message.error('环境变量value未填写，请输入环境变量value再保存');
       e.target.focus();
       return;
     }
@@ -222,12 +250,12 @@ export default class EnvVariables extends PureComponent {
         element.key = element.name;
         delete element.editable;
       });
-      console.log("afterenvconf",newData);
       this.props.afterenvconf(newData);
     }else{
       if(!add){
         this.editData(target,key);
       }else{
+        //console.log('target',target);
         this.addData(target);
       }
     }
@@ -253,26 +281,133 @@ export default class EnvVariables extends PureComponent {
     const {appCode,operationkey} = this.state;
     const newData = this.state.data.map(item => ({ ...item }));
     const target = this.getRowByKey(key, newData);
-    //console.log("restore",target);
     const params = {
       name:operationkey    
     };
+    this.setState({loading:true});
     resetEnv(appCode,operationkey,target.id,params).then(()=>{
       message.success('环境变量撤销修改成功');
+      this.loadData(appCode,operationkey);
+    }).catch(()=>{
+      message.error('环境变量撤销修改失败');
       this.loadData(appCode,operationkey);
     });
   }
   onRestartApp = ()=>{
     const {operationkey,appCode} = this.state;
-    //console.log("restart appcode",appCode);
     appStart(appCode).then(()=>{
       this.loadData(appCode,operationkey);
       message.success('应用重启成功！');
     });
   }
+  openModal = ()=>{
+    let textEnvs = '';
+    console.log('dataenvs',this.state.data);
+    this.state.data.forEach(element=>{
+      let value = element.value;
+      if(!value){
+        value = element.oldValue;
+      }
+      textEnvs += element.name+'='+value+'\n';
+    });  
+    this.setState({visibleModal:true,textEnvs});
+  }
+  checkEnvs = ()=>{
+    let tempEnvStr = this.state.textEnvs.split('\n');
+    let tempEnvs = [];
+    let flag = false;
+    tempEnvStr.forEach((element,index)=>{
+      if(element.trim()){
+        if(!flag && element.indexOf('=') > -1){
+          tempEnvs.push({
+            key: element.split('=')[0],
+            value: element.split('=')[1],
+            source: 0,
+            desc:'',
+            operateWay:'add'
+          })
+        }else if(!flag){
+          flag = true;
+          message.error(`文本域第${index+1}行的环境变量有错误，格式为：xxx=yyy，请重新填写`);
+        }
+        if(!flag && !envRegexp.test(element.split('=')[0])){
+          flag=true;
+          message.error('环境变量名称只能输入数字、字母、下划线,且必须以字母开头');
+        }
+      }
+    });
+    if(flag){
+      return true;
+    }
+    tempEnvs = tempEnvs.sort();
+    tempEnvs.forEach((element,index,envs)=>{
+      if(!flag && index<envs.length-1 && element.key === envs[index+1].key){
+        flag = true;
+        message.error(`文本域存在重复环境变量值${element.key}，请重新填写`);
+      }
+    });
+    if(flag){
+      return true;
+    }else{
+      return false;
+    }
+  }
+  handleModalOk = ()=>{
+    let newData = this.state.data.slice();
+    let flag = false;
+    flag = this.checkEnvs();
+    if(flag){
+      return;
+    }
+    let tempEnvStr = this.state.textEnvs.split('\n');
+    let tempEnvs = [];
+    tempEnvStr.forEach(element=>{
+      if(element.indexOf('=') > -1){
+        let tempEnv = newData.filter(item => item.name === element.split('=')[0].trim());
+        if(tempEnv.length > 0 ){
+          tempEnv[0].key = element.split('=')[0].trim();
+          tempEnv[0].value = element.split('=')[1].trim();
+          tempEnvs.push(tempEnv[0]);
+        }else{
+          tempEnvs.push({
+            key: element.split('=')[0].trim(),
+            name:element.split('=')[0].trim(),
+            value: element.split('=')[1].trim(),
+            source: 0,
+            desc:'',
+            operateWay:'add'
+          })
+        }
+      }
+    });
+    if(this.props.afterenvconf){
+      let newData = this.state.data.slice();
+      newData.forEach(element=>{
+        element.key = element.name;
+        delete element.editable;
+      });
+      tempEnvs.forEach(element=>{
+        newData.forEach((item,index,newData) =>{
+          if(element.key === item.key){
+            item.value = element.value;
+          }
+        })
+      });
+      tempEnvs.forEach(element =>{
+        if(newData.filter(item=> item.key ===element.key).length === 0){
+          newData.push(element);
+        }
+      });
+      this.setState({data:newData});
+      this.props.afterenvconf(newData);
+    }else{
+      this.batchAddData(tempEnvs);
+      //console.log('tempEnvs',tempEnvs);
+    }
+    this.setState({visibleModal:false});
+  }
   render() {
-    const { data,showWarning } = this.state;
-    //console.log("render11tsw111",showWarning);
+    const { data,showWarning,loading,visibleModal,textEnvs } = this.state;
     const columns = [{
       title: '键',
       dataIndex: 'name',
@@ -297,7 +432,7 @@ export default class EnvVariables extends PureComponent {
         if (record.editable) {
           return (
             <Input
-              value={record.value}
+              value={record.value} disabled={(!record.isNew && record.source !== '0')?true:false }
               onChange={e => this.handleFieldChange(e, 'value', record.key)}
               placeholder="值"
             />
@@ -335,7 +470,7 @@ export default class EnvVariables extends PureComponent {
         if (record.editable) {
           return (
             <Input
-              value={text}
+              value={text} disabled={(!record.isNew && record.source !== '0')?true:false }
               onChange={e => this.handleFieldChange(e, 'desc', record.key)}
               placeholder="描述"
             />
@@ -378,10 +513,14 @@ export default class EnvVariables extends PureComponent {
           return (
             <span>
               <a onClick={e => this.toggleEditable(e, record.key)}>编辑</a>
-              <Divider type="vertical" />
-              <Popconfirm title="是否要删除此行？" onConfirm={() => this.remove(record.key)}>
-                <a>删除</a>
-              </Popconfirm>
+              { (record.source === '0' || !record.source) ?
+                <span>
+                  <Divider type="vertical" />
+                  <Popconfirm title="是否要删除此行？" onConfirm={() => this.remove(record.key)}>
+                    <a>删除</a>
+                  </Popconfirm> 
+                </span>
+              :'' }
             </span>
           );
         }else if( statusMap[record.operateWay] === 'processing'){
@@ -390,10 +529,14 @@ export default class EnvVariables extends PureComponent {
               <a onClick={e => this.handleRestore(e,record.key)}>撤销</a>
               <Divider type="vertical" />
               <a onClick={e => this.toggleEditable(e, record.key)}>编辑</a>
-              <Divider type="vertical" />
-              <Popconfirm title="是否要删除此行？" onConfirm={() => this.remove(record.key)}>
-                <a>删除</a>
-              </Popconfirm>
+              { (record.source === '0' || !record.source) ?
+                <span>
+                  <Divider type="vertical" />
+                  <Popconfirm title="是否要删除此行？" onConfirm={() => this.remove(record.key)}>
+                    <a>删除</a>
+                  </Popconfirm> 
+                </span>
+              :'' }
             </span>
           );
         }else if( statusMap[record.operateWay] === 'error'){
@@ -404,39 +547,66 @@ export default class EnvVariables extends PureComponent {
           );
         }else{
           return (
-            <Popconfirm title="是否要删除此行？" onConfirm={() => this.remove(record.key)}>
-              <a>删除</a>
-            </Popconfirm>
+            <span>
+              { (record.source === '0' || !record.source) ?
+                <Popconfirm title="是否要删除此行？" onConfirm={() => this.remove(record.key)}>
+                  <a>删除</a>
+                </Popconfirm> 
+              :'' }
+            </span>
           )
         }
       },
     }];
     return (
       <div>
-        <div className="title111">环境变量</div>
+        <div className="card-title">环境变量</div>
         {
           !this.props.isAddApp && showWarning?
           <Alert
             message='环境变量改变了,是否重启应用?'
             description={<span><a onClick={this.onRestartApp}>保存并重启应用</a>{/* <Divider type="vertical" /><a>取消修改</a> */}</span>}
-            type="warning"
+            type="warning" style={{marginBottom:10}}
             showIcon
           />:null
         }
         <Table
           pagination={false}
+          loading={loading}
           dataSource={data} 
           columns={columns} 
           rowKey={record => record.key}
         />
-        <Button
-          style={{ width: '100%', marginTop: 16, marginBottom: 8 }}
-          type="dashed"
-          onClick={this.newMember}
-          icon="plus"
-        >
-          添加
-        </Button>
+        <Modal 
+          title="环境变量导入"
+          width={600}
+          visible={visibleModal}
+          onOk={this.handleModalOk} 
+          onCancel={()=>this.setState({visibleModal:false})} >
+          <TextArea rows={18} value={textEnvs} onChange={e => this.setState({textEnvs:e.target.value})} />
+        </Modal>
+          <Row gutter={16} >
+            <Col span={12} >
+            <Button
+              style={{ width: '100%', marginTop: 16, marginBottom: 8 }}
+              type="dashed"
+              onClick={this.newMember}
+              icon="plus"
+            >
+              添加
+            </Button>
+            </Col>
+            <Col span={12} >
+            <Button
+              style={{ width: '100%', marginTop: 16, marginBottom: 8 }}
+              type="dashed" 
+              onClick={this.openModal}
+              icon="download"
+            >
+              导入
+            </Button>
+            </Col>
+          </Row>
       </div>
     );
   }

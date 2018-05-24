@@ -72,7 +72,6 @@ export default class OrgModal extends Component{
         this.loadData(this.state.current,this.state.pageSize,this.state.name)
       })
     }
-    
   }
   render(){
     const columns=[

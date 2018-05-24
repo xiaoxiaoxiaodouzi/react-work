@@ -1,16 +1,19 @@
 import React, { Component } from "react";
-import { Modal, Row, Col, message, Checkbox, Button } from "antd";
-import OrgSelectTree from "./OrgSelectTree";
-import CategoryOrgSelect from "./CategoryOrgSelect";
+import { Modal, Row, message, Button, Tree, Tag } from "antd";
 import C2Fetch from "../../utils/Fetch";
-import QuickSearch from '../../utils/quickSearch';
+
+const TreeNode = Tree.TreeNode;
 
 class OrgSelectModal extends Component {
 
     static defaultProps = {
         title: '机构选择',
         mark: '目标机构',
-        defaultValue: []
+        defaultValue: [],
+        multiple: false,
+        checkableTopOrg: true,
+        checkableCategoryOrg: true,
+        checkableOrg: true 
     }
 
     constructor(props) {
@@ -18,25 +21,49 @@ class OrgSelectModal extends Component {
 
         this.state = {
             visible: false,
-            selectedValue: [],
-            categoryOrgs: [],
-            category: null,
-            orgs: []
+            dataSource: [],
+            selectedItems: [],
+            selectedKeys: [],
+            selectedValue: []
         }
 
-        this.defaultValue = props.defaultValue;
-        this.orgs = {};//已选二级机构
-        this.categoryOrgs = {};//缓存顶级分类机构
+        this.orgs = {};
+        this.selectedItem = {};
 
         this._onClick = this._onClick.bind(this);
         this._handleOk = this._handleOk.bind(this);
         this._handleCancel = this._handleCancel.bind(this);
-        this._onCategoryOrgChange = this._onCategoryOrgChange.bind(this);
-        this._onOrgChange = this._onOrgChange.bind(this);
+        this._onLoadData = this._onLoadData.bind(this);
+        this._onCheck = this._onCheck.bind(this);
+        this._onDelete = this._onDelete.bind(this);
+        this._onSelect = this._onSelect.bind(this);
     }
 
     componentWillReceiveProps(nextProps) {
 
+        if(nextProps.visible != null){
+            
+            var selectedValue = [];
+            var selectedKeys = [];
+            if (nextProps.defaultValue instanceof Array) {
+                for (var n = 0; n < nextProps.defaultValue.length; n++) {
+                    selectedValue.push(nextProps.defaultValue[n].id + "&&" + nextProps.defaultValue[n].categoryOrgId);
+                }
+            } else {
+                selectedKeys.push(nextProps.defaultValue)
+            }
+    
+            this.setState({
+                visible: nextProps.visible,
+                selectedItems: nextProps.defaultValue,
+                selectedKeys: selectedKeys,
+                selectedValue: selectedValue
+            });
+        }
+
+        if(this.props.visible === false && nextProps.visible === true){
+            this._pullData();
+        }
     }
     //****************************************************************** */
     //*******************************EVENT****************************** */
@@ -48,194 +75,280 @@ class OrgSelectModal extends Component {
             .then((response) => {
                 var topOrgs = response[0];
                 var categoryorgs = response[1];
-                var options = {}
                 var result = [];
                 for (var i = 0; i < topOrgs.length; i++) {
                     var topOrg = topOrgs[i];
+                    this.orgs[topOrg.id + "&&"] = topOrg;
                     var pid = topOrg.id;
+                    var children = [];
                     for (var n = 0; n < categoryorgs.length; n++) {
                         var categoryorg = categoryorgs[n];
-                        if (categoryorg.pid == pid) {
+                        if (categoryorg.pid === pid) {
                             var option = {
                                 id: categoryorg.id,
-                                pid: pid,
+                                categoryOrgId: categoryorg.id,
+                                pid: 0,
                                 orgType: categoryorg.orgType,
                                 userType: categoryorg.userType,
-                                name: topOrg.name + '-' + categoryorg.name,
+                                name: categoryorg.name,
                                 topOrgName: topOrg.name,
+                                disabled: !this.props.checkableCategoryOrg,
                                 categoryOrgName: categoryorg.name
                             }
-                            result.push(option);
-                            options[categoryorg.id] = option;
+                            this.orgs[option.id + "&&" + option.categoryOrgId] = option;
+                            children.push(option);
                         }
                     }
+                    topOrg.disabled = !this.props.checkableTopOrg;
+                    if (children.length > 0) {
+                        topOrg.children = children;
+                        result.push(topOrg)
+                    }
                 }
-                this.categoryOrgs = options;
                 this.setState({
-                    categoryOrgs: result
+                    dataSource: result
                 })
             })
             .catch((e) => {
             })
     }
 
-    _onClick() {
-        this._pullData();
-        var orgs = {};
-        this.defaultValue = this.props.defaultValue;
-        for (var n = 0; n < this.defaultValue.length; n++) {
-            var defaultOrg = this.defaultValue[n];
-            var categoryOrg = orgs[defaultOrg.categoryOrgId];
-            if (categoryOrg == null) {
-                if(defaultOrg.categoryOrgId == defaultOrg.orgId){
-                    orgs[defaultOrg.categoryOrgId] = { id: defaultOrg.categoryOrgId, name: defaultOrg.categoryOrgName, children: [], selectedValue: [],selected:true };
-                }else{
-                    orgs[defaultOrg.categoryOrgId] = { id: defaultOrg.categoryOrgId, name: defaultOrg.categoryOrgName, children: [{ id: defaultOrg.orgId, name: defaultOrg.name }], selectedValue: [defaultOrg.orgId],selected:false };
-                }
-            } else {
-                categoryOrg.children.push({ id: defaultOrg.orgId, name: defaultOrg.name })
-                categoryOrg.selectedValue.push(defaultOrg.orgId)
+
+    _onLoadData(treeNode) {
+        var th = this;
+        return new Promise((resolve) => {
+            if (treeNode.props.dataRef.categoryOrgId == null) {
+                resolve();
+                return;
+            }
+
+            if (treeNode.props.dataRef.children != null) {
+                resolve();
+                return;
+            }
+
+            var categoryId = treeNode.props.dataRef.categoryOrgId;
+            var orgId = treeNode.props.dataRef.id === treeNode.props.dataRef.categoryOrgId ? 0 : treeNode.props.dataRef.id;
+
+            C2Fetch.get(`proxy/uop/v1/orgs/${orgId}/children`, { categoryId: categoryId }, "获取机构数据出错！")
+                .then((orgs) => {
+                    orgs.forEach((element) => {
+                        element.categoryOrgName = treeNode.props.dataRef.categoryOrgName;
+                        //第一段处理分类机构下获取子机构，第二段处理机构下获取子机构
+                        element.disabled = treeNode.props.dataRef.id === treeNode.props.dataRef.categoryOrgId ? !th.props.checkableOrg || treeNode.props.checked || false : !th.props.checkableOrg || treeNode.props.dataRef.disabled || treeNode.props.checked || false;
+                        this.orgs[element.id + "&&" + element.categoryOrgId] = element;
+                    })
+                    treeNode.props.dataRef.children = orgs;
+                    th.setState({
+                        dataSource: [...th.state.dataSource]
+                    })
+                    resolve();
+                })
+                .catch((e) => {
+                    resolve();
+                });
+        })
+    }
+
+    _disableNodeChild(child, disabled) {
+        if (child === null || child.length === 0) {
+            return;
+        }
+        for (var n = 0; n < child.length; n++) {
+            child[n].disabled = disabled;
+            if (child[n].checked === null || child[n].checked === false) {
+                this._disableNodeChild(child[n].children, disabled);
             }
         }
-        this.orgs = orgs;
-        this.setState({ visible: true });
+    }
+
+    _onCheck(checkedKeys, e) {
+        // var checkedNodes = e.checkedNodes;
+        var filterNodes = [];
+        var isAdd = true;
+        for (var n = 0; n < this.state.selectedItems.length; n++) {
+            if (e.node.props.dataRef.id + "&&" + e.node.props.dataRef.categoryOrgId === this.state.selectedItems[n].id + "&&" + this.state.selectedItems[n].categoryOrgId) {
+                isAdd = false;
+                continue
+            }
+            filterNodes.push(this.state.selectedItems[n]);
+        }
+
+        e.node.props.dataRef.checked = e.checked;
+
+        if (isAdd) {
+            filterNodes.push(e.node.props.dataRef);
+            this._disableNodeChild(e.node.props.dataRef.children, true)
+        } else {
+            this._disableNodeChild(e.node.props.dataRef.children, false)
+        }
+
+        var selectedItems = filterNodes;
+
+        this.setState({
+            selectedValue: checkedKeys.checked,
+            selectedItems: selectedItems,
+            dataSource: [...this.state.dataSource]
+        });
+    }
+
+    _onDelete(element) {
+        var checkedKeys = [];
+        this.state.selectedValue.forEach((value) => {
+            if (value !== element.id + "&&" + element.categoryOrgId) {
+                checkedKeys.push(value)
+            }
+        })
+        var selectedItems = [];
+        this.state.selectedItems.forEach((value) => {
+            if (value.id + "&&" + value.categoryOrgId !== element.id + "&&" + element.categoryOrgId) {
+                selectedItems.push(this.orgs[value.id + "&&" + value.categoryOrgId] || value)
+            }
+        })
+
+        this._disableNodeChild((this.orgs[element.id + "&&" + element.categoryOrgId] || element).children, false)
+
+        this.setState({
+            selectedValue: checkedKeys,
+            selectedItems: selectedItems
+        })
+    }
+
+    _onClick() {
+        this._pullData();
+        var selectedValue = [];
+        var selectedKeys = [];
+        if (this.props.defaultValue instanceof Array) {
+            for (var n = 0; n < this.props.defaultValue.length; n++) {
+                selectedValue.push(this.props.defaultValue[n].id + "&&" + this.props.defaultValue[n].categoryOrgId);
+            }
+        } else {
+            selectedKeys.push(this.props.defaultValue)
+        }
+
+        this.setState({
+            visible: true,
+            selectedItems: this.props.defaultValue,
+            selectedKeys: selectedKeys,
+            selectedValue: selectedValue
+        });
+    }
+
+    _onSelect(selectedKeys, e) {
+        if (!this.props.multiple) {
+            this.selectedItem = e.node.props.dataRef;
+            this.setState({
+                selectedKeys: [e.node.props.dataRef.id + "&&" + e.node.props.dataRef.categoryOrgId]
+            })
+        }
     }
 
     _handleOk() {
+        if (this.state.selectedItems.length > 0 || this.state.selectedKeys.length > 0) {
 
-        if (this.orgs != null) {
-            var result = [];
-            for (const key in this.orgs) {
-                var org = this.orgs[key];
-                if (org != null) {
-                    if (org.selected == true) {//分类机构选中
-                        result.push({ categoryOrgId: org.id, categoryOrgName: org.name, id: org.id, name: org.name });
-                    } else if (org.children != null) {//分类机构未选中,机构选中
-                        var children = org.children;
-                        children.forEach(element => {
-                            result.push({ categoryOrgId: org.id, categoryOrgName: org.name, id: element.id, name: element.name });
-                        });
+            if (this.props.multiple) {
+                var selectedItems = [];
+                this.state.selectedItems.forEach((element) => {
+                    if (!element.disabled) {
+                        selectedItems.push(element)
                     }
-
-                }
+                })
+                this.props.onOk && (this.props.onOk(selectedItems));
+            } else {
+                this.props.onOk && (this.props.onOk(this.selectedItem));
             }
-            this.props.onOk && this.props.onOk(result);
 
-            this.setState({
-                visible: false,
-                selectedValue: [],
-                category: null,
-                orgs: []
-            });
-            this.orgs = {};
 
+            if (this.props.visible == null) {
+                this.setState({
+                    visible: false,
+                    selectedValue: [],
+                    selectedItems: []
+                });
+            } else {
+                this.setState({
+                    selectedValue: [],
+                    selectedItems: []
+                });
+            }
         } else {
             message.warning('请选择机构');
         }
     }
 
     _handleCancel() {
-
-        this.setState({
-            visible: false,
-            selectedValue: [],
-            category: null,
-            orgs: []
-        });
-
-        this.orgs = {};
-    }
-
-    getChildNode(orgs, pid) {
-        var childNode = QuickSearch.query(orgs, ['pid', '==', pid])
-        if (childNode.length > 0) {
-            for (var n = 0; n < childNode.length; n++) {
-                var result = this.getChildNode(orgs, childNode[n].id);
-                if (result != null) {
-                    childNode[n].children = result;
-                }
-            }
-            return childNode;
-        } else {
-            return null
+        if(this.props.visible == null){
+            this.setState({
+                visible: false,
+                selectedValue: [],
+            });
+        }else{
+            this.props.onCancel && this.props.onCancel()
         }
-
     }
 
-    _onCategoryOrgChange(id) {
-        var categoryOrg = this.categoryOrgs[id];
-        if(this.orgs[id] == null){
-            this.orgs[id] = { id: id, name: categoryOrg.categoryOrgName, children: [], selectedValue: [], selected: false };
-        }
-        C2Fetch.get(`proxy/uop/v1/orgs/0/children`, { cascade: true, categoryId: categoryOrg.id }, "获取机构数据出错！")
-            .then((orgs) => {
-                var tmp = {};
-                var topNode = QuickSearch.query(orgs, ['pid', '==', categoryOrg.id])
-                for (var n = 0; n < topNode.length; n++) {
-                    topNode[n].children = this.getChildNode(orgs, topNode[n].id);
-                }
-                this.setState({
-                    category: categoryOrg,
-                    orgs: topNode,
-                    selectedValue: this.orgs[id] && this.orgs[id].selectedValue || []
-                })
-            })
-            .catch((e) => { });
-    }
-
-    _onOrgChange(value, label, extra) {
-        var children = [];
-        for (var n = 0; n < value.length; n++) {
-            children.push({ id: value[n], name: label[n] });
-        }
-        var categoryOrgId = this.state.category.id;
-        this.orgs[categoryOrgId] = { id: categoryOrgId, name: this.categoryOrgs[categoryOrgId].categoryOrgName, children: children, selectedValue: value ,selected:false};
-        this.setState({
-            selectedValue: value
-        })
-    }
     //****************************************************************** */
     //*********************************UI******************************* */
     //****************************************************************** */
+    renderTreeNode(data) {
+        var tempDom = [];
+        var th = this;
+        data.forEach((item) => {
+            if (item.children instanceof Array) {
+                tempDom.push(
+                    <TreeNode disableCheckbox={item.disabled} disabled={this.props.multiple ? false : item.disabled} title={item.name} key={item.id + "&&" + item.categoryOrgId} value={item.id + "&&" + item.categoryOrgId} dataRef={item}>
+                        {th.renderTreeNode(item.children)}
+                    </TreeNode>
+                )
+            } else {
+                tempDom.push(<TreeNode disableCheckbox={item.disabled} disabled={this.props.multiple ? false : item.disabled} title={item.name} key={item.id + "&&" + item.categoryOrgId} value={item.id + "&&" + item.categoryOrgId} dataRef={item} />);
+            }
+        });
+        return tempDom;
+    }
+
     render() {
 
         var dom = null;
-        if (this.props.renderButton) {
-            dom = this.props.renderButton()
-        } else {
-            dom = '修改';
+        if (this.props.visible == null) {
+            if (this.props.renderButton) {
+                dom = (<a onClick={this._onClick}>{this.props.renderButton()}</a>)
+            } else {
+                dom = (<a onClick={this._onClick}>修改</a>);
+            }
         }
+
         return (
             <div>
-                <a onClick={this._onClick}>{dom}</a>
+                {dom}
                 <Modal title={this.props.title} key={this.props.newkey}
-                    visible={this.state.visible}
-                    onCancel={() => { this.setState({ visible: false }) }}
+                    visible={this.props.visible == null ? this.state.visible : this.props.visible}
+                    onCancel={() => { this.props.visible != null ? this.props.onCancel && this.props.onCancel() : this.setState({ visible: false }) }}
                     maskClosable={false}
+                    destroyOnClose={true}
                     footer={[
                         <Button key='cancel' onClick={this._handleCancel}>取消</Button>,
                         <Button key='submit' loading={this.state.loading} type="primary" onClick={this._handleOk}>确定</Button>
                     ]}>
-                    <Row type="flex" align="middle" className="search-result-list">
-                        <Col style={{ paddingRight: 5 }}><label>{this.props.mark}:</label></Col>
-                        <Col>
-                            <CategoryOrgSelect
-                                style={{ width: 195 }}
-                                dataSource={this.state.categoryOrgs}
-                                onChange={this._onCategoryOrgChange}
-                            />
-                        </Col>
-                        <Col>
-                            <OrgSelectTree
-                                disabled={this.state.category && this.orgs[this.state.category.id].selected}
-                                mode={'multiple'}
-                                style={{ width: 195, marginLeft: 16 }}
-                                value={this.state.selectedValue}
-                                dataSource={this.state.orgs}
-                                categoryId={this.state.category && this.state.category.id}
-                                onChange={this._onOrgChange}
-                            />
-                        </Col>
+                    <Row type="flex" align="middle">
+                        {!this.props.multiple ? null : this.state.selectedItems.map((element) => {
+                            if (element.disabled === true) {
+                                return null;
+                            }
+                            return <Tag closable key={element.id + "&&" + element.categoryOrgId} onClose={() => this._onDelete(element)} style={{ marginTop: 10 }}>{element.name}</Tag>
+                        })}
+                    </Row>
+                    <Row type="flex" align="middle">
+                        <Tree
+                            loadData={this._onLoadData}
+                            checkStrictly={true}
+                            checkable={this.props.multiple}
+                            onCheck={this._onCheck}
+                            onSelect={this._onSelect}
+                            selectedKeys={this.state.selectedKeys}
+                            checkedKeys={this.state.selectedValue}>
+                            {this.renderTreeNode(this.state.dataSource)}
+                        </Tree>
                     </Row>
                 </Modal>
             </div>

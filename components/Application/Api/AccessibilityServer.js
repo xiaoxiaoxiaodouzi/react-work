@@ -1,9 +1,12 @@
 import React, { Fragment } from 'react';
-import { Row, Col, Input, Button, Alert, Table, Select } from 'antd';
+import { Row, Col, Input, Button, Alert, Table, Select,Modal } from 'antd';
 import Ellipsis from 'ant-design-pro/lib/Ellipsis'
 import ServerManager from './ServerManager';
 import { getAccessibilityServicesApis, addAuthorizedServicesApis, removeAuthorizedServicesApis, removeServicesApis } from '../../../services/api'
+import constants from '../../../services/constants';
 
+const confirm = Modal.confirm;
+// const RadioGroup = Radio.Group;
 const OPTIONS = [
     'GET',
     'POST',
@@ -23,14 +26,22 @@ const METHOD_COLORS = {
     "HEAD": "",
     "OPTIONS": "",
 }
-
+// const isOpenList = [{
+//     key:'0',name:'所有服务'
+//   },{
+//     key:'1',name:'普通服务'
+//   },{
+//     key:'2',name:'公开服务'
+//   }];
 export default class ProvidedServices extends React.Component {
 
     constructor(props) {
         super(props);
 
         this.state = {
+            loading:false,
             dataSource: [],
+            isOpen:'0',
             selectedRowKeys: [],
             searchText: null,
             filterMethod: null,
@@ -53,33 +64,33 @@ export default class ProvidedServices extends React.Component {
     //**************************************************************************** */
     //************************************EVENT*********************************** */
     //**************************************************************************** */
-    _pullData(appId, page, rows, condition) {
+    _pullData(appId, page, rows) {
 
         this.page = page;
         this.rows = rows;
-
-        if (condition != null) {
-            var condition = {};
-            if (this.state.searchText != null) {
-                condition.nameorurl = this.state.searchText;
-            }
-            if (this.state.filterMethod != null) {
-                condition.method = this.state.filterMethod;
-            }
+        let condition = {};
+        if (this.state.searchText != null) {
+            condition.nameorurl = this.state.searchText;
         }
-
+        if (this.state.filterMethod != null) {
+            condition.method = this.state.filterMethod;
+        }
+        this.setState({loading:true});
         getAccessibilityServicesApis(appId, page, rows, condition)
             .then((response) => {
-                var dataSource = [];
-                var contents = response.contents;
+                let dataSource = [];
+                let contents = response.contents;
                 contents.forEach(element => {
                     dataSource.push(element.service);
                 });
-                var pagination = { current: response.pageIndex, total: response.total, pageSize: response.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, };
+                let pagination = { current: response.pageIndex, total: response.total, pageSize: response.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, };
                 this.setState({
                     dataSource: dataSource,
-                    pagination: pagination
+                    pagination: pagination,
+                    loading:false
                 })
+            }).catch(()=>{
+                this.setState({loading:false});
             })
     }
 
@@ -97,15 +108,26 @@ export default class ProvidedServices extends React.Component {
                 )
             }
         }, {
-            title: '路径',
-            dataIndex: 'uri',
-            key: 'uri',
-            width: '35%',
+            title: '方法',
+            dataIndex: 'methods',
+            key: 'methods',
+            width: '10%',
             render: (text, record) => {
                 return (
                     <Row>
-                        <Col span={5} style={{ color: METHOD_COLORS[record.methods] }}>{record.methods}</Col>
-                        <Col span={19}><Ellipsis style={{ margingLeft: 5 }} lines={1} tooltip={true}>{text}</Ellipsis></Col>
+                        <Col style={{ color: METHOD_COLORS[record.methods] }}>{record.methods}</Col>
+                    </Row>
+                )
+            }
+        }, {
+            title: '路径',
+            dataIndex: 'uri',
+            key: 'uri',
+            width: '25%',
+            render: (text, record) => {
+                return (
+                    <Row>
+                        <Col><Ellipsis style={{ margingLeft: 5 }} lines={1} tooltip={true}>{text}</Ellipsis></Col>
                     </Row>
                 )
             }
@@ -117,7 +139,7 @@ export default class ProvidedServices extends React.Component {
             render: (text, record) => {
                 return (
                     <Row type={'flex'} justify="center">
-                        <Col>{text == '1' ? '普通' : text == '2' ? '公开' : '私有'}</Col>
+                        <Col>{text === '1' ? '普通' : text === '2' ? '公开' : '私有'}</Col>
                     </Row>
                 )
             }
@@ -140,9 +162,7 @@ export default class ProvidedServices extends React.Component {
             width: '147px',
             render: (text, record) => {
                 return (
-                    <div>
-                        <a style={{ marginLeft: 10 }}>文档调试</a>
-                    </div>
+                    <a href={`${constants.SWAGGER_URL}?group=${record.groupId}&id=${record.id}`} target="_blank">文档调试</a>
                 )
             }
         }];
@@ -161,20 +181,19 @@ export default class ProvidedServices extends React.Component {
     }
 
     _search() {
-        this._pullData(this.props.appId, this.page, this.rows, {})
+        this._pullData(this.props.appId, this.page, this.rows)
     }
 
     _clear() {
-        this._pullData(this.props.appId, this.page, this.rows)
         this.setState({
             filterMethod: null,
             searchText: null
-        })
+        },()=>this._pullData(this.props.appId, this.page, this.rows))
     }
 
     //新增授权
     _addServerApis(apiIds = []) {
-        var appIdsStr = '';
+        let appIdsStr = '';
         apiIds.forEach((element, index, arrays) => {
             appIdsStr += element;
             if (index < arrays.length - 1) {
@@ -183,19 +202,19 @@ export default class ProvidedServices extends React.Component {
         });
         addAuthorizedServicesApis(this.props.appId, appIdsStr)
             .then((response) => {
-                this._pullData(this.props.appId, this.page, this.rows, {})
+                this._pullData(this.props.appId, this.page, this.rows)
             })
 
     }
 
     //移除授权
     _removeServerApis() {
-        var apiIds = this.state.selectedRowKeys;
+        let apiIds = this.state.selectedRowKeys;
 
         if (apiIds.length < 1) {
             return
         }
-        var appIdsStr = '';
+        let appIdsStr = '';
         apiIds.forEach((element, index, arrays) => {
             appIdsStr += element;
             if (index < arrays.length - 1) {
@@ -207,7 +226,7 @@ export default class ProvidedServices extends React.Component {
                 this.setState({
                     selectedRowKeys: []
                 })
-                this._pullData(this.props.appId, this.page, this.rows, {})
+                this._pullData(this.props.appId, this.page, this.rows)
             })
 
     }
@@ -221,24 +240,24 @@ export default class ProvidedServices extends React.Component {
             selectedRowKeys: this.state.selectedRowKeys,
             onSelect: (record, selected, selectedRows, nativeEvent) => {
                 if (selected) {
-                    var isExist = false;
-                    for (var n = 0; n < this.state.selectedRowKeys.length; n++) {
-                        if (record.id == this.state.selectedRowKeys[n]) {
+                    let isExist = false;
+                    for (let n = 0; n < this.state.selectedRowKeys.length; n++) {
+                        if (record.id === this.state.selectedRowKeys[n]) {
                             isExist = true;
                         }
                     }
                     if (isExist) {
                         return;
                     }
-                    var selectedRowKeys = this.state.selectedRowKeys.slice();
+                    let selectedRowKeys = this.state.selectedRowKeys.slice();
                     selectedRowKeys.push(record.id)
                     this.setState({
                         selectedRowKeys: selectedRowKeys
                     })
                 } else {
-                    var rowsKeys = [];
-                    for (var n = 0; n < this.state.selectedRowKeys.length; n++) {
-                        if (record.id != this.state.selectedRowKeys[n]) {
+                    let rowsKeys = [];
+                    for (let n = 0; n < this.state.selectedRowKeys.length; n++) {
+                        if (record.id !== this.state.selectedRowKeys[n]) {
                             rowsKeys.push(this.state.selectedRowKeys[n]);
                         }
                     }
@@ -248,30 +267,30 @@ export default class ProvidedServices extends React.Component {
                 }
             },
             onSelectAll: (selected, selectedRows, changeRows) => {
-                var rowKeys = [];
+                let rowKeys = [];
                 if (selected) {
                     rowKeys = this.state.selectedRowKeys.slice();
-                    for (var n = 0; n < selectedRows.length; n++) {
-                        var newSelected = selectedRows[n];
-                        for (var i = 0; i < this.state.selectedRowKeys.length; i++) {
-                            if (this.state.selectedRowKeys[i] == selectedRows[n].id) {
+                    for (let n = 0; n < selectedRows.length; n++) {
+                        let newSelected = selectedRows[n];
+                        for (let i = 0; i < this.state.selectedRowKeys.length; i++) {
+                            if (this.state.selectedRowKeys[i] === selectedRows[n].id) {
                                 newSelected = null
                                 break;
                             }
                         }
-                        if (newSelected != null) {
+                        if (newSelected) {
                             rowKeys.push(newSelected.id);
                         }
                     }
                 } else {
-                    for (var n = 0; n < this.state.selectedRowKeys.length; n++) {
-                        var newSelected = null;
-                        for (var i = 0; i < changeRows.length; i++) {
-                            if (this.state.selectedRowKeys[n] == changeRows[i].id) {
+                    for (let n = 0; n < this.state.selectedRowKeys.length; n++) {
+                        let newSelected = null;
+                        for (let i = 0; i < changeRows.length; i++) {
+                            if (this.state.selectedRowKeys[n] === changeRows[i].id) {
                                 newSelected = this.state.selectedRowKeys[n];
                             }
                         }
-                        if (newSelected == null) {
+                        if (!newSelected) {
                             rowKeys.push(this.state.selectedRowKeys[n])
                         }
                     }
@@ -284,7 +303,19 @@ export default class ProvidedServices extends React.Component {
         }
         return obj;
     };
-
+    showDeleteConfirms = ()=> {
+        confirm({
+          title: '是否删除选中服务?',
+          okText: '删除',
+          okType: 'danger',
+          cancelText: '取消',
+          onOk:()=> {
+            this._removeServerApis()
+          },
+          onCancel:()=> {
+          },
+        });
+    }
     render() {
         return (
             <div>
@@ -296,11 +327,11 @@ export default class ProvidedServices extends React.Component {
                     </Col>
                     <Col span={10}>
                         <Row type={'flex'} align={'middle'}>
-                            <Col span={4}>Method:</Col>
+                            <Col span={4}>服务方法:</Col>
                             <Col span={18}>
                                 <Select style={{ width: '100%' }} value={this.state.filterMethod} onSelect={(value) => { this.setState({ filterMethod: value }) }} placeholder={'请选择'}>
-                                    {OPTIONS.map((element) => {
-                                        return (<Select.Option value={element}>{element}</Select.Option>)
+                                    {OPTIONS.map((element,index) => {
+                                        return (<Select.Option key={index} value={element}>{element}</Select.Option>)
                                     })}
                                 </Select>
                             </Col>
@@ -309,16 +340,37 @@ export default class ProvidedServices extends React.Component {
                     <Col>
                         <Row type={'flex'} justify="end">
                             <Col><Button type="primary" onClick={() => this._search()}>查询</Button></Col>
-                            <Col><Button style={{ marginLeft: 10 }} onClick={() => this._clear()}>重置</Button></Col>
+                            <Col><Button style={{ marginLeft: 8 }} onClick={() => this._clear()}>重置</Button></Col>
                         </Row>
                     </Col>
                 </Row>
-                <Row type={'flex'} style={{ paddingTop: 20, paddingBottom: 20 }}>
+                <Row type={'flex'} style={{ paddingTop: 16, paddingBottom: 16 }}>
                     <ServerManager appId={this.props.appId} apiKey={this.props.apiKey} onChange={this._addServerApis} />
-                    <Button onClick={() => { this._removeServerApis() }} style={{ marginLeft: 10, marginRight: 10 }}>删除</Button>
+                    <Button onClick={() => { this.showDeleteConfirms() }} style={{ marginLeft: 8, marginRight: 8 }}>删除</Button>
+                    {/* <Button onClick={() => this.setState({visibleFile:true}) }>文档调试</Button>
+                    <Modal
+                        title="文档预览"
+                        okText='预览'
+                        visible={this.state.visibleFile}
+                        onOk={()=>{
+                            this.setState({visibleFile:false});
+                            window.open(`${constants.SWAGGER_URL}?group=${this.props.appId}&visibility=${this.state.isOpen}`,'_blank');
+                        }}
+                        onCancel={ () => this.setState({visibleFile:false}) }
+                        >
+                        <Row type={'flex'} align='middle'>
+                            <Col span={4}>服务类型:</Col><Col span={18}>
+                            <RadioGroup value={this.state.isOpen} onChange={(e)=>this.setState({isOpen:e.target.value})}>
+                                {isOpenList.map((element,index)=> {
+                                    return <Radio key={index} value={element.key}>{element.name}</Radio>
+                                })}
+                            </RadioGroup>
+                            </Col>
+                        </Row>
+                    </Modal> */}
                 </Row>
                 <Alert
-                    style={{ marginBottom: 10 }}
+                    style={{ marginBottom: 8 }}
                     message={(
                         <Fragment>
                             已选择 <a style={{ fontWeight: 600 }}>{this.state.selectedRowKeys.length}</a> 项&nbsp;&nbsp;
@@ -330,6 +382,7 @@ export default class ProvidedServices extends React.Component {
                 />
                 <Table
                     rowKey="id"
+                    loading={this.state.loading}
                     rowSelection={this.rowSelection()}
                     dataSource={this.state.dataSource}
                     pagination={this.state.pagination}

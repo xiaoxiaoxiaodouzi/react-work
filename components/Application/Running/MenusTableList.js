@@ -1,7 +1,8 @@
 import React,{Fragment,Component} from 'react'
 import TreeHelp from './../../../utils/TreeHelp'
-import {Table,Divider,Select,Input,message,Modal,Form,Button} from 'antd'
+import { Table, Divider, Select, Input, message, Modal, Form, Button, Icon} from 'antd'
 import {getMenuTrees,updateMenus,deleteMenuById,addMenus} from '../../../services/menus'
+import IconSelectModal from '../../../common/IconSelectModal'
 
 const confirm = Modal.confirm;
 const Option = Select.Option;
@@ -19,7 +20,7 @@ class MenusTableListForm extends Component{
     icon:'',
     tempName:'',
     tempTarget:'',
-    tempUrl:''
+    tempUrl:'',
   }
 
   //初始化状态
@@ -82,6 +83,7 @@ class MenusTableListForm extends Component{
     this.setState({
       visible:true,
       id:record.id,
+      icon:record.icon,
     })
   }
   showDeleteConfirm=(e,record)=> {
@@ -140,6 +142,7 @@ class MenusTableListForm extends Component{
               visible:false,
               options:datas,
             })
+            this.initState();
           })
         })
       }else{
@@ -153,10 +156,21 @@ class MenusTableListForm extends Component{
               visible:false,
               options:datas,
             })
+            this.initState();
           })
         })
       }
-      this.initState();
+      
+    })
+  }
+
+  selectIcon=(icon)=>{
+    const form = this.props.form;
+    form.setFieldsValue({
+      icon:icon
+    })
+    this.setState({
+      icon:icon,
     })
   }
 
@@ -269,7 +283,7 @@ class MenusTableListForm extends Component{
               <FormItem {...formItemLayout} label="图标"
               >
                   {getFieldDecorator('icon')(
-                      <Input></Input>
+                <Input addonAfter={<IconSelectModal renderButton={<Icon type={this.state.icon ? this.state.icon:'setting'}/>} selectIcon={(icon) => this.selectIcon(icon)}/>} />  
                   )}
               </FormItem>
             </Form>

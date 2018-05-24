@@ -1,0 +1,10 @@
+.ant-card-meta-description {
+    position: relative;
+    text-overflow: ellipsis;
+    display: inherit;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    height: 80px;
+    line-height: 22px;
+    overflow: hidden;
+}

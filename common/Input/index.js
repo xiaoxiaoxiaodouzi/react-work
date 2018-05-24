@@ -1,8 +1,7 @@
-'use strict'
-
 import React from 'react';
 
-import { Row, Col, Button, Input, Dropdown, Menu, Tooltip } from 'antd';
+import { Row, Col, Button, Input, Dropdown, Menu, Tooltip, message } from 'antd';
+import Ellipsis from 'ant-design-pro/lib/Ellipsis';
 
 const CONTENT_CONTAINER_HEIGHT = 32;
 const DESCRIPTION_CONTAINER_HEIGHT = 18;
@@ -52,13 +51,17 @@ export default class EditContainer extends React.PureComponent {
     }
 
     _onCommit() {
-        if (this.value == null) {
+        if (!this.value) {
             this.setState({ editing: false })
             return;
         }
-        if (this.value == '' && this.props.rule && this.props.rule.required) {
+        if (!this.value && this.props.rule && this.props.rule.required) {
             this.message = "值不能为空";
             this.setState({ tipVisible: true });
+            return;
+        }
+        if (this.props.length && this.value.length > this.props.length) {
+            message.warn(`请将内容缩减至${this.props.length}以内,当前${this.value.length}字`);
             return;
         }
         this.props.onChange && this.props.onChange(this.value)
@@ -84,7 +87,7 @@ export default class EditContainer extends React.PureComponent {
             case 'Dictionary':
                 var title = '';
                 this.state.options.forEach((item) => {
-                    if (this.state.value == item.value) {
+                    if (this.state.value === item.value) {
                         title = item.name;
                     }
                 })
@@ -113,7 +116,7 @@ export default class EditContainer extends React.PureComponent {
                 dom = (
                     <Col type={'flex'} >
                         <Col span={24}>
-                            <Input.TextArea row={1} defaultValue={this.state.value} onChange={(event) => { this._onChangeProperty(event.target.value) }} />
+                            <Input.TextArea autosize={{ minRows: 1, maxRows: 3 }} defaultValue={this.state.value} onChange={(event) => { this._onChangeProperty(event.target.value) }} />
                         </Col>
                         <Col span={24} style={{ marginTop: 10 }} >
                             <Row type={'flex'} justify="end">
@@ -126,9 +129,9 @@ export default class EditContainer extends React.PureComponent {
                 break;
             default:
                 dom = (
-                    <Row type={'flex'} >
+                    <Row type={'flex'}>
                         <Col>
-                            <Input defaultValue={this.state.value} onChange={(event) => { this._onChangeProperty(event.target.value) }} />
+                            <Input defaultValue={this.state.value} onChange={(event) => { this._onChangeProperty(event.target.value) }} style={{ width: this.props.inputWidth || 172 }} />
                         </Col>
                         <Col>
                             <Button type="primary" style={{ marginLeft: 10 }} onClick={() => { this._onCommit() }} >保存</Button>
@@ -144,9 +147,9 @@ export default class EditContainer extends React.PureComponent {
     //渲染非编辑模式
     renderContent() {
         var dom
-        if (this.state.dataType == 'Dictionary') {
+        if (this.state.dataType === 'Dictionary') {
             this.state.options.forEach((item) => {
-                if (this.state.value == item.value) {
+                if (this.state.value === item.value) {
                     dom.push(
                         <Col style={{ height: CONTENT_CONTAINER_HEIGHT }}>
                             {item.name}
@@ -184,10 +187,10 @@ export default class EditContainer extends React.PureComponent {
             }
         } else {
             //不可编辑状态
-            if (this.state.dataType == 'Dictionary') {
+            if (this.state.dataType === 'Dictionary') {
                 //下拉菜单显示文字类型
                 this.state.options.forEach((item) => {
-                    if (this.state.value == item.value) {
+                    if (this.state.value === item.value) {
                         dom.push(
                             <Button style={{ height: CONTENT_CONTAINER_HEIGHT }}>
                                 {item.name}
@@ -197,15 +200,25 @@ export default class EditContainer extends React.PureComponent {
                 })
             } else {
                 //普通显示文字类型
-                dom.push(
-                    <a key={Math.random()} onClick={() => { this.setState({ editing: true }) }}>
-                        <Tooltip title={'点击编辑'}>
-                            <div style={{ height: CONTENT_CONTAINER_HEIGHT }}>
-                                <p style={{ color: 'rgba(0, 0, 0, 0.85)' }}>{this.state.value || this.props.defaultNullValue}</p>
-                            </div>
-                        </Tooltip>
-                    </a>
-                )
+                if (this.state.dataType === 'TextArea') {
+                    dom.push(
+                        <a key={Math.random()} onClick={() => { this.setState({ editing: true }) }}>
+                            <Tooltip placement='topLeft' title={this.state.value || this.props.defaultNullValue}>
+                                <Ellipsis lines={3} style={{ color: 'rgba(0, 0, 0, 0.85)' }}>{this.state.value || this.props.defaultNullValue}</Ellipsis>
+                            </Tooltip>
+                        </a>
+                    )
+                } else {
+                    dom.push(
+                        <a key={Math.random()} onClick={() => { this.setState({ editing: true }) }}>
+                            <Tooltip placement='topLeft' title={'点击编辑'}>
+                                <div style={{ height: CONTENT_CONTAINER_HEIGHT }}>
+                                    <p style={{ color: 'rgba(0, 0, 0, 0.85)' }}>{this.state.value || this.props.defaultNullValue}</p>
+                                </div>
+                            </Tooltip>
+                        </a>
+                    )
+                }
             }
             if (this.props.rule && this.props.rule.message) {
                 dom.push(
@@ -233,9 +246,9 @@ export default class EditContainer extends React.PureComponent {
             }
         } else {
             //不可编辑状态
-            if (this.state.dataType == 'Dictionary') {
+            if (this.state.dataType === 'Dictionary') {
                 this.state.options.forEach((item) => {
-                    if (this.state.value == item.value) {
+                    if (this.state.value === item.value) {
                         dom.push(
                             <Col style={{ height: CONTENT_CONTAINER_HEIGHT }}>
                                 {item.name}
@@ -275,7 +288,7 @@ export default class EditContainer extends React.PureComponent {
             <Row type={'flex'}>
                 {this.renderTitle()}
                 <Col style={{ flex: 1, marginRight: 10 }}>
-                    {this.state.mode == 'common' ? this.renderCommon() : this.renderInline()}
+                    {this.state.mode === 'common' ? this.renderCommon() : this.renderInline()}
                 </Col>
             </Row>
         )

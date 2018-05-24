@@ -1,26 +1,22 @@
-import React, { PureComponent } from 'react';
-import { message, Card, Steps, Col, Row, Divider } from 'antd';
+import React from 'react';
+import { message, Card, Steps, Col, Row } from 'antd';
 import PageHeader from 'ant-design-pro/lib/PageHeader';
 import { Step1, Step2, Step3 } from '../../components/Application/AppAddSteps';
 import { addAppBasicInfo, addAppDeployInfo, deleteAppBasicInfo } from '../../services/apps';
 import {addEnvs} from '../../services/deploy'
+import {addServerGroup} from '../../services/api'
 import {base} from '../../services/base'
+import {doUpstream} from '../../services/domainList'
 
 const Step = Steps.Step;
-
-
-
 class AddApp extends React.Component {
   state = {
     type:this.props.location.search.substring(1)==='middleware'?'middleware':'app',
-
     current: 0,
     displayStep1: true,
     displayStep2: false,
     displayStep3: false,
-
     status:"",
-
     appInfo: {
       name: "",//应用名称
       groupId: "default",
@@ -28,6 +24,7 @@ class AddApp extends React.Component {
       type: "web",//应用类型
       tags: [],
       deployMode:'k8s',//默认应用部署类型
+      tenant:base.tenant
     },
 
     deployment: {
@@ -184,6 +181,7 @@ class AddApp extends React.Component {
           if(p.outerPort)nodePortPorts.push(clusterPort);
         })
         c.config.forEach(c=>{
+          // eslint-disable-next-line
           this.state.configMap.data[c.key] = c.contents;
         })
       })
@@ -194,8 +192,6 @@ class AddApp extends React.Component {
     this.setState({
       deployment: newDeployment
     })
-    console.log("deployment",newDeployment)
-    console.log("configMap",this.state.configMap)
     
     //应用管理添加应用
     addAppBasicInfo(this.state.appInfo).then(newAppInfo => {
@@ -211,6 +207,8 @@ class AddApp extends React.Component {
             addEnvs(this.state.appInfo.code,containerName,e);
           });
         })
+        //将应用ID添加为服务分组
+        addServerGroup({id:newAppInfo.id,name:newAppInfo.name});
         this.setState({
           newAppInfo:newAppInfo,
           status:data.status,
@@ -224,6 +222,45 @@ class AddApp extends React.Component {
         deleteAppBasicInfo(newAppInfo.id);
       })
     })
+  }
+
+  //其他方式部署创建应用
+  otherSubmitstep2=(arrays)=>{
+    addAppBasicInfo({...this.state.appInfo,deployMode:'custom'}).then(newAppInfo => {
+      if(arrays instanceof Array && arrays.length>0){
+        //调用集群新增接口
+        let targets=[];
+        arrays.forEach(item=>{
+          let target={
+            ip: item.ip,
+            port: item.port,
+            weight: '10',
+          }
+          targets.push(target)
+        })
+        let queryParams={
+          code: newAppInfo.upstream,
+          name:newAppInfo.name,
+          targets: targets,
+        }
+        doUpstream(newAppInfo.upstream,queryParams).then(res=>{
+          if(res){
+            message.success('操作成功')
+          }
+        })
+      }
+      addServerGroup({id:newAppInfo.id,name:newAppInfo.name});
+      this.setState({
+        newAppInfo:newAppInfo,
+        current: 2,
+        displayStep1: false,
+        displayStep2: false,
+        displayStep3: true,
+        //状态为1表示应用创建成功
+        status:1,
+      })
+    })
+
   }
   // getStepContent = () => {
   //   const current = this.state.current;
@@ -285,10 +322,11 @@ class AddApp extends React.Component {
             </Col>
             <Col span={20}>
               <Step1 submitstep1={this.submitStep1} display={this.state.displayStep1}
-                type={this.state.type} />
+                type={this.state.type}/>
               <Step2 stepback={this.stepBack}
                 submitstep2={this.submitstep2} display={this.state.displayStep2}
-                type={this.state.type} />
+                otherSubmitstep2={this.otherSubmitstep2}
+                type={this.state.type} tenant={base.tenant}/>
               <Step3 display={this.state.displayStep3} appinfo={this.state.newAppInfo} type={this.state.type} 
                 status={this.state.status} />
             </Col>

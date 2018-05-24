@@ -23,7 +23,7 @@ class UserSelectModal extends React.Component {
 		this._onRowClick = this._onRowClick.bind(this);
 	}
 
-	componentWillMount() {
+	componentDidMount() {
 		let selectUsers = [];
 		if (this.props.selectData) selectUsers = [...this.props.selectData];
 		let disabledUsers = this.props.disabledUsers || [];
@@ -40,7 +40,7 @@ class UserSelectModal extends React.Component {
 
 	componentWillReceiveProps(nextProps) {
 
-		if (this.props.visible == false && nextProps.visible == true) {
+		if (!this.props.visible && nextProps.visible) {
 			this._updateSelectUsers(nextProps.selectData, nextProps.disableData);
 		}
 
@@ -111,7 +111,7 @@ class UserSelectModal extends React.Component {
 				} else {
 					for (let i = 0; i < this.state.selectUsers.length; i++) {
 						let u = this.state.selectUsers[i];
-						if (u.id == record.id) {
+						if (u.id === record.id) {
 							this.state.selectUsers.splice(i, 1);
 							break;
 						}
@@ -151,7 +151,7 @@ class UserSelectModal extends React.Component {
 
 		for (let i = 0; i < this.state.selectUsers.length; i++) {
 			let u = this.state.selectUsers[i];
-			if (u.id == record.id) {
+			if (u.id === record.id) {
 				unselect = false;
 				this.state.selectUsers.splice(i, 1);
 				break;
@@ -183,7 +183,7 @@ class UserSelectModal extends React.Component {
 				onCancel={this.props.onCancel}
 				maskClosable={false}
 				width={this.props.width}>
-				<Alert description={this.props.description} type="info" style={{ marginBottom: "10px" }} />
+				{this.props.description && <Alert description={this.props.description} type="info" style={{ marginBottom: "10px" }} />}
 				<strong style={{ marginRight: 8, marginTop: 15 }}>{this.props.mark}:</strong><br />
 				<div className="user-selected-tags" style={{ minHeight: 32 }}>
 					{

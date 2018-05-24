@@ -4,9 +4,9 @@ import './index.less';
 
 export default ({ title, children, last, block, grid, ...rest }) => {
   const cls = classNames('standardFormRow', {
-    ['standardFormRowBlock']: block,
-    ['standardFormRowLast']: last,
-    ['standardFormRowGrid']: grid,
+    'standardFormRowBlock': block,
+    'standardFormRowLast': last,
+    'standardFormRowGrid': grid,
   });
 
   return (

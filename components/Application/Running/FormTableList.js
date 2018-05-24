@@ -1,7 +1,6 @@
 import React,{Component,Fragment} from 'react';
-import {Table,Input,Divider,Modal,Popconfirm,Button,Form,Select,message} from 'antd'
+import {Table,Input,Divider,Modal,Popconfirm,Button,Form,message} from 'antd'
 import {getResources,addResources,updateResources,deleteResources} from '../../../services/running'
-import TreeHelp from '../../../utils/TreeHelp'
 
 
 const FormItem=Form.Item
@@ -37,6 +36,7 @@ class FormTable extends Component{
       name:'',
       id:'',
       url:'',
+      parentId:'',
       isUpdate:false
     })  
   }
@@ -72,6 +72,12 @@ class FormTable extends Component{
   onCancel=()=>{
     this.setState({
       visible:false
+    })
+    const form = this.props.form;
+    form.setFieldsValue({
+      name:'',
+      parentId: '',
+      code: '',
     })
     this.initState();
   }
@@ -200,6 +206,7 @@ class FormTable extends Component{
                       <Input />
                   )}
               </FormItem>
+
               <FormItem {...formItemLayout} label="资源编码" 
               >
                   {getFieldDecorator('code')(

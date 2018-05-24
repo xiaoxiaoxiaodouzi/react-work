@@ -8,7 +8,6 @@ import {getDetail,getList,updateList,deleteList,updateImages,getImageCategorys} 
 import moment from 'moment';
 import ImageTableList from './ImageTableList'
 import constants from '../../../services/constants'
-import {base} from '../../../services/base'
 import InputInline from '../../../common/Input'
 
 
@@ -40,19 +39,7 @@ class ImageDetailsForm extends Component{
     artifact:'',          //镜像名称
     categoryId:'',      //镜像分类名称
     categoryIds:[],
-  }
-
-  componentWillMount(){
-    debugger;
-    let name=this.props.match.params.name;
-    //根据url上来拆分镜像名称跟租户名字
-    let q=name.split('?tenant=');
-    let artifact=q[0];
-    let tenant=q[1];
-    this.setState({
-      tenant:tenant,
-      artifact:artifact,
-    })
+    total:'',         //镜像版本数量
   }
   
   componentDidMount(){
@@ -61,18 +48,31 @@ class ImageDetailsForm extends Component{
         categoryIds:data
       })
     })
-    let artifact=this.state.artifact;
-    let tenant=this.state.tenant;
-    getDetail(tenant,artifact).then(data=>{
+    let name=this.props.match.params.name;
+    //根据url上来拆分镜像名称跟租户名字
+    let q=this.props.location.search.substring(1);
+    let artifact=name;
+    let tenant=q;
+    this.setState({
+      tenant:tenant,
+      artifact:artifact,
+    },()=>{
+      this.loadDatas();
+      this.initDatas();
+    })
+  }
+  //查询镜像详情
+  loadDatas=()=>{
+    let artifact = this.state.artifact;
+    let tenant = this.state.tenant;
+    getDetail(tenant, artifact).then(data => {
       this.setState({
-        categoryId:data.categoryId,
-        address:constants.MIRROR_ADDRESS_BASE+'/'+tenant+'/'+artifact,
-        desc:data.descri,
-        date:moment(data.updated).format('YYYY-MM-DD HH:mm:ss')
+        categoryId: data.categoryId,
+        address: constants.MIRROR_ADDRESS_BASE + '/' + tenant + '/' + artifact,
+        desc: data.descri,
+        date: moment(data.updated).format('YYYY-MM-DD HH:mm:ss')
       })
     })
-    this.initDatas();
-    
   }
 
   //部署按钮
@@ -100,6 +100,7 @@ class ImageDetailsForm extends Component{
     let artifact=this.state.artifact;
     getList(tenant,artifact).then(datas=>{
       this.setState({
+        total:datas.total,
         appContext:'',
         tag:'',
         descri:'',
@@ -142,13 +143,18 @@ class ImageDetailsForm extends Component{
     })
   }
 
+  //镜像删除
   handleDelete=(record)=>{
-    debugger;
     let tenant=this.state.tenant;
     let artifact=this.state.artifact;
     deleteList(tenant,artifact,record.tag).then(data=>{
-      this.initDatas();
-      message.success('删除成功')
+      message.success("删除成功");
+      if(this.state.total===1){
+        let { history } = this.props;
+        history.push({ pathname: `/setting/images` });
+      }else{
+        this.initDatas();
+      }
     })
   }
 
@@ -176,6 +182,7 @@ class ImageDetailsForm extends Component{
     }
     updateImages(tenant,artifact,bodyParams).then(data=>{
       if(data){
+        this.loadDatas();
         message.success('镜像描述修改成功')
       }
     })
@@ -236,17 +243,21 @@ class ImageDetailsForm extends Component{
         title:'操作',
         width:'20%',
         render:(text,record)=>{
-          return (
-            <Fragment>
-              <a onClick={e=>{this.handleDeployment()}}>部署</a>
+          return <Fragment>
+              <a onClick={e => {
+                  this.handleDeployment();
+                }}>
+                部署
+              </a>
               <Divider type="vertical" />
-              <a onClick={e=>this.handleUpdate(record)}>编辑</a>
+              <a onClick={e => this.handleUpdate(record)}>编辑</a>
               <Divider type="vertical" />
-              <Popconfirm title='确认删除？' onConfirm={e=>{this.handleDelete(record)}}>
-                <a >删除</a>
+              <Popconfirm title={this.state.total === 1 ? "删除最后一个版本之后此镜像将会被删除！！！" : "确认删除？"} onConfirm={e => {
+                  this.handleDelete(record);
+                }}>
+                <a>删除</a>
               </Popconfirm>
-            </Fragment>
-          )
+            </Fragment>;
         }
       },
 

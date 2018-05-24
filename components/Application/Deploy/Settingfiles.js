@@ -51,18 +51,19 @@ class Settingfiles extends PureComponent {
       });
     }
     if( Array.isArray(cmd) && Array.isArray(args) && cmd.length && args.length){
-      //console.log('cccc',cmd,args,cmd[0]+' '+args.join(' '));
       this.state.startCmd = cmd[0]+' '+args.join(' ');
       this.state.tempCmd = cmd[0]+' '+args.join(' ');
     }
-    this.state.data = [...configs];
+    this.state.data = configs.filter(element => element.name !=='config-license');
     this.state.configContent = Object.assign({},configContent);
     this.state.operationkey = operationkey;
-    //console.log("confsoperationkey",configContent,configs,operationkey);
   }
   componentWillReceiveProps (nextProps){
-    const {configs,cmd,args,operationkey} = nextProps;
-    // if( operationkey !== this.state.operationkey){
+    const {configs,cmd,args,operationkey,isAddApp} = nextProps;
+    if(isAddApp){
+      this.setState({data:configs});
+    }
+    if(!isAddApp && operationkey !== this.state.operationkey){
       let configContent = Object.assign({},configContentInit);
       let startCmd='';
       if(configs){
@@ -73,11 +74,16 @@ class Settingfiles extends PureComponent {
         });
       }
       if(Array.isArray(cmd) && Array.isArray(args) &&cmd.length && args.length){
-        //console.log('cccc',cmd,args,cmd[0]+' '+args.join(' '));
         startCmd = cmd[0]+' '+args.join(' ');
       }
-      this.setState({data:configs,startCmd,configContent,operationkey,tempCmd:startCmd});
-    // }
+      this.setState({
+        data:configs.filter(element => element.name !=='config-license'),
+        startCmd,
+        configContent,
+        operationkey,
+        tempCmd:startCmd
+      });
+    }
   }
   remove(key) {
     const newData = this.state.data.filter(item => item.key !== key);
@@ -98,52 +104,41 @@ class Settingfiles extends PureComponent {
   }
   saveCMD = ()=>{
     const { startCmd } = this.state;
-    //console.log(startCmd);
     if(!!startCmd && (startCmd.indexOf(' ')<1 || startCmd.indexOf(' ')===startCmd.length-1)){
       message.error("启动命令格式有误，请重新输入");
     }else{
       this.setState({loadSave:false,tempCmd:startCmd});
       this.showConfirmStartCMD();
-      //this.props.onSaveStartCMD(startCmd); 
     }
   }
   handleModalOk = ()=>{
     const { path,content,editKey,data,configContent,operationkey } = this.state;
-    //console.log("handlemodal122211 ok",path,content,operationkey);
     if(editKey){//编辑
-      //console.log("bianji",configContent);
       data.forEach((element)=>{
         if(element.key === editKey){
-          //console.log("element.key === editKey");
           element.name = editKey;
           element.mountPath = path;
-          //element.additionalProperties.path = name;
           element.additionalProperties.config = content;
         }
       });
       for(let key in configContent.data){
-        //console.log("key",key,editKey);
         if(key === editKey){
-          //console.log("editkey",key);
           configContent.data[key] = content;
         }
       }
     }else{ //新增
       let keyName ='config-'+operationkey+'-'+Math.random().toString().slice(2,10);
-      //console.log("xinzeng111",keyName);
       data.push({
         key:keyName,
         name:keyName,
         mountPath:path,
         additionalProperties:{
-          //path:name,
           config:content
         }
       });
       configContent.data[keyName] = content;
     }
     if(this.props.aftersetting){
-      console.log("aftersetting",data);
       this.props.aftersetting(data);
       this.setState({visibleModal:false});
     }else{
@@ -153,11 +148,9 @@ class Settingfiles extends PureComponent {
   }
   editSettingfile = (e,key)=>{
     const { data } = this.state;
-    //console.log("edit",key);
     data.forEach((element)=>{
       if(element.key === key){
         this.setState({
-          //name:element.additionalProperties.path,
           editKey:key,
           path:element.mountPath,
           content:element.additionalProperties.config,
@@ -206,12 +199,15 @@ class Settingfiles extends PureComponent {
   }
   checkAdd = ()=>{
     const { path,editKey,data } = this.state;
-    //console.log("checkAdd ok",path,content,titleModal,data,editKey);
+    // eslint-disable-next-line
     let patt = /^\/[0-9a-zA-Z\u4e00-\u9fa5.\/_-]*[0-9a-zA-Z\u4e00-\u9fa5_.\/-]+$/;
     let pathFlag = 0;
     if(!path){
       this.setState({validatePath:'error',helpPath:'挂载路径不能为空'})
-      //message.error('请完整填写文件名称、挂载路径和文件内容');
+      return;
+    }
+    if(path ==='/data/license'){
+      this.setState({validatePath:'error',helpPath:'挂载路径不能为 /data/license,请重新填写'})
       return;
     }
     if(!patt.test(path)){
@@ -219,7 +215,6 @@ class Settingfiles extends PureComponent {
         validatePath:'error',
         helpPath:'挂载路径只能输入数字、字母、中文、下划线、横线、点、斜线,以斜线开头,如:/data'
       });
-      //message.error('挂载路径只能输入数字、字母、中文、下划线、横线、点、斜线,以斜线开头,如:/data');
       return;
     }
     const newData = data.filter(item => item.key !== editKey);
@@ -233,7 +228,6 @@ class Settingfiles extends PureComponent {
         validatePath:'error',
         helpPath:'配置文件挂载路径与已有配置文件重复，请重新填写'
       });
-      //message.error('配置文件挂载路径与已有配置文件重复，请重新填写');
       return;
     }
     this.props.isAddApp?this.handleModalOk():this.showConfirmAddOrEdit();
@@ -272,7 +266,7 @@ class Settingfiles extends PureComponent {
     }];
     return (
       <div>
-        <div className="title111">配置文件</div>
+        <div className="card-title">配置文件</div>
         <Button style={{marginBottom: 16}} type="primary" 
           onClick={() => 
             this.setState({
@@ -300,7 +294,7 @@ class Settingfiles extends PureComponent {
               validateStatus={this.state.validatePath}
               help={this.state.helpPath}
               label="挂载路径">
-              <Input onChange={e => this.setState({path:e.target.value})} value={path} placeholder="挂载路径"/>
+              <Input onChange={e => this.setState({path:e.target.value})} value={path} placeholder="文件的绝对路径，如：/usr/local/web.xml"/>
             </FormItem>
             <FormItem {...formItemLayout} 
               validateStatus={this.state.validateContent}
@@ -312,6 +306,7 @@ class Settingfiles extends PureComponent {
         </Modal>
         <Table
           pagination={false}
+          loading={this.props.settingFileLoading}
           dataSource={data} 
           columns={columns} 
           rowKey="id"

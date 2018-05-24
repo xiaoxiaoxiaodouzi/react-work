@@ -288,8 +288,8 @@ class Cluster extends Component{
                   //avatar={<img alt="" className='cardAvatar' src={item.avatar} />}
                   title={<a >{item.public?'公共集群-'+item.name:'私有集群-'+item.name}</a>}
                   description= {
-                    <div >
-                      <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
+                    <div>
+                      <Row gutter={{ md: 8, lg: 24, xl: 48 }} style={{marginBottom:5}}>
                         <Col md={8} sm={24}>
                           <span>主机数</span>
                         </Col>
@@ -305,8 +305,6 @@ class Cluster extends Component{
                           <h2>{item.containers}</h2>
                         </Col>
                       </Row> 
-                      
-                      
                       <Row><p>资源平均水位：17.1%     <span style={{marginLeft:20}}>状态:健康</span> </p></Row> 
                     </div>  
                   }   
@@ -314,8 +312,8 @@ class Cluster extends Component{
                 </Card>
               </List.Item>:
                 <List.Item>
-                  <Card actions={<div style={{height:16.8}}></div>}>
-                    <Button type="dashed" className='newButton' onClick={this.showModal}>
+                  <Card>
+                    <Button type="dashed" className='newButton' onClick={this.showModal} style={{height:'155px'}}>
                       <Icon type="plus" /> 新增集群
                     </Button>
                   </Card>

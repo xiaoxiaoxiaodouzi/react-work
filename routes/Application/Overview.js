@@ -1,145 +1,231 @@
 import React, { Fragment } from 'react';
-import { ChartCard,Field,MiniArea,MiniBar,TimelineChart,Bar } from 'ant-design-pro/lib/Charts';
-import { Row,Col,Icon,Card,Tabs,DatePicker,Tooltip } from 'antd';
-import { Chart, Geom, Axis, Tooltip as Tooltip1 } from 'bizcharts';
+import { ChartCard,Field,MiniArea,MiniBar } from 'ant-design-pro/lib/Charts';
+import { Row,Col,Icon,Tooltip } from 'antd';
+import RunningResource from '../../components/Application/Overview/RunningResource';
 import numeral from 'numeral';
 import moment from 'moment';
-import NotAccessable from '../../common/NotAccessable';
-import { getTimeDistance } from '../../utils/utils';
+import { getAppmonit, getAvgTime, getErrCount, getApppvoruv} from '../../services/dashApi'
+import { getApp} from '../../services/running'
 import './Overview.less';
-const { TabPane } = Tabs;
-const { RangePicker } = DatePicker;
+import {base} from '../../services/base'
+import constants from '../../services/constants'
+import { getConfigs} from '../../services/setting'
+import { queryBaseConfig, queryEnvs} from '../../services/deploy'
+import {  getupstream } from '../../services/domainList'
 
-const pointData = [];
-for (let i = 0; i < 20; i += 1) {
-  pointData.push({
-    comsumingTime: Math.floor(Math.random() * 100) + 10,
-    times: Math.floor(Math.random() * 100) + 10,
-  });
-}
-const offlineChartData = [];
-for (let i = 0; i < 20; i += 1) {
-  offlineChartData.push({
-    x: (new Date().getTime()) + (1000 * 60 * 30 * i),
-    y1: Math.floor(Math.random() * 100) + 10,
-    y2: Math.floor(Math.random() * 100) + 10,
-  });
-}
-const rankingListData = [];
-for (let i = 0; i < 7; i += 1) {
-  rankingListData.push({
-    title: `工专路 ${i} 号店`,
-    total: 323234,
-  });
-}
-const visitData = [];
-const beginDay = new Date().getTime();
-for (let i = 0; i < 20; i += 1) {
-  visitData.push({
-    x: moment(new Date(beginDay + (1000 * 60 * 60 * 24 * i))).format('YYYY-MM-DD'),
-    y: Math.floor(Math.random() * 100) + 10,
-  });
-}
-const salesData = [];
+
+const currentTime = moment(new Date()).format('x');
+const lastWeek = moment(new Date(new Date() - 7*24 * 60 * 60 * 1000)).format('x')
 /* 应用概览页面，使用图表组件显示应用相关信息*/
 export default class AppOverview extends React.PureComponent {
   state = {
-    salesType: 'all',
-    currentTabKey: '',
-    rangePickerValue: getTimeDistance('year'),
+    errCount:0,
+    avgTime:0,
+    resourceStatus:'health',
+    APMChecked:false,   //APM是否开启
   };
-  selectDate = (type) => {
+  componentDidMount(){
+    let code = this.props.appCode;
+    const env = base.currentEnvironment;
+    const configs = env.code + '_' + code;
     this.setState({
-      rangePickerValue: getTimeDistance(type),
-    });
-  };
-  isActive(type) {
-    const { rangePickerValue } = this.state;
-    const value = getTimeDistance(type);
-    if (!rangePickerValue[0] || !rangePickerValue[1]) {
-      return;
+      config: configs
+    })
+    //获取全局动态路由配置
+    getConfigs().then(data1 => {
+      //将APM_URL地址
+      this.setState({
+        APM_URL: data1[constants.CONFIG_KEY.APM_URL],
+      })
+    })
+    const appid = this.props.appId;
+    getApp(appid).then(data=>{
+      if(data){
+        let ups = data.upstream ? data.upstream.split('//') : '';
+        let upstream='';
+        if (ups.length > 1) {
+          upstream = upstream[1]
+        } else {
+          upstream = upstream[0]
+        }
+        //判断有没有配置域名 没有的 话 则不显示PV UV数据
+        getupstream(upstream).then(datas=>{
+          if(datas){
+            //获取应用资源使用情况
+            this.loadData(appid);
+          }
+        })
+        let rTime=parseInt((new Date().getTime() - data.updatetime) / 1000 / 60 / 60,10);
+        let r='';
+        if(rTime<24){
+          r='小时'
+        }
+        if (rTime===24 || 24<rTime<1440){
+          rTime = parseInt(rTime/24,10);
+          r='天'
+        }
+          if (rTime === 1440 || (1440 < rTime && rTime<17280)){
+          rTime = parseInt(rTime / 24/60,10);
+          r='个月'
+        }
+        if (rTime===17280 ||17280 < rTime) {
+          rTime = parseInt(rTime / 24 / 60/12,10);
+          r = '年'
+        }
+        this.setState({
+          APMChecked:data.apm,
+          updateTime: moment(data.updatetime).format('YYYY-MM-DD'),
+          runningTime: rTime+r
+        })
+      }
+    })
+  }
+
+  loadData=(appid)=>{
+    let quePV={
+      startTime: lastWeek,
+      endTime: currentTime,
+      apikeyId: appid,
+      type:'PV',
+      interval:'1h'
     }
-    if (
-      rangePickerValue[0].isSame(value[0], 'day') &&
-      rangePickerValue[1].isSame(value[1], 'day')
-    ) {
-      return "currentDate";
+    let queUV={
+      startTime: lastWeek,
+      endTime: currentTime,
+      apikeyId: appid,
+      type: 'UV',
+      interval:'1d'
     }
+    let queryParam={
+      startTime: lastWeek,
+      apikeyId:appid,
+    }
+    getAppmonit(appid).then(data=>{
+      console.log('appinfo',data);
+      if(data.cpu > 75 || data.memory > 75 || data.filesystem > 75){
+        this.setState({resourceStatus:'lack'})
+      }else{
+        this.setState({resourceStatus:'health'})
+      }
+    })
+    getAvgTime(appid).then(data=>{
+      if (data.avgTime){
+        this.setState({
+          avgTime: data.avgTime
+        })
+      }
+    })
+    getErrCount(queryParam).then(data=>{
+
+    })
+    getApppvoruv(quePV).then(data=>{
+      if(data && data.result && data.result.list){
+        const pvData = [];
+        data.result.list.forEach(item=>{
+          pvData.push({
+            x: moment(item.time).format('YYYY-MM-DD: HH'),
+            y: parseInt(item.count,10),
+          })
+        })
+        this.setState({
+          pvData: pvData,
+          totalPV: numeral(data.total).format('0,0')
+        })
+      }
+    })
+    getApppvoruv(queUV).then(data=>{
+      if (data && data.result && data.result.list) {
+        const uvData = [];
+        data.result.list.forEach(item => {
+          uvData.push({
+            x: moment(item.time).format('YYYY-MM-DD'),
+            y: parseInt(item.count,10),
+          })
+        })
+        this.setState({
+          uvData: uvData,
+          totalUV: numeral(data.total).format('0,0')
+        })
+      }
+    })
+    //然后分别查单天的数据
+    const today = new Date();
+    today.setHours(0);
+    today.setMinutes(0);
+    today.setSeconds(0);
+    today.setMilliseconds(0);
+    quePV.startTime = moment(today).format('x') ;
+    queUV.startTime = moment(today).format('x');
+    getApppvoruv(quePV).then(data => {
+      this.setState({
+        todayPVTotal: numeral(data.total).format('0,0')
+      })
+    })
+    getApppvoruv(queUV).then(data => {
+      this.setState({
+        todayUVTotal: numeral(data.total).format('0,0')
+      })
+    })
   }
   render(){
-    const params = this.props.match.params;
-    const { salesType,currentTabKey,rangePickerValue } = this.state;
+    const { errCount, resourceStatus, avgTime, pvData, uvData, todayPVTotal, todayUVTotal} = this.state;
     const topColResponsiveProps = { xs:24,sm:12,md:12,lg:12,xl:6,style:{ marginBottom: 24 }};
-    const salesExtra = (
-      <div className='salesExtraWrap'>
-        <div className='salesExtra'>
-          <a className={this.isActive('today')} onClick={() => this.selectDate('today')}>今日</a>
-          <a className={this.isActive('week')} onClick={() => this.selectDate('week')}>本周</a>
-          <a className={this.isActive('month')} onClick={() => this.selectDate('month')}>本月</a>
-          <a className={this.isActive('year')} onClick={() => this.selectDate('year')}>全年</a>
-        </div>
-        <RangePicker
-          value={rangePickerValue}
-          onChange={this.handleRangePickerChange}
-          style={{ width: 256 }}
-        />
-      </div>
-    );
-    const pointCols = {
-      comsumingTime: { alias: '耗时' },
-      times: { alias: '时间' }
-    };
     return (
       <Fragment>
         <Row gutter={24} style={{margin:"24px 12px 0px 12px"}}>
           <Col {...topColResponsiveProps}>
             <ChartCard
               title="健康状况"
-              action={<Tooltip title="指标说明"><Icon type="info-circle-o" /></Tooltip>}
-              total={<span style={{fontSize:28,color:"green"}}>健康</span>}
+              action={<Tooltip title="最近一周内应用及所提供服务的运行状况"><Icon type="info-circle-o" /></Tooltip>}
+              total={
+                resourceStatus === 'health'?
+                <span style={{fontSize:28,color:"green"}}>健康</span> :
+                <span style={{fontSize:28,color:"orange"}}>资源紧张</span>
+              }
               footer={
                 <div>
-                  <Field label="资源使用情况" value={<span style={{color:'green'}}>正常</span>}/>
-                  <Field label="服务平均响应" value="100ms"/>
-                  <Field label="服务报错次数" value="X次"/>
-                </div>}
-            >
-            {/* <div style={{fontSize:28,color:"green",top:20}}>健康</div> */}
+                  <Field label="资源使用情况" value={
+                    resourceStatus === 'health'?
+                    <span style={{marginLeft:0,color:'green'}}>正常</span> :
+                    <span style={{marginLeft:0,color:'orange'}}>资源紧张</span>
+                  }/>
+                  <Field label="服务平均响应" value={avgTime}/>
+                  <Field label="服务报错次数" value={errCount}/>
+                </div>} >
             </ChartCard>
           </Col>
           <Col {...topColResponsiveProps}>
             <ChartCard
               title="访问量"
-              action={<Tooltip title="指标说明"><Icon type="info-circle-o" /></Tooltip>}
-              total={numeral(8846).format('0,0')}
-              footer={<Field label="当日访问量" value={numeral(1234).format('0,0')} />}
+              action={<Tooltip title="域名访问方式下的应用页面访问总量"><Icon type="info-circle-o" /></Tooltip>}
+              total={this.state.totalPV ? this.state.totalPV:'无数据'}
+              footer={<Field label="当日访问量" value={todayPVTotal ?todayPVTotal:0} />}
               contentHeight={52}
             >
-              <MiniArea color="#975FE4" data={visitData} />
+              <MiniArea color="#975FE4" data={pvData} />
             </ChartCard>
           </Col>
           <Col {...topColResponsiveProps}>
             <ChartCard
               title="访问人数"
-              action={<Tooltip title="指标说明"><Icon type="info-circle-o" /></Tooltip>}
-              total={numeral(6560).format('0,0')}
-              footer={<Field label="日访问人数" value={numeral(1234).format('0,0')} />}
+              action={<Tooltip title="域名访问方式下的应用凭证创建总数"><Icon type="info-circle-o" /></Tooltip>}
+              total={this.state.totalUV ? this.state.totalUV:'无数据'}
+              footer={<Field label="当日访问人数" value={todayUVTotal?todayUVTotal:0} />}
               contentHeight={52}
             >
               <MiniBar
                 height={52}
-                data={visitData}
+                data={uvData}
               />
             </ChartCard>
           </Col>
           <Col {...topColResponsiveProps}>
             <ChartCard
-              title="稳定运行时长"
-              total="20天"
-              action={<Tooltip title="指标说明"><Icon type="info-circle-o" /></Tooltip>}
+              title="持续运行时长"
+              total={this.state.runningTime ? this.state.runningTime:0}
               footer={
                 <div>
-                  <Field label="最近变更时间" value={moment(new Date()).format('YYYY-MM-DD')}/>
+                  <Field label="最近变更时间" value={this.state.updateTime}/>
                 </div>}
               contentHeight={52}
             >
@@ -149,67 +235,7 @@ export default class AppOverview extends React.PureComponent {
             </ChartCard>
           </Col>
         </Row>
-        <Card style={{margin:"0px 24px 24px 24px"}} bordered={false} bodyStyle={{ padding: 0 }}>
-          <div className='salesCard'>
-            <Tabs tabBarExtraContent={salesExtra} size="large" tabBarStyle={{ marginBottom: 24 }}>
-              <TabPane tab="运行情况" key="sales">
-                {/* <div style={{height:400,padding:128}}>
-                  <NotAccessable />
-                </div> */}
-                <Row>
-                  <Col xl={16} lg={12} md={12} sm={24} xs={24}>
-                    <div className='salesBar'>
-                      <h3 style={{marginLeft:48}}>请求处理性能统计散点图</h3>
-                      <Chart height={295} data={pointData} scale={pointCols} forceFit>
-                        <Tooltip1 showTitle={false} crosshairs={{type:'cross'}} itemTpl='<li data-index={index} style="margin-bottom:4px;"><span style="background-color:{color};" class="g2-tooltip-marker"></span>{name}<br/>{value}</li>'/>
-                        <Axis name='comsumingTime' title='耗时'/>
-                        <Axis name='times' title='时间'/>
-                        <Geom type='point' position="times*comsumingTime" opacity={0.65} shape="circle" size={4} tooltip={['times*comsumingTime', (comsumingTime, times) => {
-                          return {
-                            value: comsumingTime + '(ms), ' + times + '(s)'
-                          };
-                        }]} />
-                      </Chart>
-                      {/* <Bar height={295} title="请求处理性能统计散点图" data={visitData} /> */}
-                    </div>
-                  </Col>
-                  <Col xl={8} lg={12} md={12} sm={24} xs={24}>
-                    <div className='salesRank'>
-                      <h3 className='rankingTitle'>服务平均响应时长排名</h3>
-                      <ul className='rankingList'>
-                        {rankingListData.map((item, i) => (
-                          <li key={item.title}>
-                            <span className={i < 3 ? 'active' : ''}>{i + 1}</span>
-                            <span>{item.title}</span>
-                            <span>{numeral(item.total).format('0,0')}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </Col>
-                </Row>
-              </TabPane>
-              <TabPane tab="资源情况" key="views">
-                <div style={{ padding: '0px 48px 72px 48px' }}>
-                  <h3>CPU使用情况</h3>
-                  <TimelineChart
-                    height={400}
-                    data={offlineChartData}
-                    titleMap={{ y1: '实例1', y2: '实例2' }}
-                  />
-                </div>
-                <div style={{ padding: '0px 48px 72px 48px' }}>
-                  <h3>内存占用</h3>
-                  <TimelineChart
-                    height={400}
-                    data={offlineChartData}
-                    titleMap={{ y1: '实例1', y2: '实例2' }}
-                  />
-                </div>
-              </TabPane>
-            </Tabs>
-          </div>
-        </Card>
+        <RunningResource appId={this.props.appId} appCode={this.props.appCode} history={this.props.history} APMChecked={this.state.APMChecked}/>
       </Fragment>
     )
   }

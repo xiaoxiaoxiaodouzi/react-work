@@ -5,6 +5,7 @@ import DeployConfig from './DeployConfig';
 import AdvanceConfig from './AdvanceConfig';
 import {base} from '../../../services/base'
 import appUtil from '../../../services/appguide'
+import ImagesForm from '../../../common/ImagesUpload/ImagesForm'
 
 const Step = Steps.Step;
 
@@ -116,8 +117,12 @@ class AddContainer extends Component {
         let newContainer = Object.assign({},this.state.container);
         newContainer.env = envConfData;
         newContainer.name = values.name;
-        newContainer.isHealthCheck = switched;
-
+				newContainer.isHealthCheck = switched;
+				//如果是自定义镜像，则将镜像的任务id以及镜像名字存入
+				if(this.state.chooseItem.taskId){
+					newContainer.imageTaskId=this.state.chooseItem.taskId;
+					newContainer.imageName=this.state.chooseItem.name;
+				}
         let containerPorts = [];
         netConfData.forEach(net=>{
             let deployContainersPort = {containerPort:net.port,conhostPort:net.innerPort,protocol:net.protocol,outerPort:net.outerPort};
@@ -211,13 +216,16 @@ class AddContainer extends Component {
                         <Step title="高级配置" />
                     </Steps>
                 </div>
-                <div style={{ margin: 16 }}>
-                    <ChooseImage afterchoose={this.afterChoose}
-                        display={this.state.displayChoose}
-                        type={this.props.type}
-                        check={this.props.check}
-                        stepto2={this.stepTo2}
-                        isStepBack={this.state.isStepBack} />
+								<div style={{ margin: 16 }}>
+								{this.props.buttonValue==='2'&& this.state.displayChoose ?
+								<ImagesForm tenant={base.tenant} onOk={this.afterChoose} />
+								:
+								<ChooseImage afterchoose={this.afterChoose}
+									display={this.state.displayChoose}
+									type={this.props.type}
+									check={this.props.check}
+									stepto2={this.stepTo2}
+									isStepBack={this.state.isStepBack} />}
                     <DeployConfig item={this.state.chooseItem}
                         version={this.state.chooseVersion}
                         display={this.state.displayDeploy}

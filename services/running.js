@@ -57,6 +57,12 @@ export function getApp(appid){
   return C2Fetch.get(url,null,"查询应用出错");
 }
 
+//修改应用
+export function updateApp(appid,queryParams,bodyParams) {
+  const url = proxy + `aip/v1/apps/${appid}`;
+  return C2Fetch.put(url, bodyParams, queryParams, "修改应用出错");
+}
+
 //删除应用
 export function deleteApp(appid){
   const url=proxy+`aip/v1/apps/${appid}`
@@ -64,7 +70,7 @@ export function deleteApp(appid){
 }
 
 export function deleteAppDeploy(appCode){
-  const url=proxy+`/cce/v1/tenants/${base.tenant}/applications/${appCode}`;
+  const url=proxy+`cce/v1/tenants/${base.tenant}/applications/${appCode}`;
   return C2Fetch.delete(url,null,false);
 }
 

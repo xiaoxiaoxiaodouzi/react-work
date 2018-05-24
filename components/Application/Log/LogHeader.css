@@ -1,12 +1,30 @@
-.Formitems.ant-form-item-label label{
-  color: white
+.Formitems.ant-form-item-label label {
+    color: white
 }
-.logful{
-  font-family: 'Microsoft YaHei' ,SimSun , Arial, Helvetica, sans-serif
-  !important; line-height:1; font-weight: 400; font-size: 12px;    overflow-x: scroll; white-space: nowrap; 
+
+.logs {
+    background-color: black;
+    color: white;
+    height: 700px;
+    padding-left: 25px;
+    padding-top: 15px;
+    overflow: auto;
+    font-family: 'Microsoft YaHei', SimSun, Arial, Helvetica, sans-serif !important;
+    line-height: 1.2;
+    font-weight: 400;
+    font-size: 14px;
+    overflow-x: scroll;
+    white-space: nowrap;
 }
-.logtime{
-  font-family: 'Microsoft YaHei' ,SimSun , Arial, Helvetica, sans-serif !important;
-  line-height:1; font-weight: 400;font-size: 12px;    overflow-x: scroll; 
-  white-space: nowrap; 
+
+.logs .start-with-tab {
+    margin-left: 24px;
+}
+
+.logs .error {
+    color: #ff6e67;
+}
+
+.logs .warn {
+    color: #fffc67;
 }

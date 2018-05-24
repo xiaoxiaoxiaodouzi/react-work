@@ -1,7 +1,7 @@
 import React from 'react';
 import { Form, Input, Button, Select, Alert, Row, Col } from 'antd';
 import TagManager from '../../../common/TagManager';
-import { queryTags,checkIdName } from '../../../services/apps';
+import { queryTags, checkIdName,checkCodeName } from '../../../services/apps';
 import {base} from '../../../services/base'
 
 const FormItem = Form.Item;
@@ -11,6 +11,15 @@ class Step1 extends React.Component {
     state = {
         selectedTags: [],
         allTags: [],
+        addbefore:'',       //租户code+环境
+    }
+
+    componentDidMount(){
+       /*  let tenant = base.tenant;
+        let environment = base.currentEnvironment;
+        this.setState({
+            addbefore: tenant + '-' + 'environment'
+        }) */
     }
     getTags = () => {
         if(this.state.allTags.length===0){
@@ -27,7 +36,8 @@ class Step1 extends React.Component {
             if (!err) {
                 let checkIdName1=checkIdName({attr:values.name},{attr:"name",tenant:base.tenant});
                 let checkIdName2=checkIdName({attr:values.id},{attr:"code",tenant:base.tenant});
-                Promise.all([checkIdName1,checkIdName2]).then(([flag1,flag2])=>{
+                let checkCode = checkCodeName(values.id)
+                Promise.all([checkIdName1, checkIdName2, checkCode]).then(([flag1,flag2,flag3])=>{
                     let checked=true;
                     if(flag1){
                         checked=false;
@@ -38,12 +48,12 @@ class Step1 extends React.Component {
                             },
                         });
                     }
-                    if(flag2){
+                    if(flag2 || flag3){
                         checked=false;
                         this.props.form.setFields({
                             id: {
                                 value: values.id,
-                                errors: [new Error('应用ID已存在！')],
+                                errors: [new Error('应用Code已存在！')],
                             },
                         });
                     }
@@ -114,11 +124,11 @@ class Step1 extends React.Component {
                                     <Input placeholder={labelName+'显示名称'} />
                                 )}
                             </FormItem>
-                            <FormItem {...formItemLayout} label={labelName+'ID:'}>
+                            <FormItem {...formItemLayout} label={labelName+'CODE:'}>
                                 {getFieldDecorator('id', {
                                     rules: [{ required: true, message: `请输入${labelName}ID！` },{message: '只支持小写英文、数字、下划线！', pattern: '^[a-z0-9_]+$'}],
                                 })(
-                                    <Input placeholder="只支持小写英文、数字、下划线" />
+                                    <Input  placeholder="只支持小写英文、数字、下划线" />
                                 )}
                             </FormItem>
                             <FormItem {...formItemLayout} label="分类标签：">

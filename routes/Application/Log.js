@@ -1,7 +1,6 @@
 import React from 'react'
 import { Card } from 'antd';
 import LogHeader from '../../components/Application/Log/LogHeader'
-import { getAppInfo } from '../../services/appdetail';
 
 
 export default class AppLog extends React.PureComponent {

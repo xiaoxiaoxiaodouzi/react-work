@@ -51,10 +51,10 @@ export default class Menus extends Component{
     const action=<a style={{float:"right",display:this.state.editable?'block':'none'}} onClick={this.showModal}>修改</a>
     return(
       <div>
-        <Card title='应用的机构用户数据权限' style={{ margin: 24 }} bordered={false}>
-          <DescriptionList col='1' style={{ marginBottom: 24 }} title={action}>
+        <Card title='应用的机构用户数据权限' style={{ margin: 24 }} bordered={false} extra={action}>
+          <DescriptionList col='1' style={{ marginBottom: 24 }} >
             <Description>
-             {this.state.orgNames}
+              {this.state.orgNames ?  this.state.orgNames :'无数据' }
             </Description>
           </DescriptionList>
         </Card>

@@ -23,18 +23,16 @@ class Step3 extends React.Component {
         appInfo: null
     }
     componentWillReceiveProps(nextProps) {
-        if (nextProps.status === "创建成功" && this.state.appInfo===null) {
-            this.getClusterName(nextProps.appinfo.code);
+        if (nextProps.status === 1 && this.state.appInfo!==nextProps.appinfo) {
+            queryAppInfo(nextProps.appinfo.code).then(data => {
+                this.setState({
+                    cceInfo: data,
+                    appInfo:this.props.appinfo
+                })
+            })
         }
     }
-    getClusterName = (code) => {
-        queryAppInfo(code).then(data => {
-            this.setState({
-                cceInfo: data,
-                appInfo:this.props.appinfo
-            })
-        })
-    }
+   
     render() {
         const labelName = this.props.type==='app'?'应用':'中间件';
         const appid = this.state.appInfo?this.state.appInfo.id:'';
@@ -53,10 +51,10 @@ class Step3 extends React.Component {
         const actions = (
             <div>
                 <Button type="primary">
-                    <Link to={'/apps/'+appid}>查看{labelName}详情</Link>
+                    <Link to={this.props.type==='app'?'/apps/'+appid:'/middlewares/'+appid}>查看{labelName}详情</Link>
                 </Button>
                 <Button>
-                    <Link to={'/apps'}>返回{labelName}列表</Link>
+                    <Link to={this.props.type==='app'?'/apps':'/middlewares'}>返回{labelName}列表</Link>
                 </Button>
             </div>
         );

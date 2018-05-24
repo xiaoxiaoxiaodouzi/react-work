@@ -1,5 +1,4 @@
 import C2Fetch from '../utils/Fetch';
-import {base} from './base'
 let proxy = 'proxy/';
 
 //获取用户镜像信息
@@ -39,7 +38,7 @@ export function deleteList(tenant,artifact,tag){
 //查询环境变量
 export function getEnvs(tenant,artifact,queryParams){
   const url=proxy+`cce/v1/images/${tenant}/${artifact}/envs`
-  return C2Fetch.get(url,queryParams,'更新环境变量失败')
+  return C2Fetch.get(url,queryParams,'获取环境变量失败')
 }
 
 //新增环境变量
@@ -56,7 +55,7 @@ export function updateEnvs(tenant,artifact,bodyParams){
 
 //修改镜像详情
 export function updateImages(tenant,artifact,bodyParams){
-  const url=proxy+`proxy/cce/v1/images/${tenant}/${artifact}`
+  const url=proxy+`/cce/v1/images/${tenant}/${artifact}`
   return C2Fetch.put(url,bodyParams,null,'修改镜像详情失败')
 }
 
@@ -94,6 +93,12 @@ export function pack(bodyParams){
 export function getLogs(taskid,queryParams){
   const url=proxy+`cce/v1/images/pack/log/${taskid}`
   return C2Fetch.get(url,queryParams,'获取打包日志失败')
+}
+
+//根据任务ID查询打包任务
+export function getTaskById(taskid){
+  const url=proxy+`/cce/v1/images/pack/task/${taskid}`
+  return C2Fetch.get(url,null,'获取镜像任务失败')
 }
 
 //分页查询打包任务

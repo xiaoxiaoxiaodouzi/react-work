@@ -23,8 +23,8 @@ export function changeAppManager(appid, roleId, users) {
 }
 
 //获取应用实例信息
-export function getInstanceInfo(tenant, application) {
-    return C2Fetch.get(proxy + `cce/v1/tenants/${tenant}/applications/${application}`, {}, "获取应用管理用户信息出错！");
+export function getInstanceInfo( application) {
+    return C2Fetch.get(proxy + `cce/v1/tenants/${base.tenant}/applications/${application}`, {}, "获取应用实例信息出错！");
 }
 
 //检查标签是否存在
@@ -71,5 +71,9 @@ export function appStop(appCode){
 //应用启动
 export function appStart(appCode){
     return C2Fetch.post(proxy+`cce/v1/tenants/${base.tenant}/applications/${appCode}/start`,null,null,"应用启动失败");
+}
+//应用启动
+export function isEnvChanged(appCode){
+    return C2Fetch.get(proxy+`cce/v2/tenants/${base.tenant}/applications/${appCode}/isenvchanged`,null,null,false);
 }
   

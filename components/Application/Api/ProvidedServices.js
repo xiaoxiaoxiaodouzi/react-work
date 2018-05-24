@@ -1,12 +1,17 @@
 import React, { Fragment } from 'react';
 import PropTypes from 'prop-types';
-import { Row, Col, Input, Button, Alert, Table, Select, Divider, Icon, Dropdown, Menu, TreeSelect } from 'antd';
+import Link from 'react-router-dom/Link';
+import { Row,Col,Input,Button,Alert,Table,Select,Divider,Icon,Dropdown,Menu,TreeSelect,Form,Modal,Radio,message } from 'antd';
 import Ellipsis from 'ant-design-pro/lib/Ellipsis';
 import ServerImport from './ServerImport';
-import { getServicesApis, removeServicesApis } from '../../../services/api';
+import ServerAddModal from '../../../components/Application/Api/ServerAddModal';
+import { removeServicesApis,queryAllGroups,queryAllServices,queryTags,removeServicesApisBatch } from '../../../services/api';
+import TreeHelp from '../../../utils/TreeHelp';
+import constants from '../../../services/constants';
 
-const TreeNode = TreeSelect.TreeNode;
-
+const confirm = Modal.confirm;
+const RadioGroup = Radio.Group;
+const FormItem = Form.Item;
 const OPTIONS = [
     'GET',
     'POST',
@@ -26,13 +31,20 @@ const METHOD_COLORS = {
     "HEAD": "",
     "OPTIONS": "",
 }
-
+const isOpenList = [{
+    key:'0',name:'所有服务'
+  },{
+    key:'1',name:'普通服务'
+  },{
+    key:'2',name:'公开服务'
+  }];
 export default class ProvidedServices extends React.Component {
     static defaultProps = {
         appId: '0',
         editable: true
     };
-
+    gourpId = '';
+    data = [];
     static propTypes = {
         appId: PropTypes.string,
         upstream: PropTypes.string,
@@ -43,10 +55,16 @@ export default class ProvidedServices extends React.Component {
         super(props);
 
         this.state = {
+            loading:false,
+            treeData: [],
             dataSource: [],
             selectedRowKeys: [],
-            searchText: null,
-            filterMethod: null,
+            name: '',
+            isOpen:'0',
+            uri:'',
+            filterMethod:'',
+            isServerAddModalShow:false,
+            expandForm:false,
             pagination: { current: 1, total: 1, pageSize: 1, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, },
         }
 
@@ -59,56 +77,49 @@ export default class ProvidedServices extends React.Component {
     }
 
     componentDidMount() {
-        this._pullData(this.props.appId, 1, 10);
+        if(this.props.editable){
+            this.groupId = this.props.appId;
+            queryTags(this.groupId)
+                .then((response) => {
+                    let treeData = TreeHelp.toChildrenStruct(response);
+                    this.setState({treeData})
+                })
+            this._pullData(this.groupId, 1, 10);
+        }else{ 
+            this.groupId = '0';
+            queryAllGroups().then(data=>{
+                this.data = data.slice();
+                console.log('servicemanagement',data);
+                let treeData = TreeHelp.toChildrenStruct(data);
+                this.setState({treeData});
+            });
+            this._pullData(this.groupId, 1, 10);
+        }
     }
-
     //**************************************************************************** */
     //************************************EVENT*********************************** */
     //**************************************************************************** */
-    _pullData(appId, page, rows, condition) {
-
-        this.page = page;
-        this.rows = rows;
-
-        if (condition != null) {
-            condition = {};
-            if (this.state.searchText != null) {
-                condition.nameorurl = this.state.searchText;
-            }
-            if (this.state.filterMethod != null) {
-                condition.method = this.state.filterMethod;
+    _pullData(groupId, page, rows) {
+        let { filterMethod,name,uri,value} = this.state;
+        if(!this.props.editable){
+            if(value && this.data.filter(element=>element.id===value)[0].pid === '0'){
+                groupId = value;
+                value = '';
+            }else if(value){
+                groupId = this.data.filter(element=>element.id===value)[0].pid;
             }
         }
-
-        getServicesApis(appId, page, rows, condition)
-            .then((response) => {
-                var pagination = { current: response.pageIndex, total: response.total, pageSize: response.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, };
-                this.setState({
-                    dataSource: response.contents,
-                    pagination: pagination
-                })
-
-                this.setState({
-                    tags: [{
-                        label: '应用1',
-                        value: '0-0',
-                        key: '0-0',
-                        children: [{
-                            label: '标签1',
-                            value: '0-0-1',
-                            key: '0-0-1',
-                        }, {
-                            label: '标签2',
-                            value: '0-0-2',
-                            key: '0-0-2',
-                        }],
-                    }, {
-                        label: '应用2',
-                        value: '0-1',
-                        key: '0-1',
-                    }]
-                })
+        this.setState({loading:true});
+        queryAllServices(groupId,page,rows,value,filterMethod,name,uri).then(response=>{
+            let pagination = { current: response.pageIndex, total: response.total, pageSize: response.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, };
+            this.setState({
+                dataSource: response.contents,
+                pagination: pagination,
+                loading:false,
             })
+        }).catch(()=>{
+            this.setState({loading:false});
+        })
     }
 
     _getColumn() {
@@ -125,27 +136,38 @@ export default class ProvidedServices extends React.Component {
                 )
             }
         }, {
-            title: '路径',
-            dataIndex: 'uri',
-            key: 'uri',
-            width: '35%',
+            title: '方法',
+            dataIndex: 'methods',
+            key: 'methods',
+            width: '10%',
             render: (text, record) => {
                 return (
                     <Row>
-                        <Col span={5} style={{ color: METHOD_COLORS[record.methods] }}>{record.methods}</Col>
-                        <Col span={19}><Ellipsis style={{ margingLeft: 5 }} lines={1} tooltip={true}>{text}</Ellipsis></Col>
+                        <Col style={{ color: METHOD_COLORS[record.methods] }}>{record.methods}</Col>
+                    </Row>
+                )
+            }
+        }, {
+            title: '路径',
+            dataIndex: 'uri',
+            key: 'uri',
+            width: '25%',
+            render: (text, record) => {
+                return (
+                    <Row>
+                        <Col><Ellipsis style={{ margingLeft: 5 }} lines={1} tooltip={true}>{text}</Ellipsis></Col>
                     </Row>
                 )
             }
         }, {
             title: '级别',
-            dataIndex: 'visibil ity',
+            dataIndex: 'visibility',
             key: 'visibility',
             width: '70px',
             render: (text, record) => {
                 return (
                     <Row>
-                        <Col>{text == '1' ? '普通' : text == '2' ? '公开' : '私有'}</Col>
+                        <Col>{text === '1' ? '普通' : text === '2' ? '公开' : '私有'}</Col>
                     </Row>
                 )
             }
@@ -171,18 +193,25 @@ export default class ProvidedServices extends React.Component {
                 const menu = (
                     <Menu>
                         <Menu.Item>
-                            <a>配置</a>
+                            <Link to={`/apps/${this.props.appId}/apis/${record.id}`}>配置</Link>
                         </Menu.Item>
                         <Menu.Divider />
                         <Menu.Item>
-                            <a onClick={() => this._removeApi(record.id)}>删除</a>
+                            <a onClick={() => {
+                                if(record.appNumber){
+                                    message.error(`[${record.name}]服务已经授权，不可删除`)
+                                    return;
+                                }
+                                this.showDeleteConfirm(record)
+                                
+                            }}>删除</a>
                         </Menu.Item>
                     </Menu>
                 );
 
                 return (
                     <Fragment>
-                        <a >文档</a>
+                        <a href={`${constants.SWAGGER_URL}?group=${record.groupId}&id=${record.id}`} target="_blank">文档调试</a>
                         <Divider type="vertical" />
                         <Dropdown overlay={menu}>
                             <a >
@@ -196,58 +225,96 @@ export default class ProvidedServices extends React.Component {
     }
 
     _onChange(pagination, filters, sorter) {
-        this._pullData(this.props.appId, pagination.current, pagination.pageSize);
+        this._pullData(this.groupId, pagination.current, pagination.pageSize);
     }
 
     _removeApi(apiId) {
         removeServicesApis(this.props.appId, apiId)
             .then((response) => {
-                this._pullData(this.props.appId, this.page, this.rows)
+                this._pullData(this.groupId, this.page, this.rows)
+            })
+    }
+
+    _removeApis(apiIds) {
+        let appIdsStr = apiIds.join('&ids=');
+        removeServicesApisBatch(this.props.appId, appIdsStr)
+            .then((response) => {
+                this.setState({
+                    selectedRowKeys: []
+                })
+                this._pullData(this.groupId, this.page, this.rows)
             })
     }
 
     _search() {
-        this._pullData(this.props.appId, this.page, this.rows, {})
+        this._pullData(this.groupId, this.page, this.rows, {})
     }
 
     _clear() {
-        this._pullData(this.props.appId, this.page, this.rows)
+        this._pullData(this.groupId, this.page, this.rows)
         this.setState({
             filterMethod: null,
-            searchText: null
+            name: null
         })
     }
 
     _hasChange() {
-        this._pullData(this.props.appId, 1, 10);
+        this._pullData(this.groupId, 1, 10);
     }
     //**************************************************************************** */
     //*************************************UI************************************* */
     //**************************************************************************** */
+    showDeleteConfirm = (record)=> {
+        confirm({
+          title: '是否删除此服务?',
+          content: `待删除服务：${record.name}`,
+          okText: '删除',
+          okType: 'danger',
+          cancelText: '取消',
+          onOk:()=> {
+            this._removeApi(record.id)
+          },
+          onCancel:()=> {
+          },
+        });
+    }
+    showDeleteConfirms = ()=> {
+        let selectedRowKeys = this.state.selectedRowKeys;
+        confirm({
+          title: '是否删除选中服务?',
+          okText: '删除',
+          okType: 'danger',
+          cancelText: '取消',
+          onOk:()=> {
+            this._removeApis(selectedRowKeys)
+          },
+          onCancel:()=> {
+          },
+        });
+    }
     rowSelection() {
-
         let obj = {
             selectedRowKeys: this.state.selectedRowKeys,
             onSelect: (record, selected, selectedRows, nativeEvent) => {
                 if (selected) {
-                    var isExist = false;
-                    for (var n = 0; n < this.state.selectedRowKeys.length; n++) {
-                        if (record.id == this.state.selectedRowKeys[n]) {
+                    let isExist = false;
+                    for (let n = 0; n < this.state.selectedRowKeys.length; n++) {
+                        if (record.id === this.state.selectedRowKeys[n]) {
                             isExist = true;
                         }
                     }
                     if (isExist) {
                         return;
                     }
-                    var selectedRowKeys = this.state.selectedRowKeys.slice();
+                    let selectedRowKeys = this.state.selectedRowKeys.slice();
                     selectedRowKeys.push(record.id)
                     this.setState({
                         selectedRowKeys: selectedRowKeys
                     })
                 } else {
-                    var rowsKeys = [];
-                    for (var n = 0; n < this.state.selectedRowKeys.length; n++) {
-                        if (record.id != this.state.selectedRowKeys[n]) {
+                    let rowsKeys = [];
+                    for (let n = 0; n < this.state.selectedRowKeys.length; n++) {
+                        if (record.id !== this.state.selectedRowKeys[n]) {
                             rowsKeys.push(this.state.selectedRowKeys[n]);
                         }
                     }
@@ -257,13 +324,13 @@ export default class ProvidedServices extends React.Component {
                 }
             },
             onSelectAll: (selected, selectedRows, changeRows) => {
-                var rowKeys = [];
+                let rowKeys = [];
                 if (selected) {
                     rowKeys = this.state.selectedRowKeys.slice();
-                    for (var n = 0; n < selectedRows.length; n++) {
-                        var newSelected = selectedRows[n];
-                        for (var i = 0; i < this.state.selectedRowKeys.length; i++) {
-                            if (this.state.selectedRowKeys[i] == selectedRows[n].id) {
+                    for (let n = 0; n < selectedRows.length; n++) {
+                        let newSelected = selectedRows[n];
+                        for (let i = 0; i < this.state.selectedRowKeys.length; i++) {
+                            if (this.state.selectedRowKeys[i] === selectedRows[n].id) {
                                 newSelected = null
                                 break;
                             }
@@ -273,14 +340,14 @@ export default class ProvidedServices extends React.Component {
                         }
                     }
                 } else {
-                    for (var n = 0; n < this.state.selectedRowKeys.length; n++) {
-                        var newSelected = null;
-                        for (var i = 0; i < changeRows.length; i++) {
-                            if (this.state.selectedRowKeys[n] == changeRows[i].id) {
+                    for (let n = 0; n < this.state.selectedRowKeys.length; n++) {
+                        let newSelected = null;
+                        for (let i = 0; i < changeRows.length; i++) {
+                            if (this.state.selectedRowKeys[n] === changeRows[i].id) {
                                 newSelected = this.state.selectedRowKeys[n];
                             }
                         }
-                        if (newSelected == null) {
+                        if (!newSelected) {
                             rowKeys.push(this.state.selectedRowKeys[n])
                         }
                     }
@@ -293,59 +360,199 @@ export default class ProvidedServices extends React.Component {
         }
         return obj;
     };
-
-    render() {
+    onCloseModal = (flag)=>{
+        if(flag){
+            if(this.props.editable){
+                queryTags(this.groupId)
+                    .then((response) => {
+                        let treeData = TreeHelp.toChildrenStruct(response);
+                        this.setState({treeData})
+                    })
+            }else{ 
+                queryAllGroups().then(data=>{
+                    this.data = data.slice();
+                    console.log('servicemanagement',data);
+                    let treeData = TreeHelp.toChildrenStruct(data);
+                    this.setState({treeData});
+                });
+            }
+            this._pullData(this.groupId,1,10);
+        }
+        this.setState({isServerAddModalShow:false});
+    }
+    renderSimpleForm= ()=>{
         return (
-            <div>
-                <Row style={{ paddingBottom: 20 }}>
-                   
-                    <Col span={4} style={{ paddingRight : 12}}>
+
+            <Form layout="inline">
+                <Row gutter={{ md: 8, lg: 24, xl: 48 }} style={{ paddingBottom: 16 }}>
+                    <Col md={8} sm={24}>
+                    <FormItem label="组&标签">
                         <TreeSelect
                             style={{ width: '100%' }}
                             value={this.state.value}
                             dropdownStyle={{ maxHeight: 400, overflow: 'auto' }}
-                            treeData={this.state.tags}
-                            placeholder="选择应用和标签"
-                            treeDefaultExpandAll
-                            onChange={this.onChange}
+                            treeData={this.state.treeData}
+                            placeholder="选择服务组和标签"
+                            onChange={(value)=> this.setState({ value })}
                         />
+                    </FormItem>
                     </Col>
-                    <Col span={4} style={{ paddingRight : 12}}>
-                        <Select style={{ width: '100%' }} value={this.state.filterMethod} onSelect={(value) => { this.setState({ filterMethod: value }) }} placeholder={'请选择'}>
+
+                    <Col md={8} sm={24}>
+                    <FormItem label="服务名称">
+                        <Input 
+                            onChange={(e) => { this.setState({ name: e.target.value.trim() }) }} value={this.state.name} 
+                            placeholder="请输入服务名称" />
+                    </FormItem>
+                    </Col>
+                    <Col md={8} sm={24}>
+                    <span style={{ float: 'right'}}>
+                        <Button 
+                            onClick={()=>{
+                                this._pullData(this.groupId,1,10)}} 
+                            style={{marginRight:8}} type='primary'>查询</Button>
+                        <Button 
+                            onClick={() => this.setState({uri:'',name:'',filterMethod:'',value:''},()=>this._pullData(this.groupId,1,10)) } 
+                        >重置</Button>
+                        <a style={{ marginLeft: 8 }} onClick={() => {
+                                this.setState({
+                                expandForm: true,
+                                });
+                            }}>
+                            展开 <Icon type="down" />
+                        </a>
+                    </span>
+                    </Col>
+                </Row>
+            </Form>
+        )
+    }
+    renderExpandForm = ()=>{
+        return (
+            <Form >
+                <Row gutter={{ md: 8, lg: 24, xl: 48 }} style={{ paddingBottom: 16 }}>
+                    <Col md={8} sm={24}>
+                    <FormItem label="组&标签">
+                        <TreeSelect
+                            style={{ width: '100%' }}
+                            value={this.state.value}
+                            dropdownStyle={{ maxHeight: 400, overflow: 'auto' }}
+                            treeData={this.state.treeData}
+                            placeholder="选择服务组和标签"
+                            onChange={(value)=> this.setState({ value })}
+                        />
+                    </FormItem>
+                    </Col>
+                    <Col md={8} sm={24}>
+                    <FormItem label="服务名称">
+                        <Input 
+                            onChange={(e) => { this.setState({ name: e.target.value.trim() }) }} value={this.state.name} 
+                            placeholder="请输入服务名称" />
+                    </FormItem>
+                    </Col>
+                    <Col md={8} sm={24}>
+                    <FormItem label="服务路径">
+                        <Input 
+                            onChange={(e) => { this.setState({ uri: e.target.value.trim() }) }} value={this.state.uri} 
+                            placeholder="请输入服务路径" />
+                    </FormItem>
+                    </Col>
+                </Row>
+                <Row gutter={{ md: 8, lg: 24, xl: 48 }} style={{ paddingBottom: 20 }}>
+                    <Col md={8} sm={24}>
+                    <FormItem label="请求方法">
+                        <Select style={{ width: '100%' }} 
+                            placeholder="选择服务请求方法"
+                            value={this.state.filterMethod} 
+                            onChange={(value) => { 
+                                this.setState({ filterMethod: value })
+                            }} >
                             {OPTIONS.map((element) => {
-                                return (<Select.Option value={element}>{element}</Select.Option>)
+                                return (<Select.Option key={element} value={element}>{element}</Select.Option>)
                             })}
                         </Select>
+                    </FormItem>
                     </Col>
-                    <Col span={16}>
-                            <Input onChange={(e) => { this.setState({ searchText: e.target.value }) }} value={this.state.searchText} placeholder="请输入" />
-                    </Col>
-                  
                 </Row>
-                { 
-                    this.props.editable ?
-                        <Row>
-                            <Row type={'flex'} style={{ paddingBottom: 20 }}>
-                                <ServerImport appId={this.props.appId} upstream={this.props.upstream} hasChange={this._hasChange} />
-                                <Button style={{ marginLeft: 20, marginRight: 10 }}>添加</Button>
-                                <Button onClick={() => { alert('接口暂未支持') }} style={{ marginLeft: 10, marginRight: 10 }}>删除</Button>
-                            </Row>
-                        <Alert style={{ marginBottom: 10 }} type="info" showIcon message={<Fragment>
-                                已选择 <a style={{ fontWeight: 600 }}>{this.state.selectedRowKeys.length}</a> 项&nbsp;&nbsp;
-                        <a onClick={() => { this.setState({ selectedRowKeys: [] }) }} style={{ marginLeft: 24 }}>清空</a>
-                            </Fragment>} />  
-                        </Row>
-                                    : null 
-                }
-        <Table
+                <div style={{ overflow: 'hidden' }}>
+                    <span style={{ float: 'right',marginBottom: 16}}>
+                        <Button 
+                            onClick={()=>{
+                                this._pullData(this.groupId,1,10)}} 
+                            style={{marginRight:8}} type='primary'>查询</Button>
+                        <Button 
+                            onClick={() => this.setState({uri:'',name:'',filterMethod:'',value:''},()=>this._pullData(this.groupId,1,10)) } 
+                        >重置</Button>
+                        <a style={{ marginLeft: 8 }} onClick={() => {
+                                this.setState({
+                                    expandForm: false,
+                                });
+                            }}>
+                            收起 <Icon type="up" />
+                        </a>
+                    </span>
+                </div>
+            </Form>
+        )
+    }
+    render() {
+        return (
+            <div>
+                <ServerAddModal 
+                    groups={this.data.filter(element=>element.isParent===true)}
+                    editable={this.props.editable}
+                    appId={this.props.appId}
+                    onCloseModal={this.onCloseModal} 
+                    isServerAddModalShow={this.state.isServerAddModalShow} />
+                <div className="tableList">
+                {this.state.expandForm?this.renderExpandForm():this.renderSimpleForm()}
+                </div>
+                <Row>
+                    <Row type={'flex'} style={{ marginBottom: 16 }}>
+                        <ServerImport appId={this.props.appId} upstream={this.props.upstream} hasChange={this._hasChange} />
+                        <Button onClick={()=>this.setState({isServerAddModalShow:true})} style={{ marginLeft: 8, marginRight: 8 }}>添加</Button>
+                        {this.props.editable?
+                            <Fragment>
+                                {/* <Button onClick={() => this.showDeleteConfirms()} style={{ marginRight: 8 }}>删除</Button> */}
+                                <Button onClick={() => this.setState({visibleFile:true}) }>文档调试</Button>
+                                <Modal
+                                    title="文档预览"
+                                    okText='预览'
+                                    visible={this.state.visibleFile}
+                                    onOk={()=>{
+                                        this.setState({visibleFile:false});
+                                        window.open(`${constants.SWAGGER_URL}?group=${this.props.appId}&visibility=${this.state.isOpen}`,'_blank');
+                                    }}
+                                    onCancel={ () => this.setState({visibleFile:false}) }
+                                    >
+                                    <Row type={'flex'} align='middle'>
+                                        <Col span={4}>服务类型:</Col><Col span={18}>
+                                        <RadioGroup value={this.state.isOpen} onChange={(e)=>this.setState({isOpen:e.target.value})}>
+                                            {isOpenList.map((element,index)=> {
+                                                return <Radio key={index} value={element.key}>{element.name}</Radio>
+                                            })}
+                                        </RadioGroup>
+                                        </Col>
+                                    </Row>
+                                </Modal>
+                            </Fragment>
+                        :''
+                        }
+                    </Row>
+                <Alert style={{ marginBottom: 16 }} type="info" showIcon message={<Fragment>
+                        已选择 <a style={{ fontWeight: 600 }}>{this.state.selectedRowKeys.length}</a> 项&nbsp;&nbsp;
+                <a onClick={() => { this.setState({ selectedRowKeys: [] }) }} style={{ marginLeft: 24 }}>清空</a>
+                    </Fragment>} />  
+                </Row>
+                <Table
+                    loading={this.state.loading}
                     rowKey="id"
-                    selection={this.rowSelection()}
-            dataSource={this.state.dataSource}
-            pagination={this.state.pagination}
-            columns={this._getColumn()}
-            onChange={this._onChange} />
+                    rowSelection={this.rowSelection()}
+                    dataSource={this.state.dataSource}
+                    pagination={this.state.pagination}
+                    columns={this._getColumn()}
+                    onChange={this._onChange} />
             </ div>
-            )
-
+        )
     }
 }

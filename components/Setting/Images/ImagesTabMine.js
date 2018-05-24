@@ -7,8 +7,6 @@ import {getImages,getImageCategorys} from '../../../services/images'
 import dockerImg from '../../../assets/images/docker.png'
 import TagSelect from 'ant-design-pro/lib/TagSelect';
 import ImagesUpload from '../../../common/ImagesUpload'
-import Ellipsis from 'ant-design-pro/lib/Ellipsis';
-
 
 const FormItem = Form.Item;
 class ImagesFormTabMine extends Component{
@@ -173,7 +171,7 @@ class ImagesFormTabMine extends Component{
     let tenant=this.state.tenant;
     let names=name;
     let { history } = this.props;
-    history.push({ pathname: `/setting/images/${names}?tenant=${tenant}`});
+    history.push({ pathname: `/setting/images/${names}`,search:tenant});
   }
 
   render(){
@@ -226,9 +224,9 @@ class ImagesFormTabMine extends Component{
           </Card>
         </List.Item>:
         <List.Item>
-        <Card hoverable >
+          <Card hoverable style={{ height:'344px'}}>
           <ImagesUpload renderButton={ 
-            (<Button style={{height:'225.6px'}} type="dashed" className='newButton'>
+              (<Button style={{ height:'295px'}} type="dashed" className='newButton' >
               <Icon type="plus" /> 新增镜像
             </Button>)
           } onOk={this.initDatas} tenant={this.state.tenant}
@@ -258,13 +256,13 @@ class ImagesFormTabMine extends Component{
           }
             <StandardFormRow style={{marginTop:24}} title='应用名称'>
               <Row gutter={16}>
-                <Col lg={8} md={10} sm={10} xs={24}>
+                <Col lg={12} md={16} sm={18} xs={24}>
               <FormItem
-              style={{top:'-24px', maxWidth: 400, width: '100%'}}
+                    style={{ top: '-24px', maxWidth: '600px', width: '100%' }}
                 {...formItemLayout}
                 >
                 {getFieldDecorator('name')(
-                  <Input.Search enterButton="搜索" placeholder='请输入' onSearch ={e=>this.handleFormSubmit()} />
+                      <Input.Search  enterButton="搜索" placeholder='请输入' onSearch ={e=>this.handleFormSubmit()} />
                 )}
 							</FormItem>
 							</Col>

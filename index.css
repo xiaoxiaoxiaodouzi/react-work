@@ -5,9 +5,23 @@ body {
 }
 
 /* card内标题样式 */
-.title111 {
+.card-title {
   font-size: 16px;
   font-weight: 500;
   margin-bottom: 16px;
   color: rgba(0, 0, 0, 0.85);
+}
+/* 服务添加tag样式 */
+.tags .ant-form-item-control{
+  margin-top: 8px;
+}
+
+.ant-progress.danger .ant-progress-bg{
+  background-color:#f5222d;
+}
+.ant-progress.warning .ant-progress-bg{
+  background-color: #faad14;
+}
+.ant-progress.normal .ant-progress-bg{
+  background-color: #52c41a;
 }

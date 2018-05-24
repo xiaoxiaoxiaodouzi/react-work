@@ -1,5 +1,5 @@
 import React,{ Fragment } from 'react';
-import { Modal,Button,Table,Badge } from 'antd';
+import { Modal,Table,Badge } from 'antd';
 import { queryEnvs } from '../../../services/deploy';
 const confirm = Modal.confirm;
 

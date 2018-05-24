@@ -6,7 +6,7 @@ import DescriptionList from 'ant-design-pro/lib/DescriptionList';
 const { Description } = DescriptionList;
 const { Option } = Select;
 
-const urlReg=/(http|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])$/;
+const urlReg=/(http|https):\/\/[\w\-_]+(.[\w\-_]+)+([\w\-.,@?^=%&:/~+#]*[\w\-@?^=%&/~+#])$/;
 const ipReg = /^(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$/;
 //const innerUrlReg=
 class EnvSetting extends PureComponent {

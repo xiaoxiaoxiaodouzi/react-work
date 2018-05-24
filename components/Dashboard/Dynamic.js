@@ -1,4 +1,4 @@
-import React,{PureComponent,Fragment} from 'react';
+import React,{PureComponent} from 'react';
 import { Card,List,Avatar } from 'antd';
 import moment from 'moment';
 const avatars2 = [

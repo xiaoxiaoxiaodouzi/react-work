@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import { Select,Alert, List, Input, Button, Radio, Avatar, Dropdown, Menu, Tooltip } from "antd";
 import {queryImagePath, queryCategorys,queryImages, queryImageVersions, queryLatestVersion } from '../../../services/apps';
 import DataFormate from '../../../utils/DataFormate';
+import {base} from '../../../services/base'
 
 const Search = Input.Search;
 const Option = Select.Option;
@@ -22,15 +23,13 @@ export default class ChooseImage extends Component {
     }
     componentDidMount() {
         this.setState({
-            buttonValue:this.tenant
+            buttonValue:base.tenant
         })
         if(!this.props.check){
             this.getImagePath();
-            this.getImages(this.tenant,null);
+            this.getImages(base.tenant,null);
         }
     }
-
-    tenant="develop";
     
     //获取镜像版本
     getImageVersions = (tenant, artifact, params) => {
@@ -124,9 +123,6 @@ export default class ChooseImage extends Component {
     }
     //选择下拉菜单项时跳转
     handleMenuClick = (e) => {
-        if (e === "no data") {
-            return;
-        }
         this.props.afterchoose(this.state.onDropDownItem, e.key,this.state.buttonValue,this.state.imagePath)
     }
     //获取镜像地址
@@ -144,7 +140,7 @@ export default class ChooseImage extends Component {
                 imageVersions: null,
                 onDropDownItem: item,
             })
-            this.getImageVersions(this.state.buttonValue, item.name, { page: 1, rows: 10 });
+            this.getImageVersions(this.state.buttonValue, item.name, { page: 1, rows: 999 });
         }
     }
     //点击部署按钮后跳转
@@ -176,12 +172,12 @@ export default class ChooseImage extends Component {
     }
     render() {
         const menu = (
-            <Menu onClick={this.handleMenuClick}>
+            <Menu style={{maxHeight:250,overflowY:'auto'}} onClick={this.handleMenuClick}>
                 {
                     this.state.imageVersions ? this.state.imageVersions.map((item, index) => {
                         const dateStr = DataFormate.dateFomate(item.time);
                         return <Menu.Item key={item.tag}>@{item.tag} : {dateStr}</Menu.Item>
-                    }) : <Menu.Item key="no data">no data</Menu.Item>
+                    }) : ''
                 }
             </Menu>
         );
@@ -235,9 +231,10 @@ export default class ChooseImage extends Component {
                             <span style={searchMargin}>
                                 <Search
                                     value={this.state.searchValue}
-                                    placeholder="按Enter进行搜索"
+                                    placeholder="请输入"
                                     onChange={this.handleSearchChange}
                                     onSearch={this.onSearch}
+                                    enterButton
                                     style={{ width: 150,marginLeft:'10px' }}
                                     />
                             </span>

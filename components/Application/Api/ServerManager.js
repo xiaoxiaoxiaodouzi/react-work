@@ -51,21 +51,20 @@ export default class ServerManager extends React.Component {
     _pullData(appId, page, rows = 5, condition) {
         this.page = page;
         this.rows = rows;
-        if (condition != null) {
-            var condition = {};
-            if (this.state.searchText != null) {
+        if (condition) {
+            if (this.state.searchText) {
                 condition.nameorurl = this.state.searchText;
             }
-            if (this.state.filterMethod != null) {
+            if (this.state.filterMethod) {
                 condition.method = this.state.filterMethod;
             }
-            if (this.state.filterApp != null) {
+            if (this.state.filterApp) {
                 condition.searchAppId = this.state.filterApp;
             }
         }
         getUnAuthorizedServicesApis(appId, page, rows, condition)
             .then((response) => {
-                var pagination = { current: response.pageIndex, total: response.total, pageSize: response.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, };
+                let pagination = { current: response.pageIndex, total: response.total, pageSize: response.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, };
                 this.setState({
                     dataSource: response.contents,
                     pagination: pagination
@@ -112,7 +111,7 @@ export default class ServerManager extends React.Component {
     }
 
     _onClick() {
-        var selectedRowKeys = this.props.selectedRowKeys || [];
+        let selectedRowKeys = this.props.selectedRowKeys || [];
         this.setState({
             visible: true,
             selectedRowKeys: selectedRowKeys,
@@ -154,24 +153,24 @@ export default class ServerManager extends React.Component {
             selectedRowKeys: this.state.selectedRowKeys,
             onSelect: (record, selected, selectedRows, nativeEvent) => {
                 if (selected) {
-                    var isExist = false;
-                    for (var n = 0; n < this.state.selectedRowKeys.length; n++) {
-                        if (record.id == this.state.selectedRowKeys[n]) {
+                    let isExist = false;
+                    for (let n = 0; n < this.state.selectedRowKeys.length; n++) {
+                        if (record.id === this.state.selectedRowKeys[n]) {
                             isExist = true;
                         }
                     }
                     if (isExist) {
                         return;
                     }
-                    var selectedRowKeys = this.state.selectedRowKeys.slice();
+                    let selectedRowKeys = this.state.selectedRowKeys.slice();
                     selectedRowKeys.push(record.id)
                     this.setState({
                         selectedRowKeys: selectedRowKeys
                     })
                 } else {
-                    var rowsKeys = [];
-                    for (var n = 0; n < this.state.selectedRowKeys.length; n++) {
-                        if (record.id != this.state.selectedRowKeys[n]) {
+                    let rowsKeys = [];
+                    for (let n = 0; n < this.state.selectedRowKeys.length; n++) {
+                        if (record.id !== this.state.selectedRowKeys[n]) {
                             rowsKeys.push(this.state.selectedRowKeys[n]);
                         }
                     }
@@ -181,30 +180,30 @@ export default class ServerManager extends React.Component {
                 }
             },
             onSelectAll: (selected, selectedRows, changeRows) => {
-                var rowKeys = [];
+                let rowKeys = [];
                 if (selected) {
                     rowKeys = this.state.selectedRowKeys.slice();
-                    for (var n = 0; n < selectedRows.length; n++) {
-                        var newSelected = selectedRows[n];
-                        for (var i = 0; i < this.state.selectedRowKeys.length; i++) {
-                            if (this.state.selectedRowKeys[i] == selectedRows[n].id) {
+                    for (let n = 0; n < selectedRows.length; n++) {
+                        let newSelected = selectedRows[n];
+                        for (let i = 0; i < this.state.selectedRowKeys.length; i++) {
+                            if (this.state.selectedRowKeys[i] === selectedRows[n].id) {
                                 newSelected = null
                                 break;
                             }
                         }
-                        if (newSelected != null) {
+                        if (newSelected) {
                             rowKeys.push(newSelected.id);
                         }
                     }
                 } else {
-                    for (var n = 0; n < this.state.selectedRowKeys.length; n++) {
-                        var newSelected = null;
-                        for (var i = 0; i < changeRows.length; i++) {
-                            if (this.state.selectedRowKeys[n] == changeRows[i].id) {
+                    for (let n = 0; n < this.state.selectedRowKeys.length; n++) {
+                        let newSelected = null;
+                        for (let i = 0; i < changeRows.length; i++) {
+                            if (this.state.selectedRowKeys[n] === changeRows[i].id) {
                                 newSelected = this.state.selectedRowKeys[n];
                             }
                         }
-                        if (newSelected == null) {
+                        if (!newSelected) {
                             rowKeys.push(this.state.selectedRowKeys[n])
                         }
                     }
@@ -234,8 +233,8 @@ export default class ServerManager extends React.Component {
                                 <Col span={4}>应用:</Col>
                                 <Col span={18}>
                                     <Select style={{ width: '100%' }} placeholder={'请选择'} value={this.state.filterApp} onSelect={(value) => { this.setState({ filterApp: value }) }}>
-                                        {this.state.apps.map((element) => {
-                                            return (<Select.Option value={element.id}>{element.name}</Select.Option>)
+                                        {this.state.apps.map((element,index) => {
+                                            return (<Select.Option key={index} value={element.id}>{element.name}</Select.Option>)
                                         })}
                                     </Select>
                                 </Col>
@@ -246,8 +245,8 @@ export default class ServerManager extends React.Component {
                                 <Col span={6}>Method:</Col>
                                 <Col span={16}>
                                     <Select style={{ width: '100%' }} placeholder={'请选择'} value={this.state.filterMethod} onSelect={(value) => { this.setState({ filterMethod: value }) }}>
-                                        {OPTIONS.map((element) => {
-                                            return (<Select.Option value={element}>{element}</Select.Option>)
+                                        {OPTIONS.map((element,index) => {
+                                            return (<Select.Option key={index} value={element}>{element}</Select.Option>)
                                         })}
                                     </Select>
                                 </Col>

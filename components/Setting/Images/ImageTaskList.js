@@ -1,6 +1,6 @@
 import React,{Component} from 'react'
 import {Card,Table,Input,Button,Row,Col,Form} from 'antd' 
-import {getTaskList,getUserInfo} from '../../../services/images'
+import {getTaskList} from '../../../services/images'
 import moment from 'moment'
 import './ImageTaskList.css'
 import LogModal from './LogModal'
@@ -106,7 +106,9 @@ class ImageTaskListForm extends Component{
       },{
         title:'创建时间',
         dataIndex:'createTime',
-        width:'30%',
+        width: '30%', 
+        defaultSortOrder:'ascend',
+        sorter: (a, b) => b.createTime-a.createTime  ,
         render:(text,record)=>{
           return moment(text).format('YYYY-MM-DD HH:mm:ss')
         }
@@ -116,19 +118,19 @@ class ImageTaskListForm extends Component{
         width:'30%',
         render:(text,record)=>{
           if(text===1){
-            return <span style={{color:'grey'}}>'编译中'</span>
+            return <span style={{color:'grey'}}>编译中</span>
           }
           if(text===2){
-            return <span style={{color:'green'}}>'提交打包任务到k8s成功'</span>
+            return <span style={{color:'green'}}>提交打包任务到k8s成功</span>
           }
           if(text===3){
-            return <span style={{color:'red'}}>'提交打包任务到k8s失败'</span>
+            return <span style={{color:'red'}}>提交打包任务到k8s失败</span>
           }
           if(text===4){
-            return <span style={{color:'green'}}>'打包任务执行成功'</span>
+            return <span style={{color:'green'}}>打包任务执行成功</span>
           }
           if(text===5){
-            return <span style={{color:'red'}}>'打包任务执行失败'</span>
+            return <span style={{color:'red'}}>打包任务执行失败</span>
           }
         }
       },
@@ -149,15 +151,15 @@ class ImageTaskListForm extends Component{
             <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
               <Col md={8} sm={24}>
                 <FormItem label="镜像名称">
-                  {getFieldDecorator('imageName')
-                    (<Input placeholder='请输入'/>)
+                  {
+                    getFieldDecorator('imageName')(<Input placeholder='请输入'/>)
                   }
                 </FormItem>
               </Col>
               <Col md={8} sm={24}>
                 <FormItem label="租户">
-                  {getFieldDecorator('tenant')
-                    (<Input placeholder='请输入'/>)
+                  {
+                    getFieldDecorator('tenant')(<Input placeholder='请输入'/>)
                   }
                 </FormItem>
               </Col>

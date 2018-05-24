@@ -1,4 +1,4 @@
-import React, { PureComponent } from 'react';
+import React from 'react';
 /* 无状态NA组件，用于显示未部署服务 */
 export default () => {
   return (

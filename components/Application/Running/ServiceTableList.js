@@ -20,7 +20,8 @@ class ServiceTable extends Component{
       name:'',
       id:'',
       icon:'',
-      isupdate:false
+      url:'',
+      isupdate:false,
     })  
   }
   //点击编辑触发事件
@@ -96,7 +97,7 @@ class ServiceTable extends Component{
        {
          title:'操作',
          width:'20',
-         render:(text,record)=>{
+         render:(text,record)=>
           <Fragment>
               <a onClick={e=>this.handleEdit(e,record)}>编辑</a>
               <Divider type="vertical" />
@@ -104,7 +105,6 @@ class ServiceTable extends Component{
                   <a>删除</a>
               </Popconfirm>
           </Fragment>
-          }
     }
   ];
   const formItemLayout = {
@@ -159,6 +159,7 @@ class ServiceTable extends Component{
       </div>
     )
   }
+  
 }
 
 const ServiceTableList =Form.create()(ServiceTable);

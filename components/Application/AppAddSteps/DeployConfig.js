@@ -1,10 +1,8 @@
 import React, { Component } from "react";
 import { message, Input, Button, Radio, Row, Col, Form, Switch } from "antd";
-import { queryImagePath } from '../../../services/apps';
 import NetworkConfig from '../Deploy/NetworkConfig';
 import EnvVariables from '../Deploy/EnvVariables';
 import { checkCmd } from '../../../utils/utils';
-import { resource } from '../../../constant/constant';
 import appUtil from '../../../services/appguide'
 
 const FormItem = Form.Item;
@@ -96,7 +94,7 @@ class DeployConfig extends Component {
         this.props.form.validateFields((err, values) => {
             if (!err) {
                 values.resourcesType = this.state.radioValue;
-
+                
                 //校验容器名称是否存在
                 if (containers && containers.length > 0) {
                     const conExist = containers.filter(item => item.name === values.name);
@@ -191,20 +189,6 @@ class DeployConfig extends Component {
             wrapperCol: { span: 7, offset: 17 },
         };
         const { getFieldDecorator } = this.props.form;
-        const help = (
-            <div>{
-                Object.keys(resource).map((value, index) => {
-                    if (index === 0) {
-                        return <font key={index}>{resource[value]}</font>
-                    } else if (index === 2) {
-                        return <font key={index} style={{ marginLeft: '40px' }}>{resource[value]}</font>
-                    } else {
-                        return <font key={index} style={{ marginLeft: '30px' }}>{resource[value]}</font>
-                    }
-                })
-            }
-            </div>
-        )
         return (
             <Row style={{ display: this.props.display ? 'block' : 'none' }}>
                 <Col span={24}>

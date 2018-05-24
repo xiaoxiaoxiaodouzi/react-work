@@ -1,6 +1,8 @@
 import React from 'react';
-import { Col, Row, Radio, Input, Button } from 'antd';
-import { getSwaggerComparison } from '../../../../services/api'
+import { Col, Row, Radio, Input, Button, Select, message } from 'antd';
+import SetpBar from './SetpBar';
+import { getSwaggerComparison, getRemoteSwagger, queryAllGroups } from '../../../../services/api'
+import { getAppInfo } from '../../../../services/appdetail'
 
 export default class ServerImportStepOne extends React.Component {
 
@@ -8,21 +10,41 @@ export default class ServerImportStepOne extends React.Component {
         super(props)
 
         this.state = {
-            radioValue: 1
+            radioValue: 1,
+            groups: [],
+            showServerGroup: this.props.upstream == null ? true : false
         }
 
+        this.upstream = null;
         this.swaggerurl = null;
         this.swaggergrouptext = null;
+
+        this._onSelect = this._onSelect.bind(this);
         this.renderJsonImportUrlContainer = this.renderJsonImportUrlContainer.bind(this);
         this.renderJsonTextContainer = this.renderJsonTextContainer.bind(this);
         this._onChange = this._onChange.bind(this);
         this._onClick = this._onClick.bind(this);
     }
 
-
+    componentDidMount() {
+        if (this.props.upstream == null) {
+            queryAllGroups()
+                .then((response) => {
+                    this.setState({
+                        groups: response
+                    })
+                });
+        }
+    }
     //******************************************************************* */
     //********************************EVENT****************************** */
     //******************************************************************* */
+    _onSelect(appId) {
+        getAppInfo(appId)
+            .then((response) => {
+                this.upstream = response.upstream;
+            })
+    }
 
     _onChange(e) {
         this.setState({
@@ -31,21 +53,57 @@ export default class ServerImportStepOne extends React.Component {
     }
 
     _onClick() {
-        if (this.state.radioValue == 1) {
-            if (this.swaggergrouptext == null) { return }
+        if (this.props.upstream == null) {
+            if (this.upstream == null) {
+                message.warn('请选择需要导入的服务组')
+                return
+            }
+        }
+        if (this.state.radioValue === 1) {
+            if (!this.swaggergrouptext) { return }
             var obj = JSON.parse(this.swaggergrouptext);
             getSwaggerComparison(obj)
                 .then((response) => {
-                    this.props.onNextSetp && this.props.onNextSetp(response,this.swaggergrouptext);
+                    this.props.onNextSetp && this.props.onNextSetp(response, this.swaggergrouptext, this.upstream);
                 })
         } else {
-            if (this.swaggerurl == null) { return }
-
+            if (!this.swaggerurl) { return }
+            getRemoteSwagger(this.swaggerurl)
+                .then((response) => {
+                    return getSwaggerComparison(response)
+                })
+                .then((response) => {
+                    this.props.onNextSetp && this.props.onNextSetp(response, this.swaggergrouptext, this.upstream);
+                })
         }
     }
     //******************************************************************* */
     //*********************************UI******************************** */
     //******************************************************************* */
+    renderServiceGroupSelectTree() {
+        if (this.state.showServerGroup) {
+            return (
+                <Col span={18} offset={3} style={{ paddingTop: 30 }}>
+                    <Row span={12} >
+                        <Col span={5}>目标服务组:</Col>
+                        <Col>
+                            <Select onSelect={this._onSelect} size={'large'} style={{ width: 300 }} placeholder={'目标服务组'}>
+                                {this.state.groups.map((element) => {
+                                    if (element.isParent == false) {
+                                        return null
+                                    }
+                                    return (
+                                        <Select.Option value={element.id}>{element.name}</Select.Option>
+                                    )
+                                })}
+                            </Select>
+                        </Col>
+                    </Row>
+                </Col>
+            )
+        }
+    }
+
     renderJsonImportUrlContainer() {
         return (
             <Row style={{ marginTop: 20 }}>
@@ -65,24 +123,29 @@ export default class ServerImportStepOne extends React.Component {
     }
 
     render() {
-        if(this.props.display == false){
+        if (!this.props.display) {
             return null;
         }
         return (
-            <Col span={18} offset={3} style={{ paddingTop: 30 }}>
-                <Row span={12}>
-                    <Col span={5}>导入方式:</Col>
-                    <Col span={16}>
-                        <Radio.Group onChange={this._onChange} value={this.state.radioValue}>
-                            <Radio value={1}>Swagger.json字符串</Radio>
-                            <Radio value={2}>Swagger.json访问地址</Radio>
-                        </Radio.Group>
-                    </Col>
-                </Row>
-                <Row span={12}>
-                    {this.state.radioValue == 1 ? this.renderJsonTextContainer() : this.renderJsonImportUrlContainer()}
-                </Row>
-                <Row type="flex" justify={'center'} style={{ marginTop: 20 }}><Col><Button onClick={() => { this._onClick() }} type="primary">下一步</Button></Col></Row>
+            <Col>
+                {this.renderServiceGroupSelectTree()}
+                <Col span={18} offset={3} style={{ paddingTop: 30 }}>
+                    <Row span={12}>
+                        <Col span={5}>导入方式:</Col>
+                        <Col span={16}>
+                            <Radio.Group onChange={this._onChange} value={this.state.radioValue}>
+                                <Radio value={1}>Swagger.json字符串</Radio>
+                                <Radio value={2}>Swagger.json访问地址</Radio>
+                            </Radio.Group>
+                        </Col>
+                    </Row>
+                    <Row span={12}>
+                        {this.state.radioValue === 1 ? this.renderJsonTextContainer() : this.renderJsonImportUrlContainer()}
+                    </Row>
+                </Col>
+                <Col span={24}>
+                    <SetpBar onNextStep={() => { this._onClick() }} style={{ marginTop: 20 }} />
+                </Col>
             </Col>
         )
     }

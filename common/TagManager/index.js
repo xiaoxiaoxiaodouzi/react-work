@@ -1,5 +1,3 @@
-'use strict'
-
 import React from 'react';
 import { Row, Col, Button, Select, Popover, Tag } from 'antd';
 import QuickSearch from '../../utils/quickSearch';
@@ -18,12 +16,17 @@ export default class TagManager extends React.PureComponent {
         }
 
         this.selectedTags = {};
+        this.tags = {};
         this.tagtempcontent = null;
         this.tagitem = null;
         this.focus = false;
 
-        props.selectedTags.map((element) => {
+        props.selectedTags.forEach((element) => {
             this.selectedTags[element.id] = element.name;
+        })
+
+        props.allTags.forEach((element) => {
+            this.tags[element.id] = element;
         })
 
         this.onSearch = this.onSearch.bind(this);
@@ -37,8 +40,12 @@ export default class TagManager extends React.PureComponent {
     componentWillReceiveProps(nextProps) {
         this.selectedTags = {};
         var th = this;
-        nextProps.selectedTags.map((element) => {
+        nextProps.selectedTags.forEach((element) => {
             th.selectedTags[element.id] = element.name;
+        })
+
+        nextProps.allTags.forEach((element) => {
+            th.tags[element.id] = element;
         })
     }
 
@@ -70,7 +77,7 @@ export default class TagManager extends React.PureComponent {
     onChange(value) {
         if (this.focus) {
             this.tagtempcontent = null;
-            this.tagitem = value;
+            this.tagitem = this.tags[value];
         }
     }
 
@@ -84,7 +91,7 @@ export default class TagManager extends React.PureComponent {
     // 匹配已存在标签/创建新标签，并绑定标签
     onTagsManagerCommit() {
         //无有效选中或输入过滤
-        if (this.tagitem == null && this.tagtempcontent == null || this.tagtempcontent == '') {
+        if (!this.tagitem && !this.tagtempcontent) {
             this.setState({
                 visible: false
             })
@@ -133,7 +140,7 @@ export default class TagManager extends React.PureComponent {
                         filterOption={(input, option) => option.props.children.toLowerCase().indexOf(input.toLowerCase()) >= 0}>
                         {this.props.allTags.map((element) => {
                             return (
-                                <Select.Option disabled={th.selectedTags[element.id] != null} value={element}>{element.name}</Select.Option>
+                                <Select.Option key={element.id} disabled={th.selectedTags[element.id] != null} value={element.id}>{element.name}</Select.Option>
                             )
                         })}
                     </Select>
@@ -148,7 +155,7 @@ export default class TagManager extends React.PureComponent {
 
     render() {
         return (
-            <Col style={{ justifyContent: 'center' ,lineHeight:'22px'}}>
+            <Col style={{ justifyContent: 'center', lineHeight: '22px' }}>
                 {this.props.selectedTags.map((element) => {
                     return <Tag key={element.id} style={{ marginRight: 10 }} closable onClose={() => { this.removeTag(element) }}>{element.name}</Tag>
                 })}

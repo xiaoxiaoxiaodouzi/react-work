@@ -7,7 +7,7 @@ class C2QuickSearch {
 
     let checkData = null;//需要被比对的数据
     //判定键值是否存在
-    if (condition[0] == null) {
+    if (!condition[0]) {
       return false;
     }
 
@@ -25,55 +25,51 @@ class C2QuickSearch {
 
     let result = false;
     switch (condition[1]) {
-      case '==': {
-        if (checkData == condition[2]) result = true;
-
-      }
+      case '==': 
+        if (checkData === condition[2]) result = true;
         break;
-      case '!=': {
-        if (checkData != condition[2]) result = true;
-      }
+      case '!=': 
+        if (checkData !== condition[2]) result = true;
         break;
-      case 'like': {
+      case 'like': 
         var str = checkData;
         var patt = new RegExp(condition[2]); //主意是非全局匹配
-        var ret_test = patt.test(str) || patt.test(C2QuickSearch.switchPinyin(str));
+        var ret_test = patt.test(str);
         if (ret_test) result = true;
-      }
         break;
+      default: break;
     }
-
     return result;
   }
 
   //多条件匹配condition=[[['name','like','刘'],'&&',['pid','==','12ewefdf32']],"||",['name','==','刘圣坚']]
   _checkConditionResult(datablob, condition) {
 
-    if (typeof condition != 'object' && condition.length != 3) {
+    if (typeof condition !== 'object' && condition.length !== 3) {
       return false;
     }
 
-    if (typeof condition[1] != 'string') {
+    if (typeof condition[1] !== 'string') {
       return false;
     }
 
     //嵌套条件情况
-    if (typeof condition[0] == 'object') {
+    if (typeof condition[0] === 'object') {
       var resultBool;
       var childCondition = condition[0];
       resultBool = this._checkConditionResult(datablob, childCondition);
       //嵌套条件 && || 快速判断
-      if (resultBool == true) {
-        if (condition[1] == '||') {
+      if (resultBool) {
+        if (condition[1] === '||') {
           return true;
-        }else if(condition[1] == '&&'){
+        }else if(condition[1] === '&&'){
           return this._checkConditionResult(datablob, condition[2]);
         }
-      } else if (resultBool == false) {
-        if (condition[1] == '&&') {
+      } else if (!resultBool) {
+        if (condition[1] === '&&') {
           return false;
-        } else if (condition[1] == '||') {
-          if (typeof condition[2] == 'object') {
+        } else if (condition[1] === '||') {
+          if (typeof condition[2] === 'object') {
             return this._checkConditionResult(datablob, condition[2]);
           } else {
             return this._checkConditon(datablob, condition[2]);
@@ -84,7 +80,7 @@ class C2QuickSearch {
 
     //普通条件
     //类型检查
-    if (typeof condition[0] != 'string') {
+    if (typeof condition[0] !== 'string') {
       return false;
     }
 
@@ -92,11 +88,11 @@ class C2QuickSearch {
   }
 
   //模糊拼音匹配
-  static switchPinyin(datablob) {
-    const pinyin = require("./pinyin");
-    var cnpinyin = pinyin.getFullChars(datablob, false);
-    return cnpinyin;
-  }
+  // static switchPinyin(datablob) {
+  //   const pinyin = require("./pinyin");
+  //   var cnpinyin = pinyin.getFullChars(datablob, false);
+  //   return cnpinyin;
+  // }
 
   static search(json, condition) {
     var resultArray = [];

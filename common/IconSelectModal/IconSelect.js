@@ -1,6 +1,7 @@
 import React from 'react'
 import './index.css'
 
+// eslint-disable-next-line
 
 class IconSelect extends React.Component {
   componentDidMount(){
@@ -8,15 +9,16 @@ class IconSelect extends React.Component {
     var ul = document.getElementsByClassName('anticons-list');
     //var li=ul[0].getElementsByTagName('li')
     for(var j=0;j<ul.length;j++){
-      //使用（IIFE）立即执行函数给每一个li都添加上click事件
-      (function(Counts){
+        //使用（IIFE）立即执行函数给每一个li都添加上click事件
         //也可以用ul[Counts].childNods来获取里面的li
-        var li=ul[Counts].getElementsByTagName('li')
+      (function(counts){
+        var li=ul[counts].getElementsByTagName('li');
         for(var i=0;i<li.length;i++){
-          (function(Index){
-            li[i].onclick= (e=>th.props.selectIcon(li[Index].getElementsByClassName('ant-badge')[0].innerHTML))
+          // eslint-disable-next-line
+          (function (Index) {
+            li[i].onclick = (e => th.props.selectIcon(li[Index].getElementsByClassName('ant-badge')[0].innerHTML))
           }(i))
-        } 
+        }
       }(j))
     }
   }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Row, Col, Modal, Button, Steps ,message} from 'antd';
+import { Row, Col, Modal, Button, Steps } from 'antd';
 import ServerImportStepOne from './ServerImportStep/ServerImportStepOne';
 import ServerImportStepTwo from './ServerImportStep/ServerImportStepTwo';
 import ServerImportStepThree from './ServerImportStep/ServerImportStepThree';
@@ -12,6 +12,7 @@ export default class ServerImport extends React.Component {
             visible: false,
             step: 0,
             dataSource: [],
+            upstream:null,
             swaggertext:'',
             resultDataSource:[],
         }
@@ -30,10 +31,7 @@ export default class ServerImport extends React.Component {
     //*******************************EVENT********************************* */
     //********************************************************************* */
     _onClick() {
-        if(this.props.upstream === null){
-            message.warning('请先填写内网地址');
-            return;
-        }
+
         this.hasChange = false;
         this.setState({
             visible: true,
@@ -42,7 +40,7 @@ export default class ServerImport extends React.Component {
     }
 
     _onCancel() {
-        if(this.hasChange === true){
+        if(this.hasChange){
             this.hasChange = false;
             this.props.hasChange && this.props.hasChange();
         }
@@ -59,11 +57,12 @@ export default class ServerImport extends React.Component {
         })
     }
 
-    _toSetpTwo(swagger,swaggertext) {
+    _toSetpTwo(swagger,swaggertext,upstream) {
         this.setState({
             step: 1,
             dataSource: swagger,
-            swaggertext:swaggertext
+            swaggertext:swaggertext,
+            upstream:upstream
         })
     }
 
@@ -101,9 +100,9 @@ export default class ServerImport extends React.Component {
                             </Steps>
                         </Col>
                         <Col>
-                            <ServerImportStepOne onNextSetp={this._toSetpTwo} display={this.state.step === 0 ? true : false} />
-                            <ServerImportStepTwo dataSource={this.state.dataSource} onNextSetp={this._toSetpThree} display={this.state.step === 1 ? true : false} />
-                            <ServerImportStepThree appId={this.props.appId} dataSource={this.state.resultDataSource} swaggertext={this.state.swaggertext} upstream={this.props.upstream} display={this.state.step == 2 ? true : false} hasChange={this._hasChange}/>
+                            <ServerImportStepOne onNextSetp={this._toSetpTwo} display={this.state.step === 0 ? true : false} upstream={this.props.upstream}/>
+                            <ServerImportStepTwo onPreviousStep={()=>{this.setState({step:0})}} onNextSetp={this._toSetpThree} dataSource={this.state.dataSource}  display={this.state.step === 1 ? true : false} />
+                            <ServerImportStepThree onPreviousStep={()=>{this.setState({step:1})}}  appId={this.props.appId} dataSource={this.state.resultDataSource} swaggertext={this.state.swaggertext} upstream={this.state.upstream || this.props.upstream} display={this.state.step === 2 ? true : false} hasChange={this._hasChange}/>
                         </Col>
                     </Row>
                 </Modal>

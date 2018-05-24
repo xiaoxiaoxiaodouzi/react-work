@@ -1,15 +1,15 @@
 import C2Fetch from '../utils/Fetch';
 
 let proxy = 'proxy/';
-
-let currentUser;
 export let base = {
   currentUser:null,
+  environments:[],
   currentEnvironment:null,
+  currentTenantInfo:null,
   tenant:null,
   getCurrentUser:()=>{
     const url=`ws/getSubject`;
-    return C2Fetch.get(url,null,false);
+    return C2Fetch.get(url,null,"获取当前用户信息失败");
   },
   loginOut:()=>{
     const url=`ws/logout`;
@@ -22,7 +22,7 @@ export let base = {
     }
     return C2Fetch.get(url,null,"获取用户租户信息失败");
   },
-  getAppState(stateCode){
+  getAppState:(stateCode)=>{
     const stateMap = {
       succeeded:{name:'运行中',color:'green'},
       failed:{name:'失败',color:'red'},
@@ -32,7 +32,7 @@ export let base = {
     }
     return stateMap[stateCode];
   },
-  getEnvironments(){
+  getEnvironments:()=>{
     let url = 'amp/v1/envs';
     return C2Fetch.get(url,null,"获取环境信息失败");
   }

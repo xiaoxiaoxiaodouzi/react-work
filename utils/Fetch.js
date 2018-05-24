@@ -87,12 +87,21 @@ const getAmpEnvId = () => {
     return evnId;
 }
 
+message.config({
+    top: 24,
+    duration: 2,
+    maxCount: 1
+  });
+
 class C2Fetch {
     static urlBase = "";
-    static get(url, params, errorMessage) {
+    static get(url, params, errorMessage, headers) {
         let queryParams = getQueryParams(params);
         let queryUrl = queryParams.length > 0 ? "?" + queryParams.join("&") : "";
-        return fetch(this.urlBase + url + queryUrl, { credentials: "include", headers: { 'accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': getAmpEnvId() } }).then(response => responseHandle(response, errorMessage));
+        let ampEnvId = getAmpEnvId();
+        if(headers&&headers['AMP-ENV-ID'])ampEnvId=headers['AMP-ENV-ID'];
+        let httpHeaders = { 'accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': ampEnvId };
+        return fetch(this.urlBase + url + queryUrl, { credentials: "include", headers:httpHeaders  }).then(response => responseHandle(response, errorMessage));
     }
     static post(url, bodyParams, queryParams, errorMessage) {
         let parray = getQueryParams(queryParams);

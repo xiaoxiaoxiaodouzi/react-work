@@ -1,5 +1,5 @@
 import React,{PureComponent,Fragment} from 'react';
-import { Button,Row,Col,Spin,message,Card,Switch,Icon,Tooltip,Table } from 'antd';
+import { Row,Col,Card,Icon,Tooltip,Table } from 'antd';
 import { ChartCard } from 'ant-design-pro/lib/Charts';
 
 const clusters = [{
@@ -13,7 +13,7 @@ const clusters = [{
   name:'集群3'
 }];
 const columns = [
-  { title: '节点', dataIndex: 'node', },
+  { title: '主机', dataIndex: 'node', },
   { title: '资源使用', dataIndex: 'resource' },
   { title: '操作', dataIndex: '', render: () => <a onClick={()=>{console.log('aaa')}}>查看历史曲线</a> },
 ];
@@ -38,7 +38,7 @@ export default class Clusters extends PureComponent {
     const topColResponsiveProps = { xs:24,sm:12,md:12,lg:12,xl:6,style:{ marginBottom: 24 }};
     return (
       <Fragment>
-        <div className="title111">{cluster}概况</div>
+        <div className="card-title">{cluster}概况</div>
         <Row gutter={24}>
           <Col {...topColResponsiveProps}>
             <ChartCard
@@ -69,7 +69,7 @@ export default class Clusters extends PureComponent {
               contentHeight={46}/>
           </Col>
         </Row>
-        <div className="title111">节点列表</div>
+        <div className="card-title">节点列表</div>
         <Table
           size={'small'}
           columns={columns}

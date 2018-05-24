@@ -22,7 +22,8 @@ class UserForm extends Component{
     pageSize:10,
     total:'',
     checkedKeys:[],       //被选中的角色
-    roleTree:[]
+    roleTree:[],
+    orgs:[],
   }
   componentDidMount(){
     const appid=this.props.appid
@@ -40,6 +41,21 @@ class UserForm extends Component{
         roles:data
       })
     })
+  }
+
+  componentWillReceiveProps(nextProps){
+    if(this.state.orgs!==nextProps.orgs){
+      const appid = this.props.appid
+      getUsers(appid).then(data => {
+        this.setState({
+          orgs:nextProps.orgs,
+          users: data.contents,
+          total: data.total,
+          currentPage: this.state.currentPage,
+          pageSize: 10
+        })
+      })
+    }
   }
 
   toggleForm=()=>{

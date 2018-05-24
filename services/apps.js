@@ -19,8 +19,8 @@ export function queryClusters(){
   return C2Fetch.get(proxy+'cce/v1/tenants/'+base.tenant+'/clusters',null,"获取集群数据出错！");
 }
 //查询镜像版本列表
-export function queryImageVersions(artifact,params){
-  return C2Fetch.get(proxy+'cce/v1/images/'+base.tenant+'/'+artifact +'/manifests',params,"获取镜像版本数据出错！");
+export function queryImageVersions(tenant,artifact,params){
+  return C2Fetch.get(proxy+'cce/v1/images/'+tenant+'/'+artifact +'/manifests',params,"获取镜像版本数据出错！");
 }
 //查询镜像的最新版本列表
 export function queryLatestVersion(tenant,artifact){
@@ -61,7 +61,16 @@ export function checkIdName(bodyParams,queryParams){
   return C2Fetch.post(proxy+'aip/v1/apps/1/checkexist',bodyParams,queryParams,"校验失败！");
 }
 
+//校验应用code是否存在 
+export function checkCodeName(code) {
+  return C2Fetch.get(proxy + `cce/v1/tenants/${base.tenant}/applications/${code}/id`,null, "编码重复！");
+}
+
 //查询应用信息 
 export function queryAppInfo(application){
   return C2Fetch.get(proxy+'cce/v1/tenants/'+base.tenant+'/applications/'+application,null,"获取应用信息失败");
+}
+//查询应用信息 
+export function queryAppCount(params){
+  return C2Fetch.get(proxy+'/aip/v2/appcount',params,"获取应用信息失败");
 }

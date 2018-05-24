@@ -1,5 +1,5 @@
 import React, { PureComponent } from 'react';
-import { Layout, Menu, Icon, Spin, Dropdown, Avatar, message, Button } from 'antd';
+import { Layout, Menu, Icon, Spin, Dropdown, Avatar, message } from 'antd';
 import HeaderSearch from 'ant-design-pro/lib/HeaderSearch';
 import NoticeIcon from 'ant-design-pro/lib/NoticeIcon';
 import { base } from '../../services/base'
@@ -27,7 +27,8 @@ export default class GlobalHeader extends PureComponent {
         if (tenantsData === undefined || environments === undefined) return;
 
         environments.forEach(e => {
-          if (e.isMain) currentEnvironment = e;
+          if(window.localStorage.localEnvironmentId === e.id)currentEnvironment = e;
+          if (e.isMain && currentEnvironment === undefined) currentEnvironment = e;
         })
         base.currentEnvironment = currentEnvironment;
         base.environments = environments;
@@ -39,20 +40,37 @@ export default class GlobalHeader extends PureComponent {
           }
         })
         if (tenants && tenants.length > 0) {
-          let currentTenant = tenants[0];
+          //从浏览器存储中获取默认租户
+          let currentTenant;
+          if(window.localStorage.localTenantCode){
+            tenants.forEach(t=>{
+              if(t.code === window.localStorage.localTenantCode){
+                currentTenant = t;
+              }
+            })
+          }
+          if(currentTenant === undefined){
+            let currentTenant = tenants[1];
+            window.localStorage.localTenantCode = currentTenant.code;
+          }
           base.tenant = currentTenant.code;
+          base.currentTenantInfo = currentTenant;
           //设置好当前租户和环境之后再设置全局登录状态
           this.props.tenantChange(currentTenant.code);
           this.props.environmentChange(currentEnvironment.id);
           this.props.loginStateChange();
           this.setState({ currentUser: u, tenants, currentTenant, environments, currentEnvironment });
         } else {
-          message.error("没有找到当前用户下的租户");
+          message.error("没有找到当前用户下的PAAS租户");
         }
       })
-    }).catch(e => {
-      message.error("获取当前用户信息失败");
     })
+  }
+
+  toggle = () => {
+    const { collapsed, onCollapse } = this.props;
+    onCollapse(!collapsed);
+    // this.triggerResizeEvent();
   }
 
   menuClick = ({ item, key, keyPath }) => {
@@ -70,6 +88,8 @@ export default class GlobalHeader extends PureComponent {
         this.setState({ currentTenant: ct });
         //设置全局租户
         base.tenant = ct.code;
+        base.currentTenantInfo = ct;
+        window.localStorage.localTenantCode = ct.code;
         this.props.tenantChange(ct.code);
         message.success('切换到租户：' + ct.name);
         this.pageRedirect();
@@ -84,6 +104,7 @@ export default class GlobalHeader extends PureComponent {
         this.setState({ currentEnvironment: ce });
         //设置全局环境
         base.currentEnvironment = ce;
+        window.localStorage.localEnvironmentId = ce.id;
         this.props.environmentChange(ce.id);
         message.success('切换到环境：' + ce.name);
         this.pageRedirect();
@@ -119,6 +140,13 @@ export default class GlobalHeader extends PureComponent {
     );
     return (
       <Header className="gloabl-header header" >
+        {this.props.isMobile && (
+          <Icon
+            className='trigger'
+            type={this.props.collapsed ? 'menu-unfold' : 'menu-fold'}
+            onClick={this.toggle}
+          />
+        )}
         <div className="right">
           <HeaderSearch
             className="action search"

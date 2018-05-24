@@ -1,13 +1,13 @@
 import React, { Fragment,Component } from 'react';
 import {Table, Form, Input, Button, Modal, message,Tree,Divider } from 'antd';
-import {getRoles,addRole,getRolesByCode,deleteRole,updateRole,getRoleMenus,updateRoleMenus,getResources,getRoleAllResources,updateRoleResources} from '../../../services/running'
-import TreeHelp from '../../../utils/TreeHelp'
+import {getRoles,addRole,getRolesByCode,deleteRole,updateRole,getResources,getRoleAllResources,updateRoleResources} from '../../../services/running'
 
 const FormItem = Form.Item;
 const TreeNode = Tree.TreeNode;
 const { TextArea } = Input;
 class RoleForm extends Component{
   state={
+    confirmLoading:false,
     visible:false,   //角色模态框开启关闭状态
     visibleImport:false,    //角色导入模态框开启关闭状态
     visibleAuthorization:false,   //角色授权模态框开启关闭状态 
@@ -27,34 +27,35 @@ class RoleForm extends Component{
     formData:[]
   }
   componentDidMount(){
-    const appid=this.props.appid
-    getRoles(appid).then(data=>{
+    const appid = this.props.appid
+    getRoles(appid).then(data => {
       this.setState({
-        roles:data
+        roles: data
       })
     })
-    let queryParams={
-      type:''
+    this.loadData();
+  }
+
+  loadData=()=>{
+    const appid = this.props.appid
+    let queryParams = {
+      type: ''
     }
     //查询表单数据 默认type=2
-    queryParams.type='2';
-    getResources(appid,queryParams).then(data=>{
-      let childArray=TreeHelp.toChildrenStruct(data);
+    queryParams.type = '2';
+    getResources(appid, queryParams).then(data => {
       this.setState({
-        formData:data
+        formData: data
       })
     })
 
-    //查询表单数据 默认type=2
-    queryParams.type='4';
-    getResources(appid,queryParams).then(data=>{
-      let childArray=TreeHelp.toChildrenStruct(data);
+    //查询菜单数据 默认type=4
+    queryParams.type = '4';
+    getResources(appid, queryParams).then(data => {
       this.setState({
-        menuTree:data
+        menuTree: data
       })
     })
-
-
   }
 
   //新增按钮
@@ -85,6 +86,9 @@ class RoleForm extends Component{
   }
   //模态框确认
   handleOk=(e) => {
+    this.setState({
+      confirmLoading:true,
+    })
     const appid=this.props.appid
     //获取当前修改的角色ID
     const id=this.state.roleId;
@@ -96,6 +100,7 @@ class RoleForm extends Component{
           updateRole(appid,id,values).then(data=>{
             getRoles(appid).then(datas=>{
               this.setState({
+                confirmLoading:false,
                 roleID:"",
                 code:"",
                 name:"",
@@ -111,6 +116,9 @@ class RoleForm extends Component{
             })
           })
         }
+        this.setState({
+          confirmLoading:false,
+        })
       }else{
         //当验证通过的时候才允许新增
         if(!this.state.helpCode && !this.state.helpName){
@@ -119,6 +127,7 @@ class RoleForm extends Component{
           addRole(appid,newRoles).then(data=>{
             this.state.roles.push(data[0]);
             this.setState({
+              confirmLoading:false,
               validateStatusCode:"",
               validateStatusName:"",
               helpCode:"",
@@ -127,6 +136,9 @@ class RoleForm extends Component{
             })
           })
         }else{
+          this.setState({
+            confirmLoading:false
+          })
           message.error(`角色名字或者编码已存在，请重新填写`)
         }
       }
@@ -233,6 +245,7 @@ class RoleForm extends Component{
   }
   //角色授权
   roleAuthorization=(e,record) => {
+    this.loadData();
     this.setState({
       roleID:record.id,
       visibleAuthorization:true
@@ -365,10 +378,11 @@ class RoleForm extends Component{
 					</div>
 
           <Modal 
-          title={this.state.isUpdate?"修改角色":"新增角色"}
-          visible={this.state.visible}
-          onOk={this.handleOk}
-          onCancel={this.handleCancel}
+            title={this.state.isUpdate?"修改角色":"新增角色"}
+            visible={this.state.visible}
+            onOk={this.handleOk}
+            onCancel={this.handleCancel}
+            confirmLoading={this.state.confirmLoading	}
           >
           <Form>
             <FormItem {...formItemLayout} label="角色编码" 
