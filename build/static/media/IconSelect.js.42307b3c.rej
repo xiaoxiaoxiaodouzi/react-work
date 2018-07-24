@@ -1,0 +1,19 @@
+diff a/src/main/react/src/common/IconSelectModal/IconSelect.js b/src/main/react/src/common/IconSelectModal/IconSelect.js	(rejected hunks)
+@@ -9,15 +9,11 @@
+     //var li=ul[0].getElementsByTagName('li')
+     for(var j=0;j<ul.length;j++){
+       //使用（IIFE）立即执行函数给每一个li都添加上click事件
+-      (function(Counts){
+         //也可以用ul[Counts].childNods来获取里面的li
+-        var li=ul[Counts].getElementsByTagName('li')
++        var li=ul[j].getElementsByTagName('li')
+         for(var i=0;i<li.length;i++){
+-          (function(Index){
+-            li[i].onclick= (e=>th.props.selectIcon(li[Index].getElementsByClassName('ant-badge')[0].innerHTML))
+-          }(i))
++            li[i].onclick= (e=>th.props.selectIcon(li[i].getElementsByClassName('ant-badge')[0].innerHTML))
+         } 
+-      }(j))
+     }
+   }
+   render() {

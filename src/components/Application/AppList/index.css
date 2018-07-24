@@ -1,0 +1,15 @@
+
+.tableList .ant-form-item {
+  margin-bottom: 24px;
+  margin-right: 0;
+  display: flex;
+}
+
+.tableList .ant-form-item> .ant-form-item-label {
+  width: auto;
+  line-height: 32px;
+  padding-right: 8px;
+}
+.tableList .ant-form-item-control-wrapper {
+  flex: 1;
+}
