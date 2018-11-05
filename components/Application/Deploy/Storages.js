@@ -2,6 +2,8 @@ import React, { PureComponent } from 'react';
 import { queryMountableVolumes,createVolumes } from '../../../services/deploy';
 import { Button,Table,Input,message,Modal,Divider,Select,Form } from 'antd';
 import showConfirmModal from './ShowConfirmModal';
+import { base } from '../../../services/base';
+import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
 const Option = Select.Option;
 const FormItem = Form.Item;
 /* 部署页面存储卷,props(volumes,afterstorage)
@@ -30,6 +32,21 @@ class Storages extends PureComponent {
       this.state.data = [...volumes]; 
     }
   }
+  componentDidMount(){
+    this.getMountableVolumes();
+  }
+  componentWillReceiveProps (nextProps){
+    const {volumes,operationkey} = nextProps;
+    if(nextProps.isAddApp && JSON.stringify(volumes) !== JSON.stringify(this.props.volumes)){
+      volumes.forEach((element,index) => {
+        element.key = index;
+      });
+      this.setState({ data:volumes });
+    }
+    if(!nextProps.isAddApp && JSON.stringify(volumes) !== JSON.stringify(this.props.volumes)){
+      this.setState({data:volumes,operationkey});
+    }
+  } 
   getMountableVolumes=()=>{
     queryMountableVolumes().then((data)=>{
       if(data && data.contents){
@@ -37,21 +54,6 @@ class Storages extends PureComponent {
       }
     });
   }
-  componentDidMount(){
-    this.getMountableVolumes();
-  }
-  componentWillReceiveProps (nextProps){
-    const {volumes,operationkey} = nextProps;
-    if(nextProps.isAddApp && volumes !== this.props.volumes){
-      volumes.forEach((element,index) => {
-        element.key = index;
-      });
-      this.setState({ data:volumes });
-    }
-    if(!nextProps.isAddApp && volumes !== this.props.volumes){
-      this.setState({data:volumes,operationkey});
-    }
-  } 
   showConfirmAddOrEdit = (e,key,temp)=>{
     const { appCode,operationkey } = this.props;
     showConfirmModal(()=>{
@@ -143,6 +145,7 @@ class Storages extends PureComponent {
       }
     }
   }
+  //保存修改的存储卷信息
   saveRow(e, key) {
     const target = this.getRowByKey(key) || {};
     let flag = 0;
@@ -181,6 +184,7 @@ class Storages extends PureComponent {
   getRowByKey(key, newData) {
     return (newData || this.state.data).filter(item => item.key === key)[0];
   }
+//存储卷列表行字段修改
   handleFieldChange(e, fieldName, key) {
     const newData = this.state.data.map(item => ({ ...item }));
     const target = this.getRowByKey(key, newData);
@@ -189,6 +193,7 @@ class Storages extends PureComponent {
       this.setState({ data: newData });
     }
   }
+  //创建存储卷
   handleModalOk = ()=>{
     const { name,storage,data } = this.state;
     let flag = 0;
@@ -203,17 +208,18 @@ class Storages extends PureComponent {
     }
     createVolumes({name:name,storage:storage}).then(()=>{
       this.getMountableVolumes();
+      const newData = data.slice();
+      newData.forEach((element,index,newData)=>{
+        if(index === newData.length-1){
+          element.name = name;
+          element.additionalProperties.storage = storage+'Gi';
+        }
+      });
+      this.setState({data:newData,visibleModal:false,storageValue:name+'--'+storage+'Gi'});
     });
-    const newData = data.slice();
-    newData.forEach((element,index,newData)=>{
-      if(index === newData.length-1){
-        element.name = name;
-        element.additionalProperties.storage = storage+'Gi';
-      }
-    });
-    this.setState({data:newData,visibleModal:false,storageValue:name+'--'+storage+'Gi'});
   }
   render() {
+    const Authorized = RenderAuthorized(base.allpermissions);
     const { data,mountableVolumes,visibleModal,name,storage,storageValue } = this.state;
     const formItemLayout = {
       labelCol: {
@@ -233,7 +239,7 @@ class Storages extends PureComponent {
           return (
             <Select style={{width:'100%'}} value={storageValue} placeholder="名称" onChange={value =>{
                 if(value === 'add'){
-                  this.setState({visibleModal:true});
+                  this.setState({visibleModal:true,name:'',storage:''});
                 }else{
                   record.name = value.split('--')[0];
                   record.additionalProperties.storage = value.split('--')[1];
@@ -290,7 +296,9 @@ class Storages extends PureComponent {
           );
         }
         return (
-          <a onClick={e =>this.props.isAddApp? this.remove(record.key):this.showConfirmDelete(e,record.key)}>取消挂载</a>
+          <Authorized authority='app_cancelMount' noMatch={<a disabled='true' onClick={e =>this.props.isAddApp? this.remove(record.key):this.showConfirmDelete(e,record.key)}>取消挂载</a>}>
+            <a onClick={e =>this.props.isAddApp? this.remove(record.key):this.showConfirmDelete(e,record.key)}>取消挂载</a>
+          </Authorized>
         );
       },
     }];
@@ -304,14 +312,16 @@ class Storages extends PureComponent {
           columns={columns} 
           rowKey="id"
         />
-        <Button
-          style={{ width: '100%', marginTop: 16, marginBottom: 8 }}
-          type="dashed"
-          onClick={this.newRecord}
-          icon="plus"
-        >
-          添加
-        </Button>
+        <Authorized authority='app_addStorageVolume' noMatch={<Button disabled="true" style={{ width: '100%', marginTop: 16, marginBottom: 8 }}type="dashed" onClick={this.newRecord} icon="plus">添加</Button> }>
+          <Button
+            style={{ width: '100%', marginTop: 16, marginBottom: 8 }}
+            type="dashed"
+            onClick={this.newRecord}
+            icon="plus"
+          >
+            添加
+          </Button> 
+        </Authorized>
         <Modal 
           title="创建存储卷"
           visible={visibleModal}

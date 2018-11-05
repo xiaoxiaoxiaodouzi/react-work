@@ -188,7 +188,7 @@ export default class QueryParamsTable extends PureComponent {
     return (
       <div style={{marginTop:16,marginLeft:36}}>
         <div className='card-title'>请求参数</div>
-        <Table columns={columns} dataSource={data} pagination={false} size="middle"/>
+        <Table rowKey='id' columns={columns} dataSource={data} pagination={false} size="middle"/>
         <Button
           style={{ width: '100%', marginTop: 8 }}
           type="dashed"

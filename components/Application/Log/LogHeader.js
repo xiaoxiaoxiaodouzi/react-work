@@ -30,7 +30,7 @@ class LogForm extends Component {
 				}
 			})
 			getApplicationBase(data.code).then(datas => {
-				if (datas) {
+				if (datas.length>0) {
 					let podArray = [];
 					let nameArray = [];
 					datas[0].podNameList.forEach(pods => {
@@ -73,8 +73,10 @@ class LogForm extends Component {
 				} else if (c.indexOf("WARN") !== -1) {
 					className = className + " warn";
 				}
-				return <span className={className}> {c} <br /></span>
+				return <pre className={className}> {c} </pre>
 			})
+
+			// return <pre>{data}</pre>;
 		}
 	}
 
@@ -118,7 +120,6 @@ class LogForm extends Component {
 	}
 
 	handleChange = (e, name) => {
-		console.log("e", e)
 		const form = this.props.form;
 		if (name === 'name') {
 			form.setFieldsValue({

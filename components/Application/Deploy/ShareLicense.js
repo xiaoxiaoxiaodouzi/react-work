@@ -2,12 +2,12 @@ import React, { PureComponent } from 'react';
 import showConfirmModal from './ShowConfirmModal';
 import { Switch } from 'antd';
 
+//共享许可，判断条件为看配置文件中是否存在文件名称为config-license的文件，是表示已开启共享许可
 export default class Component extends PureComponent {
   state = {
     shareLicenseChecked:false,
   };
   componentDidMount() {
-    //console.log('sharelicense',this.props.configs);
     let flag = false;
     if(this.props.configs){
       this.props.configs.forEach(element=>{
@@ -23,7 +23,6 @@ export default class Component extends PureComponent {
     }
   }
   componentWillReceiveProps(nextProps) {
-    //console.log('sharelicense11',nextProps);
     let flag = false;
     if(nextProps.configs){
       nextProps.configs.forEach(element=>{
@@ -62,6 +61,7 @@ export default class Component extends PureComponent {
     const { shareLicenseChecked } = this.state;
     return (
         <Switch 
+          disabled = {this.props.disabled}
           checkedChildren="开" unCheckedChildren="关" checked={shareLicenseChecked} 
           onClick={this.handleShareLicenseClick} />
     );

@@ -1,470 +1,374 @@
-import React, { Fragment,Component } from 'react';
-import {Table, Form, Input, Button, Modal, message,Tree,Divider } from 'antd';
-import {getRoles,addRole,getRolesByCode,deleteRole,updateRole,getResources,getRoleAllResources,updateRoleResources} from '../../../services/running'
+import React, { Fragment, Component } from 'react';
+import { Table, Form, Button, Modal, Input, message, Divider } from 'antd';
+import AuthorizedUserUnion from '../../BasicData/Functional/AuthorizedUserUnion'
+import { getRoles, addRole, getRolesByCode, updateRole } from '../../../services/running'
+import { ObjectDetailContext } from '../../../context/ObjectDetailContext'
+import { updateRoleResource, getRoleResources } from '../../../services/functional'
+import PropTypes from 'prop-types'
+import BaseTree from '../../../common/BaseTree'
+import Link from 'react-router-dom/Link';
+import { base } from '../../../services/base';
+import RenderAuthorized from 'ant-design-pro/lib/Authorized';
+class RoleForm extends Component {
+  static propTypes = {
+    prop: PropTypes.object,
 
-const FormItem = Form.Item;
-const TreeNode = Tree.TreeNode;
-const { TextArea } = Input;
-class RoleForm extends Component{
-  state={
-    confirmLoading:false,
-    visible:false,   //角色模态框开启关闭状态
-    visibleImport:false,    //角色导入模态框开启关闭状态
-    visibleAuthorization:false,   //角色授权模态框开启关闭状态 
-    visibleRole:false,          //角色删除模态框 
-    isUpdate:false,   //模态框是新增还是修改状态
-    validateStatusCode:"",   //角色编码输入框状态
-    helpCode:"",     //角色编码输入框提示信息
-    validateStatusName:"",   //角色名称输入框状态
-    helpName:"",     //角色名称输入框提示信息
-    code:"",          //角色编码
-    name:"",          //角色名称
-    desc:"",          //角色描述
-    roleID:"",        //角色Id
-    roles:[],
-    menuTree:[],       //角色菜单树
-    checkedKeys:[],
-    formData:[]
   }
-  componentDidMount(){
-    const appid = this.props.appid
-    getRoles(appid).then(data => {
-      this.setState({
-        roles: data
-      })
-    })
-    this.loadData();
+  state = {
+    data: [],
+    roleName: '',
+    visible: false,
+    visibleModal: false,
+    functionsVisible: false,     //功能授权模态框
+    current: 1,
+    total: '',
+    pageSize: 10,
+    roleId: '',
+    selectedKeys: [],      //角色下的资源
+    treeNode: [],           //所有树节点     
+    loading: false,
+    disabled: false,     //编码禁用
+    record: '',      //选中行数据
   }
 
-  loadData=()=>{
-    const appid = this.props.appid
+  componentDidMount() {
     let queryParams = {
-      type: ''
+      page: 1,
+      rows: 10,
     }
-    //查询表单数据 默认type=2
-    queryParams.type = '2';
-    getResources(appid, queryParams).then(data => {
-      this.setState({
-        formData: data
-      })
-    })
-
-    //查询菜单数据 默认type=4
-    queryParams.type = '4';
-    getResources(appid, queryParams).then(data => {
-      this.setState({
-        menuTree: data
-      })
+    this.setState({ loading: true })
+    getRoles(this.props.appId, queryParams).then(data => {
+      this.setState({ data: data.contents, total: data.total, loading: false, record: '' })
+      this.props.roleList(data.contents);
+    }).catch(err => {
+      this.setState({ loading: false, record: '' })
     })
   }
 
-  //新增按钮
-  addRole=()=>{
-    this.setState({
-      visible:true
-    })
-  }
-  //编辑角色操作
-  handleUpdate=(e,record)=>{
-    //获取当前行数据
-    this.setState({
-      roleId:record.id,
-      code:record.code,
-      name:record.name,
-      desc:record.desc,
-      visible:true,
-      isUpdate:true
-    })
-  }
-  //删除角色操作
-  handleDelete=(e,id)=>{
-    this.setState({
-      roleID:id,
-      visibleRole:true
-    })
-    
-  }
-  //模态框确认
-  handleOk=(e) => {
-    this.setState({
-      confirmLoading:true,
-    })
-    const appid=this.props.appid
-    //获取当前修改的角色ID
-    const id=this.state.roleId;
-    this.props.form.validateFields((err, values) => {
-      //判断是新增还是修改
-      if(this.state.isUpdate){
-        //当验证通过的时候才允许修改
-        if(!this.state.helpCode && !this.state.helpName){
-          updateRole(appid,id,values).then(data=>{
-            getRoles(appid).then(datas=>{
-              this.setState({
-                confirmLoading:false,
-                roleID:"",
-                code:"",
-                name:"",
-                desc:"",
-                roles:datas,
-                visible:false,
-                validateStatusCode:"",
-                validateStatusName:"",
-                helpCode:"",
-                helpName:"",
-                isUpdate:false
-              })
-            })
-          })
-        }
-        this.setState({
-          confirmLoading:false,
-        })
-      }else{
-        //当验证通过的时候才允许新增
-        if(!this.state.helpCode && !this.state.helpName){
-          const newRoles=[];
-          newRoles.push(values);
-          addRole(appid,newRoles).then(data=>{
-            this.state.roles.push(data[0]);
-            this.setState({
-              confirmLoading:false,
-              validateStatusCode:"",
-              validateStatusName:"",
-              helpCode:"",
-              helpName:"",
-              visible:false
-            })
-          })
-        }else{
-          this.setState({
-            confirmLoading:false
-          })
-          message.error(`角色名字或者编码已存在，请重新填写`)
-        }
-      }
-      
-    })
-  }
-  //角色编码输入框失去焦点事件
-  codeOnBlur=(e) => {
-    const appid=this.props.appid;
-    if(e.target.value){
-      getRolesByCode(appid,e.target.value).then(data=>{
-        if(data){
-          this.setState({
-            validateStatusCode:"error",
-            helpCode:"角色编码已存在"
-          })
-        }else{
-          this.setState({
-            validateStatusCode:"success",
-            helpCode:""
-          })
-        }
-      })
-    }else{
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.flag !== this.props.flag) {
+      this.loadDatas(1, 10);
+    }
+
+    if (nextProps.treeNode !== this.props.treeNode) {
       this.setState({
-        validateStatusCode:"error",
-        helpCode:"角色编码不能为空"
+        treeNode: nextProps.treeNode
       })
     }
   }
-  //角色名称输入框失去焦点事件(！！！！！！=====需要对名称结果做遍历判断是否相等)
-  nameOnBlur=(e) => {
-    const appid=this.props.appid;
-    const queryParams={
-      name:e.target.value
+
+  loadDatas = (current, pageSize) => {
+
+    this.setState({ loading: true })
+    let queryParams = {
+      page: current,
+      rows: pageSize,
     }
-    let isExist=false;
-    const name=e.target.value;
-    if(name){
-      getRoles(appid,queryParams).then(data=>{
-        if(data.length>0){
-          data.forEach((val,i)=>{
-            if(val.name===name){
-              isExist=true;
-            }
-            
-          })
-          if(isExist && name!==this.state.name){
-            this.setState({
-              validateStatusName:"error",
-              helpName:"角色名称已存在"
-            })
-          }else{
-            this.setState({
-              validateStatusName:"success",
-              helpName:""
-            })
-          }
-        }else{
-          this.setState({
-            validateStatusName:"success",
-            helpName:""
-          })
-        }
+    getRoles(this.props.appId, queryParams).then(data => {
+      this.setState({ data: data.contents, total: data.total, loading: false, record: '' }, () => {
+        this.props.roleList(data.contents)
       })
-    }else{
-      this.setState({
-        validateStatusName:"error",
-        helpName:"角色名称不能为空"
-      })
-    }
-  }
-  //模态框取消
-  handleCancel=(e) => {
-    this.setState({
-      roleID:"",
-      code:"",
-      name:"",
-      desc:"",
-      visible:false,
-      helpCode:"",
-      helpName:"",
-      validateStatusCode:"",
-      validateStatusName:"",
-      isUpdate:false
-    })
-  }
-  //角色导入
-  roleImport=() => {
-    this.setState({
-      visibleImport:true
-    })
-  }
-  //导入框确定按钮
-  handleImportOk=(e) => {
-    this.setState({
-      visibleImport:false
-    })
-  }
-  handleImportCancel=(e) => {
-    this.setState({
-      visibleImport:false
-    })
-  }
-  //角色授权
-  roleAuthorization=(e,record) => {
-    this.loadData();
-    this.setState({
-      roleID:record.id,
-      visibleAuthorization:true
-    })
-    const appId=this.props.appid
-    //获取用户所有权限资源
-    getRoleAllResources(appId,record.code).then(data=>{
-      let array=[];
-      data.forEach(item=>{
-        array.push(item.id)
-      })
-      this.setState({
-        checkedKeys:array
-      })
-    })
-  }
-  //授权框确定按钮
-  handleAuthorizationOk=(e) => {
-    const appid=this.props.appid;
-    let queryParams={
-      roleId:this.state.roleID
-    }
-    let menuIds=this.state.checkedKeys;
-    updateRoleResources(appid,queryParams,menuIds).then(data=>{
-      this.setState({
-        roleID:'',
-        visibleAuthorization:false
-      })
-      message.success('授权成功')
+    }).catch(err => {
+      this.setState({ loading: false, record: '' })
     })
   }
 
-
-  handleAuthorizationCancel=(e) => {
-    this.setState({
-      visibleAuthorization:false
-    })
+  showModal = (record) => {
+    this.setState({ visible: true, roleName: record.name, roleId: record.id })
   }
-  //删除角色modal框确认按钮
-  handleRoleOk=(e)=>{
-    const appid=this.props.appid
-    let id=this.state.roleID;
-    deleteRole(appid,id).then(data=>{
-      message.success("删除成功") 
-      getRoles(appid).then(datas=>{
-        this.setState({
-          roleID:'',
-          visibleRole:false,
-          roles:datas
-        })
-      })
+
+  showFunction = (record) => {
+    getRoleResources(record.appId, record.id).then(data => {//数据有更新时需重新加载 
+      this.setState({ functionsVisible: true, roleName: record.name, roleId: record.id, selectedKeys: data })
     })
   }
 
-  handleRoleCancel=()=>{
-    this.setState({
-      roleID:'',
-      visibleRole:false
-    })
+  hanldeCancel = () => {
+    this.setState({ visible: false })
   }
-  //遍历角色菜单
-  renderTreeNodes = (data) => {
-    return data.map((item) => {
-      if (item.children) {
-        return (
-          <TreeNode title={item.name} key={item.key} dataRef={item} >
-            {this.renderTreeNodes(item.children)}
-          </TreeNode>
-        );
-      }
-      return <TreeNode title={item.name} key={item.key}  dataRef={item} />;
-    });
+
+  handleClick = () => {
+    this.setState({ visibleModal: true })
+  }
+
+  EditRole = (record) => {
+    if (record.code === 'amp_admin' || record.code === 'manager' || record.code === 'amp_roleManager') {
+      message.warn('管理员角色不能编辑！')
+    } else {
+      let form = this.props.form;
+      this.setState({ disabled: true, visibleModal: true, record }, () => {
+        form.setFieldsValue({ name: record.name, desc: record.desc, code: record.code });
+      });
+    }
   }
   // 点击复选框触发事件
-  onCheck=(checkedKeys)=>{
-    console.log("checkedKeys",checkedKeys)
+  onCheck = (checkedKeys) => {
     this.setState({
-      checkedKeys:checkedKeys
+      checkedKeys: checkedKeys
     })
   }
 
-  render(){
-    const formItemLayout = {
-      labelCol: {
-          xs: { span: 24 },
-          sm: { span: 7 },
-      },
-      wrapperCol: {
-          xs: { span: 24 },
-          sm: { span: 12 },
-          md: { span: 13 },
-      },
-     };
-    const { getFieldDecorator } = this.props.form;
+  handleModalOk = () => {
+    let form = this.props.form;
+    let value = form.getFieldsValue();
+    if (this.state.disabled) {
+      updateRole(this.props.appId, this.state.record.id, value).then(data => {
+        message.success('修改角色成功');
+        this.setState({ disabled: false, visibleModal: false });
+        this.loadDatas(1, 10);
+      })
+    } else {
+      let values = [];
+      values.push(value);
+      addRole(this.props.appId, values).then(data => {
+        if (data.length > 0) {
+          message.success('新增角色成功');
+          this.setState({ visibleModal: false })
+          this.loadDatas(1, 10);
+        }
+      })
+    }
+  }
+
+  handleFunctionOk = () => {
+    //调用角色授权功能
+    let ids = [];
+    let keys;
+    //这里是为了区别直接点击确定时候拿不到onselectkeys
+    if (this.state.onSelectKeys === undefined) {
+      keys = this.state.selectedKeys;
+    } else {
+      keys = this.state.onSelectKeys;
+    }
+    keys.forEach(i => {
+      ids.push(i.id)
+    })
+    updateRoleResource(this.props.appId, this.state.roleId,ids).then(data => {
+      message.success('角色授权功能成功')
+      this.setState({ functionsVisible: false })
+      this.props.roleList(this.state.data.concat([]))
+    })
+  }
+
+  onSelectKeys = (selectKeys, selectNodes) => {
+    this.setState({ onSelectKeys: selectNodes })
+  }
+
+  //校验表单数据
+  validateParams = (rule, value, callback) => {
+    if (rule.field === 'name') {
+      if (value) {
+        let params = {
+          name: value,
+          mode: 'simple'
+        }
+        if (this.state.record && value !== this.state.record.name) {
+          getRoles(this.props.appId, params).then(data => {
+            if (data.length > 0) {
+              callback('角色名称已存在');
+            } else {
+              callback()
+            }
+          })
+        }
+      } else {
+        callback('请输入角色名称')
+      }
+    }
+    if (rule.field === 'code') {
+      if (value) {
+        if (!this.state.record) {
+          getRolesByCode(this.props.appId, value).then(data => {
+            if (data) {
+              callback('角色编码已存在');
+              return;
+            } else {
+              callback();
+            }
+          })
+        }
+      } else {
+        callback('请输入角色编码');
+        return;
+      }
+    }
+  }
+
+  render() {
+
+    const { current, total, pageSize } = this.state;
+
     const columns = [
       {
         title: '名称',
         dataIndex: 'name',
-      },
-      {
-        title: '角色编码',
+        width: '20%',
+        render: (record, text) => {
+          return (
+            <Link to={`/applications/${text.appId}/functionalroles/${text.id}`}>{text.name}</Link>
+          )
+        }
+      }, {
+        title: '编码',
         dataIndex: 'code',
+        width: '30%',
       },
       {
-        title: '角色说明',
+        title: '描述',
         dataIndex: 'desc',
-      },
+        width: '30%',
+      }, /* {
+        title: '功能',
+        dataIndex: 'functions',
+        width: '20%',
+        render: (values, record) => {
+          return values.length > 0 ? values.map(element => {
+            return <Fragment><Link style={{ whiteSpace: 'nowrap' }} to={`/applications/${element.appId}/functional/${element.id}`}>{element.name}</Link> </Fragment>;
+          }) : '--';  
+        }
+      }, */
       {
         title: '操作',
-        render: (text,record) => {
-          return(
+        width: '20%',
+        render: (text, record) => {
+          return (
             <Fragment>
-                <a onClick={e=>this.roleAuthorization(e,record)}>授权</a>
-                <Divider type="vertical" />
-                <a
-                onClick={e=>this.handleUpdate(e,record)}>编辑</a>
-                <Divider type="vertical" />
-								<a onClick={e=>this.handleDelete(e,record.id)}>删除</a>
+              <Authorized authority='app_role_relationFunction' noMatch={<a disabled='true' onClick={() => { this.showFunction(record) }}>关联功能</a>}>
+                <a onClick={() => { this.showFunction(record) }}>关联功能</a>
+              </Authorized>
+              <Divider type='vertical' />
+              <Authorized authority='app_editRole' noMatch={<a disabled="true" onClick={() => { this.EditRole(record) }}>编辑</a>}>
+                <a onClick={() => { this.EditRole(record) }}>编辑</a>
+              </Authorized>
             </Fragment>
           )
         }
+      },
+    ]
+
+    const pagination =
+      {
+        total: total,
+        current: current,
+        pageSize: pageSize,
+        showTotal: total => `共有${total}条数据`,
+        onChange: (current, pageSize) => {
+          this.loadDatas(current, pageSize)
+        },
+        showQuickJumper: true
       }
-    ];
-    return(
+
+    // rowSelection object indicates the need for row selection
+    // const rowSelection = {
+    //   onChange: (selectedRowKeys, selectedRows) => {
+    //     console.log(`selectedRowKeys: ${selectedRowKeys}`, 'selectedRows: ', selectedRows);
+    //   },
+    //   getCheckboxProps: record => ({
+    //     disabled: record.name === 'Disabled User', // Column configuration not to be checked
+    //     name: record.name,
+    //   }),
+    // }
+
+    const formItemLayout = {
+      labelCol: {
+        xs: { span: 24 },
+        sm: { span: 7 },
+      },
+      wrapperCol: {
+        xs: { span: 24 },
+        sm: { span: 12 },
+        md: { span: 13 },
+      },
+    };
+
+    const { getFieldDecorator } = this.props.form;
+    //const message = `将功能角色${this.state.roleNmae}授权给用户集合`
+    const Authorized = RenderAuthorized(base.allpermissions);
+    return (
       <div>
-        <div>
-          <div style={{marginBottom:24}}>
-						<Button type="primary" onClick={this.addRole}>新增</Button>
-						<Button style={{marginLeft:12}} onClick={this.roleImport}>导入</Button>
-					</div>
-
-          <Modal 
-            title={this.state.isUpdate?"修改角色":"新增角色"}
-            visible={this.state.visible}
-            onOk={this.handleOk}
-            onCancel={this.handleCancel}
-            confirmLoading={this.state.confirmLoading	}
-          >
-          <Form>
-            <FormItem {...formItemLayout} label="角色编码" 
-            validateStatus={this.state.validateStatusCode}
-            help={this.state.helpCode}
-            
-            >
-                {getFieldDecorator('code',{initialValue:this.state.code})(
-                    <Input onBlur={this.codeOnBlur} disabled={this.state.isUpdate} />
-                )}
-            </FormItem>
-            <FormItem {...formItemLayout} label="角色名称" 
-            validateStatus={this.state.validateStatusName}
-            help={this.state.helpName}
-								>
-										{getFieldDecorator('name',{initialValue:this.state.name})(
-												<Input onBlur={this.nameOnBlur}  />
-										)}
-						</FormItem>
-            <FormItem {...formItemLayout} label="角色描述"
-								>
-										{getFieldDecorator('desc',{initialValue:this.state.desc})(
-												<TextArea style={{lineHeight:1.5 }} />
-										)}
-						</FormItem>
-          </Form>
-
-          </Modal> 
-
-          <Modal
-          title="导入角色"
-          visible={this.state.visibleImport}
-          onOk={this.handleImportOk}
-          onCancel={this.handleImportCancel}>
-          <p>这里是导入用户</p>
-
-          </Modal>
-
-          <Modal
-          title="是否删除"
-          visible={this.state.visibleRole}
-          onOk={this.handleRoleOk}
-          onCancel={this.handleRoleCancel}>
-          <p>已关联的用户和菜单信息将同时被删除，是否确认删除该角色</p>
-
-          </Modal>
-
-          <Modal
-          bodyStyle={{height:500,overflow:'auto'}}
-          title="授权"
-          visible={this.state.visibleAuthorization}
-          onOk={this.handleAuthorizationOk}
-          onCancel={this.handleAuthorizationCancel}>
-            <Tree
-            checkable
-            checkedKeys={this.state.checkedKeys}
-            onCheck={this.onCheck}
-            >
-            <TreeNode title='菜单' key='0'>
-              {this.renderTreeNodes(this.state.menuTree)}
-            </TreeNode>
-
-            <TreeNode title='页面' key='form'>
-              {this.renderTreeNodes(this.state.formData)}
-            </TreeNode>
-
-            <TreeNode title='服务' key='service'>
-            </TreeNode>
-            </Tree>
-
-          </Modal>
-
-          <Table
-          rowKey={record => record.key}
-          columns={columns}
-          dataSource={this.state.roles}
-          />       
+        <div style={{ marginBottom: 12 }}>
+          <Authorized authority='app_addRole' noMatch={null}>
+            <Button type='primary' style={{ marginLeft: '12px' }} onClick={this.handleClick}>新建</Button>
+          </Authorized>
+          {/* <Button type='primary' style={{ marginLeft: '12px' }}>导入</Button>
+          <Button type='primary' style={{ marginLeft: '12px' }}>导出</Button>
+          <Button type='primary' style={{ marginLeft: '12px' }}>刷新</Button> */}
         </div>
+        <Table
+          /* rowSelection={rowSelection} */
+          dataSource={this.state.data}
+          columns={columns}
+          rowKey={record => record.code}
+          pagination={pagination}
+          loading={this.state.loading}
+        />
+        <Modal
+          width='800px' style={{ top: 20 }} bodyStyle={{ maxHeight: 600, overflowY: 'auto' }}
+          title='已授权用户集合'
+          visible={this.state.visible}
+          onOk={() => { this.setState({ visible: false }) }}
+          onCancel={this.hanldeCancel}
+        >
+          <AuthorizedUserUnion size='middle' appId={this.props.appId} roleId={this.state.roleId} />
+        </Modal>
+
+        <Modal
+          title={this.state.disabled ? '修改角色' : '新增角色'}
+          visible={this.state.visibleModal}
+          onOk={this.handleModalOk}
+          destroyOnClose
+          onCancel={() => this.setState({ visibleModal: false })}>
+          <Form>
+            <Form.Item {...formItemLayout} label="名称">
+              {getFieldDecorator('name', {
+                rules: [{
+                  required: true,
+                  //现在校验接口有问题 先暂时不校验了
+                  validator: this.validateParams
+                }],
+              })(
+                <Input />
+              )}
+            </Form.Item>
+            <Form.Item {...formItemLayout} label="编码">
+              {getFieldDecorator('code', {
+                rules: [{
+                  required: true,
+                  validator: this.validateParams
+                }],
+              })(
+                <Input disabled={this.state.disabled} />
+              )}
+            </Form.Item>
+            <Form.Item {...formItemLayout} label="描述">
+              {getFieldDecorator('desc')(
+                <Input.TextArea rows={4} />
+              )}
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        <Modal
+          bodyStyle={{ overflow: 'auto', height: '500px' }}
+          title='功能授权'
+          width='800px'
+          visible={this.state.functionsVisible}
+          onOk={this.handleFunctionOk}
+          onCancel={() => this.setState({ functionsVisible: false })}
+          destroyOnClose
+        >
+          <BaseTree onSelectKeys={(selectKeys, selectNodes) => this.onSelectKeys(selectKeys, selectNodes)} treeNodes={this.state.treeNode} pidName="parentId" selectedNodes={this.state.selectedKeys} />
+        </Modal>
       </div>
+
+
     )
   }
 }
 
-const Role=Form.create()(RoleForm)
-export default Role;
+const Role = Form.create()(RoleForm);
+export default props => (
+  <ObjectDetailContext.Consumer>
+    {context => <Role {...props} context={context} />}
+  </ObjectDetailContext.Consumer>
+)

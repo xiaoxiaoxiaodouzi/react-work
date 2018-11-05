@@ -16,7 +16,7 @@ const tabList = [
 ];
 class TenantDetail extends React.Component {
   state = {
-    tenantId:'I9eQ139sQxOOnSVfALzPjg',
+    tenantId:'',
     name:'',
     tenantManager:[],
     tabActiveKey:'quota',
@@ -29,7 +29,6 @@ class TenantDetail extends React.Component {
     if(url.indexOf("tenants") > 0){
       let temp = url.slice(url.indexOf("tenants")+8);
       const id = url.slice(url.indexOf("tenants")+8,temp.indexOf('/')>0?(url.indexOf("tenants")+8+temp.indexOf('/')):undefined);
-      //console.log("componentdidmountaddrdetail",id);
       this.setState({tenantId:id});
       this.loadTenantById(id);
     }
@@ -43,16 +42,13 @@ class TenantDetail extends React.Component {
       data.forEach(element => {
         tenantManager.push(element);
       });
-      //console.log('getTenantManager',tenantManager);
       this.setState({tenantManager});
     });
     getTenantById(tenantId).then(data=>{
-      //console.log('tenant',data);
       this.setState({ name:data.name,code:data.code,tenantCode:data.tenant_code });
     });
   }
   onManagerChange=(users)=> { 
-    //console.log('users',users);
     let ids = [];
     users.forEach(element => {
       ids.push(element.id);
@@ -63,7 +59,6 @@ class TenantDetail extends React.Component {
     });
   }
   onTabChange=(key)=> {
-    //console.log('key',key);
     this.props.history.push({ pathname: `/tenants/${this.state.tenantId}/${key}` });
     this.setState({ tabActiveKey: key });
   }
@@ -73,6 +68,7 @@ class TenantDetail extends React.Component {
       <DescriptionList size="small" col="2">
         <Description term="租户管理员">
           <UserSelectModal 
+            tenantId={tenantId}
             title={'设置租户管理员'}
             mark='租户管理员'
             description=''

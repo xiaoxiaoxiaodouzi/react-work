@@ -16,7 +16,7 @@ class SearchForm extends React.Component {
         this.getTags();
     }
     getTags = () => {
-        queryTags(null).then(data => {
+        queryTags({tenant:this.props.tenant}).then(data => {
             this.setState({
                 tags:data
             })

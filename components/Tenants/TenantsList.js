@@ -1,24 +1,27 @@
 import React, { Component} from 'react';
-import { getTenant, AddTenant, getTenantById, getApplicationRes} from '../../services/tenants'
-import { Card, Button, Row, Col, Table, Message, Form, Input} from 'antd';
-import constans from '../../services/constants'
-import OrgSelectModal from '../../common/OrgSelectModal'
+import { getTenant, AddTenant, getTenantById, getApplicationRes,getTenantApps,getTenentUsercount} from '../../services/tenants'
+import { Card, Button, Row, Col, Table, Form, Input} from 'antd';
+// import OrgSelectModal from '../../common/OrgSelectModal'
 import constants from '../../services/constants';
-
+import AddTenantModal from './AddTenantModal';
+import { base } from '../../services/base';
+import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
 
 const FormItem = Form.Item;
 class TenantsListForm extends Component{
   constructor(props){
     super(props);
     this.state={
-      data:[],
+      // data:[],
       visible:false,  //选择机构开关
-      loading:false,
+      loading:true,
+      addVisible:false,
+      tenantCodes : []
     }
   }
-
+  
   componentDidMount(){
-    this.loadData(1,10);
+    this.loadData(1,1000);
   }
   
   loadData = (page,rows,name)=>{
@@ -34,30 +37,44 @@ class TenantsListForm extends Component{
     }
     getTenant(queryParams).then(data=>{
       let ary = [];
+      let tenants=[];
+      let tenantCodes = [];
       if (data.contents instanceof Array){
         data.contents.forEach(item=>{
-          ary.push(getTenantById(item.id))
+          //过滤掉没有tenent_type的数据
+          if(item.tenant_type && item.tenant_code){
+            tenants.push(item)
+            ary.push(getTenantById(item.id));
+            tenantCodes.push(item.tenant_code);
+          }
         })
+        this.setState({tenantCodes:tenantCodes});
       }
-      let datas = [];
       if(ary.length>0){
         Promise.all(ary).then(response=>{
-          if(response.length>0){
+        if(response.length>0){
             //根据租户的code去查询租户的CPU内存使用量
             response.forEach((item)=>{
+              let datas = [];
               getApplicationRes(item.tenant_code).then(res=>{
-                let params={
-                  id:item.id,
-                  name:item.name,
-                  cpus: res.cpuUsedTotal + '/' + item[constants.QUOTA_CODE[0]],
-                  rams: parseFloat(res.memoryUsedTotal) / (1024 * 1024 * 1024).toFixed(1) + '/' + item[constants.QUOTA_CODE[1]] ,
-                  apps:'0',
-                  users:'0'
-                }
-                datas.push(params)
-                //先暂时这样写，异步加载数据很慢的问题 后面想到更好的办法再来解决
-                this.setState({
-                  data: datas
+                getTenantApps({tenant:item.tenant_code}).then(apps=>{
+                  getTenentUsercount(item.id).then(users=>{
+                    let params={
+                      id:item.id,
+                      name:item.name,
+                      cpus: res.cpuUsedTotal + '/' + item[constants.QUOTA_CODE[0]]?item[constants.QUOTA_CODE[0]]:item[constants.QUOTA_CODE[0]]===0?0:'--',
+                      rams: parseFloat(res.memoryUsedTotal) / (1024 * 1024 * 1024).toFixed(1) + '/' + item[constants.QUOTA_CODE[1]]?item[constants.QUOTA_CODE[1]]:item[constants.QUOTA_CODE[1]]===0?0:'--' ,
+                      apps:apps,
+                      users:users
+                    }
+                    this.state.data.forEach(d=>{
+                      if(d.id===params.id)datas.push(params);
+                      else datas.push(d);
+                    });
+                    this.setState({
+                      data: datas
+                    })
+                  })
                 })
               })
             })
@@ -68,16 +85,10 @@ class TenantsListForm extends Component{
         current: data.pageIndex,
         pageSize: data.pageSize,
         total: data.total,
+        data: tenants,
         loading:false
       })
-    }).catch(
-      err=>{
-        Message.error('获取租户列表失败')
-        this.setState({
-          loading:false
-        })
-      }
-    )
+    })
   }
 
   handleClick = (item)=>{
@@ -101,15 +112,12 @@ class TenantsListForm extends Component{
       name:org.name,
     }
     AddTenant(bodyParams).then(data=>{
-      if(data){
-        this.loadData(1,10);
+        this.loadData(1,1000);
         this.setState({
           visible: false,
           loading:false
         })
-      }
-    }).catch(err=>{
-      Message.error('新增租户出错')
+    }).catch(err=>{ 
       this.setState({
         loading: false
       })
@@ -125,21 +133,36 @@ class TenantsListForm extends Component{
     this.setState({
       name:value
     })
-    this.loadData(1, 10, value)
+    this.loadData(1, 1000, value)
+  }
+
+    //弹出新建租户弹窗
+    _buttonOnclick=()=>{
+      this.setState({
+        addVisible:true
+      });
+    }
+  //新建租户弹窗回调函数
+  transferAddVisible=(visible)=>{
+    this.loadData(1,1000);
+    this.setState({
+      addVisible:visible
+    });
   }
 
   render(){
+    const Authorized = RenderAuthorized(base.allpermissions);
     const columns=[
       {
         title:'名称',
         dataIndex:'name'
       },
       {
-        title:'CPU',
-        dataIndex: constans.QUOTA_CODE[0],
+        title:'CPU(核)',
+        dataIndex: constants.QUOTA_CODE[0],
       },
       {
-        title: '内存',
+        title: '内存(GB)',
         dataIndex: 'rams',
       },
       {
@@ -153,7 +176,11 @@ class TenantsListForm extends Component{
       {
         title:'操作',
         render:(record,text)=>{
-          return <a onClick={e=>this.handleClick(record)}>查看</a>
+          return (
+            <Authorized authority={'tenant_quota'} noMatch={<a disabled='true' onClick={e=>this.handleClick(record)}>查看</a>}>
+              <a onClick={e=>this.handleClick(record)}>查看</a>
+            </Authorized>
+          )
         }
       }
     ]
@@ -170,14 +197,14 @@ class TenantsListForm extends Component{
       },
     };
 
-    const pagination = {
-      current: this.state.current,
-      pageSize: this.state.pageSize,
-      total: this.state.total,
-      onChange: (current, pageSize) => {
-        this.handleChange(current, pageSize)
-      }
-    }
+    // const pagination = {
+    //   current: this.state.current,
+    //   pageSize: this.state.pageSize,
+    //   total: this.state.total,
+    //   onChange: (current, pageSize) => {
+    //     this.handleChange(current, pageSize)
+    //   }
+    // }
     return (
       <Card style={{margin:24}}>
         <div className="tableList">
@@ -189,9 +216,12 @@ class TenantsListForm extends Component{
                 </FormItem>
               </Col>
               <Col md={8} sm={24}>
-                <FormItem {...formItemLayout}>
-                  <OrgSelectModal renderButton={() => { return <Button type='primary'>新建</Button> }} onOk={org => this.addTenants(org)}/>
-                </FormItem>
+                {/* <FormItem {...formItemLayout}>
+                  <OrgSelectModal renderButton={() => { return <Button type='primary'>新建</Button> }} onOk={org => this.addTenants(org)} checkableTopOrg={false} checkableCategoryOrg={false}/>
+                </FormItem> */}
+                <Authorized authority='tenant_add' noMatch={null}>
+                 <Button type='primary' onClick={this._buttonOnclick}>新建</Button>
+                </Authorized>
               </Col>
             </Row>
           </Form>
@@ -200,10 +230,14 @@ class TenantsListForm extends Component{
           rowKey={(record, index) => index}
           columns={columns}
           dataSource={this.state.data}
-          pagination={pagination}
           loading={this.state.loading}
         />
+         <AddTenantModal visible = {this.state.addVisible} 
+      tenantCodes = {this.state.tenantCodes} 
+      onCancle={e=>{this.setState({addVisible:false})}}
+      transferVisible={(visible) => this.transferAddVisible(visible)}/>
       </Card>
+      
     )
   }
 }

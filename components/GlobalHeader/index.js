@@ -1,9 +1,9 @@
 import React, { PureComponent } from 'react';
 import { Layout, Menu, Icon, Spin, Dropdown, Avatar, message } from 'antd';
-import HeaderSearch from 'ant-design-pro/lib/HeaderSearch';
-import NoticeIcon from 'ant-design-pro/lib/NoticeIcon';
+// import userIcon from '../../assets/defaultUser.png';
 import { base } from '../../services/base'
 import './index.less'
+
 const { Header } = Layout;
 const { SubMenu } = Menu;
 
@@ -11,60 +11,19 @@ export default class GlobalHeader extends PureComponent {
   state = {
     currentUser: {},
     currentTenant: {},
-    currentEnvironment: {},
     tenants: [],
-    environments: []
+    loading:false
   }
-  constructor() {
-    super();
-    base.getCurrentUser().then(u => {
-      u.avatar = "https://gw.alipayobjects.com/zos/rmsportal/BiazfanxmamNRoxxVxka.png";
-      base.currentUser = u;
-      Promise.all([base.getUserTenants(u.id), base.getEnvironments()]).then(response => {
-        let tenantsData = response[0];
-        let environments = response[1];
-        let currentEnvironment;
-        if (tenantsData === undefined || environments === undefined) return;
 
-        environments.forEach(e => {
-          if(window.localStorage.localEnvironmentId === e.id)currentEnvironment = e;
-          if (e.isMain && currentEnvironment === undefined) currentEnvironment = e;
-        })
-        base.currentEnvironment = currentEnvironment;
-        base.environments = environments;
-        //租户数据处理
-        let tenants = [];
-        tenantsData.forEach(t => {
-          if (t.tenant_type && t.tenant_type.indexOf('PAAS') !== -1 && t.tenant_code) {
-            tenants.push({ name: t.name, code: t.tenant_code, id: t.id });
-          }
-        })
-        if (tenants && tenants.length > 0) {
-          //从浏览器存储中获取默认租户
-          let currentTenant;
-          if(window.localStorage.localTenantCode){
-            tenants.forEach(t=>{
-              if(t.code === window.localStorage.localTenantCode){
-                currentTenant = t;
-              }
-            })
-          }
-          if(currentTenant === undefined){
-            let currentTenant = tenants[1];
-            window.localStorage.localTenantCode = currentTenant.code;
-          }
-          base.tenant = currentTenant.code;
-          base.currentTenantInfo = currentTenant;
-          //设置好当前租户和环境之后再设置全局登录状态
-          this.props.tenantChange(currentTenant.code);
-          this.props.environmentChange(currentEnvironment.id);
-          this.props.loginStateChange();
-          this.setState({ currentUser: u, tenants, currentTenant, environments, currentEnvironment });
-        } else {
-          message.error("没有找到当前用户下的PAAS租户");
-        }
-      })
-    })
+  componentWillReceiveProps(nextProps){
+    if(nextProps.user!==this.props.user){
+      // nextProps.user.avatar = userIcon;
+      let currentTenant;
+      nextProps.tenants.forEach(t=>{
+        if(t.code === nextProps.tenantCode)currentTenant = t;
+      });
+      this.setState({currentUser:nextProps.user,tenants:nextProps.tenants,currentTenant,loading:false});
+    }
   }
 
   toggle = () => {
@@ -86,27 +45,8 @@ export default class GlobalHeader extends PureComponent {
       })
       if (ct) {
         this.setState({ currentTenant: ct });
-        //设置全局租户
-        base.tenant = ct.code;
-        base.currentTenantInfo = ct;
-        window.localStorage.localTenantCode = ct.code;
-        this.props.tenantChange(ct.code);
         message.success('切换到租户：' + ct.name);
-        this.pageRedirect();
-      }
-    } else if (key.startsWith('environment_')) {//切换环境
-      let environmentId = key.substring(12);
-      let ce;
-      this.state.environments.forEach(e => {
-        if (e.id === environmentId) ce = e;
-      })
-      if (ce) {
-        this.setState({ currentEnvironment: ce });
-        //设置全局环境
-        base.currentEnvironment = ce;
-        window.localStorage.localEnvironmentId = ce.id;
-        this.props.environmentChange(ce.id);
-        message.success('切换到环境：' + ce.name);
+        this.props.tenantChange(ct.code);
         this.pageRedirect();
       }
     }
@@ -117,24 +57,26 @@ export default class GlobalHeader extends PureComponent {
     let hash = window.location.hash;
     if (hash.startsWith('#/middlewares')) {
       if (hash.length > 13) window.location.href = '#/middlewares';
-    } else {
+    } else if (hash.startsWith('#/apps')) {
+      if (hash.length > 7) window.location.href = '#/apps';
+    } else if (hash.indexOf('#/apis') !== -1) {
+      if (hash.length > 7) window.location.href = '#/apis';
+    } else if (hash.indexOf('#/tenants') !== -1) {
       window.location.href = '#/apps';
+    } else if (hash.indexOf('#/setting/syssetting') !== -1) {
+      window.location.href = '#/setting/syssetting';
     }
   }
 
-
   render() {
-    let { currentUser, currentTenant, currentEnvironment } = this.state;
+    let { currentUser, currentTenant,loading } = this.state;
     const menu = (
       <Menu className='menu' selectedKeys={[]} onClick={this.menuClick}>
         <SubMenu title={<span><Icon type="user" />切换租户</span>}>
           {this.state.tenants.map(t => <Menu.Item key={'tenant_' + t.id} disabled={currentTenant.id === t.id}>{t.name}</Menu.Item>)}
         </SubMenu>
-        <SubMenu title={<span><Icon type="laptop" />切换环境</span>}>
-          {this.state.environments.map(e => <Menu.Item key={'environment_' + e.id} disabled={currentEnvironment.id === e.id}>{e.name}</Menu.Item>)}
-        </SubMenu>
         <Menu.Divider />
-        <Menu.Item disabled><Icon type="setting" />设置</Menu.Item>
+        {/* <Menu.Item disabled><Icon type="setting" />设置</Menu.Item> */}
         <Menu.Item key="logout"><span><Icon type="logout" />退出登录</span></Menu.Item>
       </Menu>
     );
@@ -148,19 +90,20 @@ export default class GlobalHeader extends PureComponent {
           />
         )}
         <div className="right">
-          <HeaderSearch
-            className="action search"
-            placeholder="站内搜索"
-          />
-          <NoticeIcon count={5} className="action" />
-          {currentUser ? (
-            <Dropdown overlay={menu} trigger={['hover']} placement="bottomRight">
+          {/* <HeaderSearch
+              className="action search"
+              placeholder="站内搜索"  
+            /> */}
+          {/* <NoticeIcon count={5} className="action" /> */}
+          {loading ? 
+            <Spin size="small" style={{ marginLeft: 8, marginRight: 200 }} /> :
+            (<Dropdown overlay={menu} trigger={['hover']} placement="bottomRight">
               <span className="action account">
                 <Avatar size="small" className="avatar" src={currentUser.avatar} icon="user" />
-                <span className="name"> {currentUser.realname} | {currentTenant.name} | {currentEnvironment.name} </span>
+                <span className="name"> {currentUser.realname} | {currentTenant.name} </span>
               </span>
             </Dropdown>
-          ) : <Spin size="small" style={{ marginLeft: 8, marginRight: 200 }} />}
+          )}
         </div>
       </Header>
     );

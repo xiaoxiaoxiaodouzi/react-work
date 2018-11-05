@@ -3,8 +3,6 @@ import React, { Component } from 'react'
 class Counter extends Component {
   render() {
     const { value, onIncreaseClick } = this.props;
-    // const { store } = this.context;
-    // console.log("*****",store);
     return (
       <div>
         <span>{value}</span>

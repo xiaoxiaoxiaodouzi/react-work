@@ -2,6 +2,7 @@
     color: white
 }
 
+
 .logs {
     background-color: black;
     color: white;
@@ -14,9 +15,12 @@
     font-weight: 400;
     font-size: 14px;
     overflow-x: scroll;
-    white-space: nowrap;
+    white-space: pre;
 }
-
+.logs pre {
+    margin-bottom: 0;
+    overflow: visible;
+}
 .logs .start-with-tab {
     margin-left: 24px;
 }

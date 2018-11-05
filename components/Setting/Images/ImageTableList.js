@@ -1,7 +1,8 @@
 import React, { Fragment,Component } from 'react';
 import {Table, Form, Input, Select,  Button, Divider, message ,Modal,Radio,Popconfirm} from 'antd';
 import {getEnvs,updateEnvs,addEnvs,deleteEnvs,getKeys} from '../../../services/images'
- 
+import { base } from '../../../services/base';
+import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
 
 const RadioGroup = Radio.Group;
 const FormItem = Form.Item;
@@ -21,15 +22,26 @@ class ImageTableListForm extends Component{
   componentDidMount(){
     let tenant=this.props.tenant;
     let artifact=this.props.artifact;
-    getEnvs(tenant,artifact).then(data=>{
-      this.setState({
-        envs:data.contents
+    if(tenant && artifact){
+      getEnvs(tenant,artifact).then(data=>{
+        this.setState({
+          envs:data.contents
+        })
       })
-    })
+    }
   }
-
-  formParams=()=>{
-   
+  componentWillReceiveProps(nextProps){
+    if(this.props.tenant !== nextProps.tenant && nextProps.tenant && nextProps.artifact){
+      let tenant=nextProps.tenant;
+      let artifact=nextProps.artifact;
+      if(tenant && artifact){
+        getEnvs(tenant,artifact).then(data=>{
+          this.setState({
+            envs:data.contents
+          })
+        })
+      }
+    }
   }
   handleDelete=(record)=>{
     let id=record.id;
@@ -166,6 +178,7 @@ class ImageTableListForm extends Component{
   }
   
   render(){
+    const Authorized = RenderAuthorized(base.allpermissions);
     const columns = [
       {
         title:"Key",
@@ -216,12 +229,15 @@ class ImageTableListForm extends Component{
         render: (text,record) => {
           return(
             <Fragment>
+              <Authorized authority='image_editEnvironmentalVariable' noMatch={<a disabled='true' onClick={e=>{this.handleUpdate(record)}}>编辑</a>}>
                 <a onClick={e=>{this.handleUpdate(record)}}>编辑</a>
+              </Authorized>  
                 <Divider type="vertical" />
-                <Popconfirm title='确认删除' onConfirm={()=>this.handleDelete(record)}>
-                <a>移除</a>
-                </Popconfirm>
-								
+                <Authorized authority='image_deleteEnvironmentalVariable' noMatch={<a disabled='true'>移除</a>}>
+                  <Popconfirm title='确认删除' onConfirm={()=>this.handleDelete(record)}>
+                    <a>移除</a>
+                  </Popconfirm>
+								</Authorized>
             </Fragment>
           )
         }
@@ -243,8 +259,10 @@ class ImageTableListForm extends Component{
     return(
         <div>
           <div style={{marginBottom:24}}>
-            <Button type='primary' style={{marginRight:8}} onClick={e=>this.showModal()}>新建</Button>
-					</div>
+            <Authorized authority='image_addEnvironmentalVariable' noMatch={null}>
+              <Button type='primary' style={{marginRight:8}} onClick={e=>this.showModal()}>新建</Button>
+            </Authorized>
+          </div>
           <Table
           rowKey={record => record.id}
           columns={columns}

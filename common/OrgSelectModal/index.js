@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { Modal, Row, message, Button, Tree, Tag } from "antd";
+import { Modal, Row, Button, Tree, Tag } from "antd";
 import C2Fetch from "../../utils/Fetch";
 
 const TreeNode = Tree.TreeNode;
@@ -151,7 +151,7 @@ class OrgSelectModal extends Component {
     }
 
     _disableNodeChild(child, disabled) {
-        if (child === null || child.length === 0) {
+        if (child === undefined || child.length === 0) {
             return;
         }
         for (var n = 0; n < child.length; n++) {
@@ -258,21 +258,20 @@ class OrgSelectModal extends Component {
                 this.props.onOk && (this.props.onOk(this.selectedItem));
             }
 
-
-            if (this.props.visible == null) {
-                this.setState({
-                    visible: false,
-                    selectedValue: [],
-                    selectedItems: []
-                });
-            } else {
-                this.setState({
-                    selectedValue: [],
-                    selectedItems: []
-                });
-            }
+        } else{
+            this.props.onOk && (this.props.onOk([]));
+        }
+        if (this.props.visible == null) {
+            this.setState({
+                visible: false,
+                selectedValue: [],
+                selectedItems: []
+            });
         } else {
-            message.warning('请选择机构');
+            this.setState({
+                selectedValue: [],
+                selectedItems: []
+            });
         }
     }
 
@@ -321,7 +320,8 @@ class OrgSelectModal extends Component {
         return (
             <div>
                 {dom}
-                <Modal title={this.props.title} key={this.props.newkey}
+                <Modal title={this.props.title} key={this.props.newkey} mask={this.props.isOffset?false:true}
+                    style={this.props.isOffset?{top:40,left:'50%',marginLeft:-240}:{}}
                     visible={this.props.visible == null ? this.state.visible : this.props.visible}
                     onCancel={() => { this.props.visible != null ? this.props.onCancel && this.props.onCancel() : this.setState({ visible: false }) }}
                     maskClosable={false}

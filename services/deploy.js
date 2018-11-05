@@ -85,9 +85,8 @@ export function batchAddEnvs(application,container,params){
   return C2Fetch.post(url,params,null,false);
 }
 //查询应用环境变量key是否存在
-
 export function existEnvs(application, container, env) {
-  const url = proxy + `/cce/v2/tenants/${base.tenant}/applications/${application}/containers/${container}/appenvs/${env}`;
+  const url = proxy + `cce/v2/tenants/${base.tenant}/applications/${application}/containers/${container}/appenvs/${env}`;
   return C2Fetch.get(url, null, "查询应用环境变量key是否存在出错！");
 }
 
@@ -142,4 +141,17 @@ export function changeProbe(application,container,params){
 //查询aip应用列表
 export function queryAppAIP(code){
   return C2Fetch.get(proxy+`aip/v1/apps?code=${code}`,null,"获取应用列表数据出错！");
+}
+
+//查询应用下是否存在存储卷，是则返回存储卷列表，否则返回false
+export function queryAppVolumns(appCode){
+  return queryBaseConfig(appCode).then(base=>{
+    let volumes = [];
+    if(base && base.length){
+      base.forEach(element => {
+        volumes = volumes.concat(element.volumes);
+      });
+    }
+    return volumes;
+  })
 }

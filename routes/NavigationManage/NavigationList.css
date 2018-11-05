@@ -1,0 +1,6 @@
+.ant-table-tbody > tr.ant-table-row.active > td{
+  background-color: #ccd3d9;
+}
+.highlight{
+  color: #f50;
+}

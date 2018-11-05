@@ -59,7 +59,7 @@ export default class TransactionTableSimple extends Component {
         dataIndex: "elapsed",
         width: "10%",
       },{
-        title: "异常",
+        title: "状态",
         dataIndex: "exception",
         width: "10%",
         render:(text)=> <Badge status={statusMap[text]} text={status[text]} />

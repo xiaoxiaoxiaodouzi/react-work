@@ -22,12 +22,11 @@ export default class QuotaList extends Component {
   loadData = (code,tenantId,tenantCode) => {
     let arrayData = [];
     let requests = [];
-    requests.push(getTenantQuota(code));
+    requests.push(getTenantQuota('PAAS'));
     requests.push(getTenantById(tenantId));
     requests.push(getApplicationRes(tenantCode));
     this.setState({loading:true});
     Promise.all(requests).then(values=>{
-      console.log('values',values);
       let cpusUsing = values[2]['cpuUsedTotal'];
       let ramsUsing = values[2]['memoryUsedTotal'];
       values[0].forEach(element => {
@@ -45,7 +44,6 @@ export default class QuotaList extends Component {
           element.using = (parseFloat(ramsUsing)/(1024*1024*1024)).toFixed(1);
         } 
       });
-      console.log('arrayData',arrayData);
       this.setState({ 
         data:arrayData,
         loading:false,
@@ -77,7 +75,6 @@ export default class QuotaList extends Component {
     const newData = this.state.data.map(item => ({ ...item }));
     const target = this.getRowByKey(key, newData);
     if(parseFloat(target.quota) >parseFloat(target.using)){
-      console.log('target',target);
       this.toggleEditable(e,key);
       if(target.code === 'cpus'){
         updateQuota(this.props.tenantId,this.props.code,{cpus:target.quota}).then(data=>{

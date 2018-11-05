@@ -1,5 +1,5 @@
 import React, { Fragment } from 'react';
-import { Row, Col, Input, Radio, Alert, Table } from 'antd';
+import { Row, Col, Input, Radio, Alert, Table, Tooltip } from 'antd';
 import Ellipsis from 'ant-design-pro/lib/Ellipsis'
 import QuickSearch from '../../../../utils/quickSearch';
 import SetpBar from './SetpBar';
@@ -31,11 +31,13 @@ export default class ServerImportStepTwo extends React.Component {
             apps: [],
             dataSource: [],
             selectedRowKeys: [],
+            selectAll: false,
             deleteRowKeys: {},
             searchText: null,
             filterStatus: '-1',
-            pagination: { current: 1, total: 1, pageSize: 10, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, },
+            pagination: { current: 1, total: 1, pageSize: 10,showTotal:this.showTotal, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, },
         }
+        this.deleteId = '';
 
         this.dataSource = props.dataSource.slice();
 
@@ -47,8 +49,7 @@ export default class ServerImportStepTwo extends React.Component {
         this._onFilterStatusChange = this._onFilterStatusChange.bind(this);
         this._removeApi = this._removeApi.bind(this);
     }
-
-
+	showTotal =() => `共 ${this.state.pagination.total} 条记录  第 ${this.state.pagination.current}/${Math.ceil(this.state.pagination.total/this.state.pagination.pageSize)} 页 `;
     componentWillReceiveProps(nextProps) {
         if (nextProps.dataSource !== this.props.dataSource) {
             this.dataSource = nextProps.dataSource.slice();
@@ -58,7 +59,7 @@ export default class ServerImportStepTwo extends React.Component {
             })
             this.setState({
                 dataSource: dataSource,
-                pagination: { current: 1, total: Math.ceil(dataSource.length / 1), pageSize: 10, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, },
+                pagination: { current: 1, total: Math.ceil(dataSource.length / 1),showTotal:this.showTotal, pageSize: 10, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, },
             })
         }
     }
@@ -73,6 +74,7 @@ export default class ServerImportStepTwo extends React.Component {
      * @param {*} filterStatus 状态
      */
     _getDataSource(current, pageSize, searchText, filterStatus) {
+        // this.state.selectedRowKeys
         current = 1;
         pageSize = this.dataSource.length;
         let dataSource = [];
@@ -81,6 +83,8 @@ export default class ServerImportStepTwo extends React.Component {
         let max = min + pageSize - 1
         if (!searchText) {
             searchText = this.state.searchText;
+        }else{
+            searchText = searchText.trim();
         }
 
         if (!filterStatus) {
@@ -96,9 +100,9 @@ export default class ServerImportStepTwo extends React.Component {
         } else if (searchText && filterStatus) {//url搜索且状态过滤
             let condition;
             if (filterStatus === '-1') {
-                condition = ['uri', 'like', searchText]
+                condition = [['uri', 'like', searchText],'||',['name','like',searchText]]
             } else {
-                condition = [['uri', 'like', searchText], '&&', ['state', '==', filterStatus]];
+                condition = [[['uri', 'like', searchText],'||',['name','like',searchText]], '&&', ['state', '==', filterStatus]];
             }
             temp = QuickSearch.query(this.dataSource, condition)
             temp.forEach((element, index) => {
@@ -179,7 +183,12 @@ export default class ServerImportStepTwo extends React.Component {
             render: (text, record) => {
                 return (
                     <Row>
-                        <Col span={24}><Ellipsis style={{ margingLeft: 5 }} lines={1} tooltip={true}>{SERVER_STATUS[text] || text}</Ellipsis></Col>
+                        <Col span={24}>
+                        {SERVER_STATUS[text]!=='已存在' ?
+                            <Ellipsis style={{ margingLeft: 5 }} lines={1} tooltip={true}>{SERVER_STATUS[text] || text }</Ellipsis>
+                        : <Tooltip title={record.groupName}>{SERVER_STATUS[text]}</Tooltip>
+                        }
+                        </Col>
                     </Row>
                 )
             }
@@ -202,7 +211,7 @@ export default class ServerImportStepTwo extends React.Component {
         let dataSource = this._getDataSource(pagination.current, pagination.pageSize);
         this.setState({
             dataSource: dataSource.dataSource,
-            pagination: { current: pagination.current, total: pagination.total, pageSize: pagination.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, },
+            pagination: { current: pagination.current,showTotal:this.showTotal, total: pagination.total, pageSize: pagination.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, },
         })
     }
 
@@ -224,46 +233,74 @@ export default class ServerImportStepTwo extends React.Component {
     }
 
     _onFilterSearchChange(e) {
-        let dataSource = this._getDataSource(1, this.state.pagination.pageSize, e.target.value, null);
-        let pagination = { current: 1, total: dataSource.total, pageSize: this.state.pagination.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, }
-        this.setState({
-            dataSource: dataSource.dataSource,
-            pagination: pagination,
-            searchText: e.target.value
-        })
+        if(e.target.value){
+            let dataSource = this._getDataSource(1, this.state.pagination.pageSize, e.target.value, null);
+            let pagination = { current: 1, total: dataSource.total,showTotal:this.showTotal, pageSize: this.state.pagination.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, }
+            this.setState({
+                dataSource: dataSource.dataSource,
+                pagination,
+                searchText: e.target.value
+            })
+        }else{
+            let dataSource = this.dataSource;
+            let pagination = { current: 1, total: dataSource.total, showTotal:this.showTotal, pageSize: this.state.pagination.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, }
+            this.setState({ dataSource,pagination,searchText:'' });
+        }
     }
 
     _onFilterStatusChange(e) {
         let dataSource = this._getDataSource(1, this.state.pagination.pageSize, null, e.target.value);
-        let pagination = { current: 1, total: dataSource.total, pageSize: this.state.pagination.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, }
+        let pagination = { current: 1, total: dataSource.total,showTotal:this.showTotal,  pageSize: this.state.pagination.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, }
 
-        this.setState({
+        var state = {
             dataSource: dataSource.dataSource,
             pagination: pagination,
             filterStatus: e.target.value
-        })
+        }
+
+        if (this.state.selectAll) {
+            var rowKeys = [];
+            dataSource.dataSource.forEach((element) => {
+                rowKeys.push(element.id);
+            })
+            Object.assign(state, { selectedRowKeys: rowKeys });
+        }
+
+        this.setState(state)
     }
 
     _removeApi(id) {
         let methods = id.split('|')[0];
         let uri = id.split('|')[1];
         let temp = [];
+        this.deleteId = id;
+        let selectedRowKeys = [];
         for (const key in this.dataSource) {
             const element = this.dataSource[key];
             if (element.methods === methods && element.uri === uri) {
+                for (var n = 0; n < this.state.selectedRowKeys.length; n++) {
+                    if (element.methods + '|' + element.uri !== this.state.selectedRowKeys[n]) {
+                        selectedRowKeys.push(this.state.selectedRowKeys[n]);
+                    }
+                }
             } else {
                 temp.push(element);
             }
         }
+
         this.dataSource = temp;
         let dataSource = this._getDataSource(this.state.pagination.current, this.state.pagination.pageSize, null, null);
         this.setState({
+            selectedRowKeys:selectedRowKeys,
             dataSource: dataSource.dataSource,
-            pagination: { current: this.state.pagination.current, total: dataSource.total, pageSize: this.state.pagination.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, }
-        })
+            pagination: { current: this.state.pagination.current,showTotal:this.showTotal,  total: dataSource.total, pageSize: this.state.pagination.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, }
+        })      
     }
 
     _onSelect(record, selected, selectedRows, nativeEvent) {
+        if(record.id === this.deleteId){
+            return;
+        }
         if (selected == null) {
             selected = true;
             for (var n = 0; n < this.state.selectedRowKeys.length; n++) {
@@ -310,34 +347,15 @@ export default class ServerImportStepTwo extends React.Component {
             onSelectAll: (selected, selectedRows, changeRows) => {
                 let rowKeys = [];
                 if (selected) {
-                    rowKeys = this.state.selectedRowKeys.slice();
-                    for (let n = 0; n < selectedRows.length; n++) {
-                        let newSelected = selectedRows[n];
-                        for (let i = 0; i < this.state.selectedRowKeys.length; i++) {
-                            if (this.state.selectedRowKeys[i] === selectedRows[n].id) {
-                                newSelected = null
-                                break;
-                            }
-                        }
-                        if (newSelected) {
-                            rowKeys.push(newSelected.id);
-                        }
-                    }
+                    this.state.dataSource.forEach((element) => {
+                        rowKeys.push(element.id);
+                    })
                 } else {
-                    for (let n = 0; n < this.state.selectedRowKeys.length; n++) {
-                        let newSelected = null;
-                        for (let i = 0; i < changeRows.length; i++) {
-                            if (this.state.selectedRowKeys[n] === changeRows[i].id) {
-                                newSelected = this.state.selectedRowKeys[n];
-                            }
-                        }
-                        if (!newSelected) {
-                            rowKeys.push(this.state.selectedRowKeys[n])
-                        }
-                    }
+                    rowKeys = [];
                 }
 
                 this.setState({
+                    selectAll: selected,
                     selectedRowKeys: rowKeys
                 })
             }
@@ -374,7 +392,7 @@ export default class ServerImportStepTwo extends React.Component {
                         style={{ marginBottom: 10 }}
                         message={(
                             <Fragment>
-                                已选择 <a style={{ fontWeight: 600 }}>{this.state.selectedRowKeys.length}</a> 项&nbsp;&nbsp;
+                                总共{this.dataSource.length}项 &nbsp;&nbsp;已选择 <a style={{ fontWeight: 600 }}>{this.state.selectedRowKeys.length}</a> 项&nbsp;&nbsp;
                             <a onClick={() => { this.setState({ selectedRowKeys: [] }) }} style={{ marginLeft: 24 }}>清空</a>
                             </Fragment>
                         )}
@@ -386,19 +404,18 @@ export default class ServerImportStepTwo extends React.Component {
                         rowSelection={this.rowSelection()}
                         dataSource={this.state.dataSource}
                         columns={this._getColumn()}
-                        pagination={false}
+                        pagination={this.state.pagination}
                         onRow={(record) => {
                             return {
                                 onClick: () => { this._onSelect(record) },       // 点击行
                             }
                         }}
                         onChange={this._onChange}
-                        scroll={{ x: true, y: 200 }}
                         size={'small'}
                     />
                 </Col>
                 <Col span={24}>
-                    <SetpBar onPreviousStep={() => {this.props.onPreviousStep()}} onNextStep={() => { this._onClick() }} style={{ marginTop: 20 }} />
+                    <SetpBar onPreviousStep={() => { this.props.onPreviousStep() }} onNextStep={() => { this._onClick() }} />
                 </Col>
             </Col>
         )

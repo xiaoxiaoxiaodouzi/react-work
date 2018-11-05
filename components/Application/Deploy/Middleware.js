@@ -5,6 +5,7 @@ import { getMiddleware,addMiddleware,deleteMiddleware } from '../../../services/
 import { Button,Table,Modal,Badge,message,Popconfirm,Icon } from 'antd';
 import Link from 'react-router-dom/Link';
 import {base} from '../../../services/base'
+import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
 //status={statusMap[text]} text={status[text]} 
 
 const statusMap = { 'succeeded': 'success', 'running': 'processing', 'stop': 'default', 'pending': 'processing', 'exception':'warning','failed':'error' };
@@ -83,7 +84,8 @@ export default class Middleware extends PureComponent {
     let params = {
       page:page,
       rows:row,
-      type:'middleware'
+      type:'middleware',
+      tenant:base.tenant
     }
     queryAppAIP(params).then((data)=>{
       let modalData = [];
@@ -140,6 +142,7 @@ export default class Middleware extends PureComponent {
     this.getAllMiddleware(1,10);
   }
   render() {
+    const Authorized = RenderAuthorized(base.allpermissions);
     const { data,loading,visibleModal,modalData,loadingModalData,modalPage,modalRow,modalTotal,selectedRowKeys } = this.state;
     const columns = [{
       title: '名称',
@@ -157,9 +160,9 @@ export default class Middleware extends PureComponent {
         <span>
           {value ?
             value.map((item, index) => {
-              const image = item.substring(item.lastIndexOf('/')+1);
-              const imageInfo = image.split(":");
-              return <div key={index}><Link to={'/setting/images/'+imageInfo[0]+'&tenant='+base.tenant}>{imageInfo[0]}</Link><Icon type="tag-o" style={{fontSize:12}}/>{imageInfo[1]}</div>
+              const image = item.split('/');
+              const imageInfo = image[2].split(":");
+              return <div key={index}><Link to={'/setting/images/'+imageInfo[0]+'?'+image[1]}>{imageInfo[0]}</Link><Icon type="tag-o" style={{fontSize:12}}/>{imageInfo[1]}</div>
             }) : ""
           }
         </span>
@@ -187,10 +190,12 @@ export default class Middleware extends PureComponent {
       width:'15%',
       render: (text, record) => {
         return (
-          <span>
+          <span> 
+            <Authorized authority='app_cancelReleationMiddleware' noMatch={<Popconfirm title="是否要将此中间件取消关联？" onConfirm={() => this.remove(record.key)}><a disabled="true">取消关联</a></Popconfirm>}>
             <Popconfirm title="是否要将此中间件取消关联？" onConfirm={() => this.remove(record.key)}>
               <a>取消关联</a>
             </Popconfirm>
+            </Authorized>
           </span>
         );
       },
@@ -227,8 +232,10 @@ export default class Middleware extends PureComponent {
     return (
       <div>
         <div className="card-title">关联中间件</div>
-        <Button style={{marginBottom: 16}} type="primary" 
-          onClick={this.onOpenModal}>新增</Button>
+        <Authorized authority='app_releationMiddleware' noMatch={null}>
+            <Button style={{marginBottom: 16}} type="primary" 
+              onClick={this.onOpenModal}>新增</Button>
+        </Authorized>
         <Table
           loading={loading}
           pagination={false}

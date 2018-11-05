@@ -51,11 +51,11 @@ export default class EditContainer extends React.PureComponent {
     }
 
     _onCommit() {
-        if (!this.value) {
+        if (this.value === null) {
             this.setState({ editing: false })
             return;
         }
-        if (!this.value && this.props.rule && this.props.rule.required) {
+        if (this.value === '' && this.props.rule && this.props.rule.required) {
             this.message = "值不能为空";
             this.setState({ tipVisible: true });
             return;
@@ -64,11 +64,23 @@ export default class EditContainer extends React.PureComponent {
             message.warn(`请将内容缩减至${this.props.length}以内,当前${this.value.length}字`);
             return;
         }
-        this.props.onChange && this.props.onChange(this.value)
-        this.setState({
-            tipVisible: false,
-            editing: false
-        })
+        if (this.props.onCommit) {
+            this.props.onCommit(this.value)
+                .then((response) => {
+                    this.setState({
+                        tipVisible: false,
+                        editing: false
+                    })
+                })
+                .catch((e) => {
+                })
+        } else {
+            this.props.onChange && this.props.onChange(this.value)
+            this.setState({
+                tipVisible: false,
+                editing: false
+            })
+        }
     }
 
     _onCancel() {
@@ -192,7 +204,7 @@ export default class EditContainer extends React.PureComponent {
                 this.state.options.forEach((item) => {
                     if (this.state.value === item.value) {
                         dom.push(
-                            <Button style={{ height: CONTENT_CONTAINER_HEIGHT }}>
+                            <Button style={{ height: 'auto' }}>
                                 {item.name}
                             </Button>
                         )
@@ -203,20 +215,21 @@ export default class EditContainer extends React.PureComponent {
                 if (this.state.dataType === 'TextArea') {
                     dom.push(
                         <a key={Math.random()} onClick={() => { this.setState({ editing: true }) }}>
-                            <Tooltip placement='topLeft' title={this.state.value || this.props.defaultNullValue}>
+                            <Tooltip placement='topLeft' overlayStyle={{ maxWidth: 650 }} title={this.state.value || this.props.defaultNullValue}>
                                 <Ellipsis lines={3} style={{ color: 'rgba(0, 0, 0, 0.85)' }}>{this.state.value || this.props.defaultNullValue}</Ellipsis>
                             </Tooltip>
                         </a>
                     )
                 } else {
                     dom.push(
-                        <a key={Math.random()} onClick={() => { this.setState({ editing: true }) }}>
-                            <Tooltip placement='topLeft' title={'点击编辑'}>
-                                <div style={{ height: CONTENT_CONTAINER_HEIGHT }}>
-                                    <p style={{ color: 'rgba(0, 0, 0, 0.85)' }}>{this.state.value || this.props.defaultNullValue}</p>
-                                </div>
-                            </Tooltip>
-                        </a>
+                        <span key={Math.random()}>
+                            <div style={{ margin: 0, height: 'auto', color: 'rgba(0, 0, 0, 0.85)' }}>
+                                <Tooltip placement='topLeft' title={'点击编辑'} >
+                                    <a onClick={() => { this.setState({ editing: true }) }} style={{ margin: 0, marginRight: 10, color: 'rgba(0, 0, 0, 0.85)' }}>{this.state.value || this.props.defaultNullValue}</a>
+                                </Tooltip>
+                                {this.props.renderExtraContent && this.props.renderExtraContent()}
+                            </div>
+                        </span>
                     )
                 }
             }
@@ -276,21 +289,21 @@ export default class EditContainer extends React.PureComponent {
     renderTitle() {
         if (this.state.title) {
             return (
-                <Col style={{ marginRight: 10, height: CONTENT_CONTAINER_HEIGHT }}>
-                    <p style={{ color: 'rgba(0, 0, 0, 0.85)' }}>{this.state.title}:</p>
-                </Col>
+                <div style={{ height: 'auto', marginRight: 10 }}>
+                    <p style={{ margin: 0, color: 'rgba(0, 0, 0, 0.85)' }}>{this.state.title}:</p>
+                </div>
             )
         }
     }
 
     render() {
         return (
-            <Row type={'flex'}>
+            <div style={{ display: 'flex', height: 'auto' }}>
                 {this.renderTitle()}
-                <Col style={{ flex: 1, marginRight: 10 }}>
+                <div style={{ flex: 1, height: 'auto' }}>
                     {this.state.mode === 'common' ? this.renderCommon() : this.renderInline()}
-                </Col>
-            </Row>
+                </div>
+            </div>
         )
     }
 }

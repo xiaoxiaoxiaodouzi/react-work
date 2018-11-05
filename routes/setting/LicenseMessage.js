@@ -1,19 +1,26 @@
 import React,{PureComponent,Fragment} from 'react';
 import PageHeaderLayout from './layouts/PageHeaderLayout';
-import Ellipsis from 'ant-design-pro/lib/Ellipsis';
 import Result from 'ant-design-pro/lib/Result';
-import { Button,message,Card,Table,Icon,Form,Input,Modal,Upload } from 'antd';
+import { Button,message,Card,Table,Icon,Form,Input,Modal,Upload ,Breadcrumb,Divider} from 'antd';
 import moment from 'moment';
 import { queryCurrentLicense,queryLicenses } from '../../services/setting';
 import {base} from '../../services/base'
+import {GlobalHeaderContext} from '../../context/GlobalHeaderContext'
+import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+
 const FormItem = Form.Item;
 
-const breadcrumbList = [{
-  title: '高级设置',
-  href: '/#/setting',
-}, {
-  title: '许可信息'
-}];
+// const breadcrumbList = [{
+//   title: '高级设置',
+//   href: '/#/setting',
+// }, {
+//   title: '许可信息'
+// }];
+
+const title = <Breadcrumb style={{marginTop:6}}>
+<Breadcrumb.Item><Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a","verticalAlign":"text-bottom"}}/> 高级设置</Breadcrumb.Item>
+<Breadcrumb.Item>许可信息</Breadcrumb.Item>
+</Breadcrumb>;
 
 class LicenseMessage extends PureComponent {
   state = {
@@ -26,6 +33,9 @@ class LicenseMessage extends PureComponent {
     uploading:false,
     fileList: [],
   };
+  
+  showTotal =() => `共 ${this.state.total} 条记录  第 ${this.state.page}/${Math.ceil(this.state.total/this.state.row)} 页 `;
+
   onUpdateLicense=()=>{
     const { setFieldsValue }=this.props.form;
     setFieldsValue({
@@ -56,6 +66,12 @@ class LicenseMessage extends PureComponent {
     this.getCurrentLicense();
     this.getAllLicenses(1,5);
   }
+  componentWillReceiveProps(nextProps){
+    if(this.props.tenant !== nextProps.tenant){
+      this.getCurrentLicense();
+      this.getAllLicenses(1,5);
+    }
+  }
   handleModalOk = ()=>{
     const { validateFieldsAndScroll } = this.props.form;
     validateFieldsAndScroll((error, values) => {
@@ -77,7 +93,7 @@ class LicenseMessage extends PureComponent {
             return evnId;
           }
           this.setState({uploading:true});
-          fetch(`proxy/cce/v2/tenant/${tenant}/license`,{
+          fetch(`proxy/cce/v2/tenants/${tenant}/license`,{
             method:'POST',
             credentials: "include",
             headers:{
@@ -112,6 +128,7 @@ class LicenseMessage extends PureComponent {
     });
   }
   render() {
+    const Authorized = RenderAuthorized(base.allpermissions);
     const {data,page,row,total,currentLicense,visibleModal,uploading} = this.state;
     const { getFieldDecorator } = this.props.form;
     const formItemLayout = {
@@ -144,6 +161,7 @@ class LicenseMessage extends PureComponent {
       pageSize: row,
       showSizeChanger: true, 
       pageSizeOptions:['5','10','20'],
+      showTotal:this.showTotal,
       onShowSizeChange:(current, pageSize) =>{
         this.setState({page:current,row:pageSize});
         this.getAllLicenses(current,pageSize);
@@ -169,11 +187,11 @@ class LicenseMessage extends PureComponent {
         </FormItem> */}
       </Form>
     );
-    const description = (
+    /* const description = (
       <div style={{wordWrap:'break-word',padding:'0px 64px'}}>
         <Ellipsis length={100}>{currentLicense.content}</Ellipsis>
       </div>
-    );
+    ); */
     const formItemLayout1 = {
       labelCol: {
         sm: { span: 5 },
@@ -198,9 +216,10 @@ class LicenseMessage extends PureComponent {
     }
     return (
       <PageHeaderLayout
-        title="许可信息"
+        title={title}
+        onTabChange={this.onTabChange}
         content="全局应用许可，C2应用部署过程中可以选择使用共享许可来验证应用权限"
-        breadcrumbList={breadcrumbList} >
+         >
         <Card 
           style={{marginBottom:24}}
           bordered={false} >
@@ -209,13 +228,17 @@ class LicenseMessage extends PureComponent {
               <div style={{textAlign:'center',marginTop:32}}>
                 <Icon type="key" style={{fontSize:64}}/>
               </div>
+             
               <Result
-                description={description}
                 extra={extra}
-                actions={<Button type="primary" size='large' onClick={this.onUpdateLicense}>更新许可</Button>} >
+                actions={ <Authorized authority="license_update" noMatch={null}><Button type="primary" size='large' onClick={this.onUpdateLicense}>更新许可</Button></Authorized>} >
               </Result>
+              
             </Fragment>
-          : <Button type="primary" onClick={this.onUpdateLicense}>上传许可</Button>}
+          :<Authorized authority={'license_upload'} noMatch={null}> 
+            <Button type="primary" onClick={this.onUpdateLicense}>上传许可</Button>
+            </Authorized>
+          }
           <Modal 
             title="更新许可信息"
             visible={visibleModal}
@@ -255,4 +278,9 @@ class LicenseMessage extends PureComponent {
   }
 }
 const Antdes = Form.create()(LicenseMessage);
-export default Antdes;
+
+export default props=>(
+  <GlobalHeaderContext.Consumer>
+    {context=><Antdes {...props} tenant={context.tenant} />}
+  </GlobalHeaderContext.Consumer>
+);

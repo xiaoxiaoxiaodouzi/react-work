@@ -1,6 +1,10 @@
 import React, { Component } from "react";
-import { Table, Card, Popconfirm,message,Divider} from "antd";
+import { Table, Card, Popconfirm,message,Divider,Breadcrumb} from "antd";
 import PageHeaderLayout from "./layouts/PageHeaderLayout";
+import {GlobalHeaderContext} from '../../context/GlobalHeaderContext'
+import { base } from '../../services/base';
+import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+
 import { 
   queryAllVolumes,
   deleteVolumes,
@@ -10,16 +14,11 @@ import {
 } from "../../services/deploy";
 import moment from "moment";
 
-const breadcrumbList = [
-  {
-    title: "高级设置",
-    href: "/#/setting"
-  },
-  {
-    title: "存储卷管理"
-  }
-];
-export default class Storage extends Component {
+let title = <Breadcrumb style={{marginTop:6}}>
+<Breadcrumb.Item><Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a","verticalAlign":"text-bottom"}}/> 高级设置</Breadcrumb.Item>
+<Breadcrumb.Item>存储卷管理</Breadcrumb.Item>
+</Breadcrumb>;
+class Storage extends Component {
   state = {
     loading: false,
     data: [],
@@ -27,8 +26,15 @@ export default class Storage extends Component {
     row:10,
     total:0,
   };
+  showTotal =() => `共 ${this.state.total} 条记录  第 ${this.state.page}/${Math.ceil(this.state.total/this.state.row)} 页 `;
+
   componentDidMount() {
     this.loadData(1,10);
+  }
+  componentWillReceiveProps(nextProps){
+    if(this.props.tenant!==nextProps.tenant){
+      this.loadData(1,10);
+    }
   }
   loadData = (page,row) => {
     let params = {
@@ -46,23 +52,17 @@ export default class Storage extends Component {
           if(appIds.filter(element=> element === item.boundApp.appName).length === 0){
             appIds.push(item.boundApp.appName);
           }
-          //appIds = [...appIds,item.boundApp.appName];
-          //requests.push(queryAppAIP(item.boundApp.appName))
         }
       });
 
       appIds.forEach(element=>{
         requests.push(queryAppAIP(element))
       });
-      console.log('volumeData',volumeData);
       Promise.all(requests).then(values=>{
         let apps = [];
         values.forEach(value=>{
           apps = [...apps,...value];
         })
-        /* apps.forEach(app=>{
-          volumeData.filter(element => element.boundApp.appName === app.code)
-        }) */
         volumeData.forEach((item, index) => {
           apps.forEach(app=>{
             if(item.boundApp && item.boundApp.appName === app.code){
@@ -104,6 +104,7 @@ export default class Storage extends Component {
     });
   }
   renderOpen = () => {
+    const Authorized = RenderAuthorized(base.allpermissions);
     const columns = [
       {
         title: "名称",
@@ -128,7 +129,7 @@ export default class Storage extends Component {
           if(text ==='删除中'){
             const current=new Date().getTime();
             const days = parseInt(record.delTime / 1000 / 3600 / 24 ,10)-parseInt(current / 1000 / 3600 / 24,10) + 7;
-            return <span>{text}，<span style={{color:'red'}}>{days}</span>天后彻底删除</span>;
+            return <span>{text}，<span style={{color:'red'}}>{days+1}</span>天后彻底删除</span>;
           }else{
             return text;
           }
@@ -153,9 +154,11 @@ export default class Storage extends Component {
         render: (text, record) => {
           if(record.status === '未挂载'){
             return (
-              <Popconfirm title='确认删除' onConfirm={e => {this.handleDelete(record.name)}}>
-                <a>删除</a>
-              </Popconfirm> 
+              <Authorized authority={'storage_delete'} noMatch={<Popconfirm title='确认删除' onConfirm={e => {this.handleDelete(record.name)}}><a disabled='true'>删除</a></Popconfirm> }>
+                <Popconfirm title='确认删除' onConfirm={e => {this.handleDelete(record.name)}}>
+                  <a>删除</a>
+                </Popconfirm> 
+              </Authorized>
             );
           }else if(record.status === '已挂载' && record.appId){
             return (
@@ -177,10 +180,12 @@ export default class Storage extends Component {
         }
       }
     ];
+    
     const pagination = {
       total: this.state.total,
       current: this.state.page,
       pageSize: this.state.row,
+      showTotal: this.showTotal,
       onChange:(current, pageSize) => {
         this.loadData(current,pageSize)
       },
@@ -200,14 +205,17 @@ export default class Storage extends Component {
   render() {
     return (
       <PageHeaderLayout
-        title="存储卷管理"
-        content=""
-        breadcrumbList={breadcrumbList}
+      title={title}
+        content="所有容器挂载的存储卷管理"
       >
-      
         {this.renderOpen()}
       </PageHeaderLayout>
     );
   }
 }
 
+export default props=>(
+  <GlobalHeaderContext.Consumer>
+    {context=><Storage {...props} tenant={context.tenant} environment={context.environment} />}
+  </GlobalHeaderContext.Consumer>
+);

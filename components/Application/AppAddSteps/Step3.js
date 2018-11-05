@@ -4,7 +4,7 @@ import Result from 'ant-design-pro/lib/Result';
 import Link from 'react-router-dom/Link';
 import { queryAppInfo } from '../../../services/apps';
 
-function ExtraText(props) {
+/* function ExtraText(props) {
     return (
         <div style={{ marginBottom: 20 }}>
             <span style={{
@@ -16,27 +16,32 @@ function ExtraText(props) {
             <span>{props.text}</span>
         </div>
     )
-}
+} */
 
 class Step3 extends React.Component {
     state = {
         appInfo: null
+    }
+    componentDidMount(){
+        this.setState({ appInfo:this.props.appinfo });
     }
     componentWillReceiveProps(nextProps) {
         if (nextProps.status === 1 && this.state.appInfo!==nextProps.appinfo) {
             queryAppInfo(nextProps.appinfo.code).then(data => {
                 this.setState({
                     cceInfo: data,
-                    appInfo:this.props.appinfo
+                    appInfo:nextProps.appinfo
                 })
             })
+        }else{
+            this.setState({ appInfo:nextProps.appinfo });
         }
     }
    
     render() {
         const labelName = this.props.type==='app'?'应用':'中间件';
         const appid = this.state.appInfo?this.state.appInfo.id:'';
-        const extra = (
+        /* const extra = (
             <div style={{ margin: '10px 0 0 160px' }}>
                 {
                     this.state.cceInfo ?
@@ -47,7 +52,7 @@ class Step3 extends React.Component {
                         </span> : ""
                 }
             </div>
-        );
+        ); */
         const actions = (
             <div>
                 <Button type="primary">
@@ -65,7 +70,7 @@ class Step3 extends React.Component {
                     type="success"
                     title={labelName+'创建成功'}
                     description={description}
-                    extra={extra}
+                    /* extra={extra} */
                     actions={actions}
                     style={{ marginTop: 48, marginBottom: 16 }}
                 />

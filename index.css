@@ -25,3 +25,13 @@ body {
 .ant-progress.normal .ant-progress-bg{
   background-color: #52c41a;
 }
+.ant-dropdown-menu-submenu-popup{
+  height: 240px;
+  overflow-y: auto;
+}
+.tableList .ant-form-item> .ant-form-item-label{
+    width: auto;
+    line-height: 32px;
+    padding-right: 8px;
+    margin-top: 5px;
+}

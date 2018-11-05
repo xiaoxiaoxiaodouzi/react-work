@@ -54,13 +54,18 @@ class UserSelectModal extends Component {
 		var dataNameIndex = this.props.dataIndex.dataNameIndex;
 		var obj = {}
 		if (selectedUsers) {
-			var reSelectedUsers = [];
+			var selectUsers = [];
+			var tmp = {};
+			//var reSelectedUsers = [];
 			selectedUsers.forEach((element) => {
 				element.id = element[dataIdIndex];
 				element.name = element[dataNameIndex];
-				reSelectedUsers.push(element);
+				if (tmp[element.id] !== true) {
+					tmp[element.id] = true;
+					selectUsers.push(element);
+				}
 			})
-			obj.selectedUsers = reSelectedUsers;
+			obj.selectedUsers = selectUsers;
 		}
 		if (disableUsers) {
 			var reDisableUsers = [];
@@ -81,8 +86,8 @@ class UserSelectModal extends Component {
 		this._onChange({ current: 1 });
 	}
 
-	_onSearch(text) {
-		this._onChange({ current: 1 },{name:text});
+	_onSearch(text,categoryId,orgId) {
+		this._onChange({ current: 1 }, { name: text ,categoryId:categoryId,orgId:orgId});
 	}
 
 	_onHandleOk(users = []) {
@@ -100,18 +105,30 @@ class UserSelectModal extends Component {
 	}
 
 	_onChange(pagination, filters = {}) {
-		Object.assign(filters, { page: pagination.current, rows: 6 })
-		C2Fetch.get(`proxy/uop/v1/users`, filters)
-			.then((data) => {
-				var pagination = { current: data.pageIndex, total: data.total, pageSize: data.pageSize };
-				this.setState({
-					dataSource: data.contents,
-					pagination: pagination
+		if (!this.props.tenantId) {
+			Object.assign(filters, { page: pagination.current, rows: 6 })
+			C2Fetch.get(`proxy/uop/v1/users`, filters)
+				.then((data) => {
+					var pagination = { current: data.pageIndex, total: data.total, pageSize: data.pageSize };
+					this.setState({
+						dataSource: data.contents,
+						pagination: pagination
+					});
+				})
+				.catch((e) => {
+					console.error(e);
+				})
+		} else {//兼容租户数据源
+			Object.assign(filters, { page: pagination.current, rows: 6 },{userName:filters.name});
+			C2Fetch.get(`tp/v1/tenants/${this.props.tenantId}/users`, filters, '获取租户下的所有用户失败')
+				.then(data => {
+					var pagination = { current: data.pageIndex, total: data.total, pageSize: data.pageSize };
+					this.setState({
+						dataSource: data.contents,
+						pagination: pagination
+					});
 				});
-			})
-			.catch((e) => {
-				console.error(e);
-			})
+		}
 	}
 	//*********************************************************************** */
 	//***********************************UI********************************** */
@@ -130,9 +147,7 @@ class UserSelectModal extends Component {
 		} else {
 			if (selectedUsers.length < 1) {
 				dom = (
-					<Row>
-						<a onClick={() => { this._show() }}><Tooltip title={'点击编辑'}><p>未指定</p></Tooltip></a>
-					</Row>
+						<a onClick={() => { this._show() }}><Tooltip title={'点击编辑'}>未指定</Tooltip></a>
 				)
 			} else {
 				dom = (
@@ -158,13 +173,13 @@ class UserSelectModal extends Component {
 					columns={DefaultColumns}
 					dataSource={this.state.dataSource}
 					pagination={this.state.pagination}
-					selectData={this.state.selectedUsers.slice(0)}
+					selectUsers={this.state.selectedUsers.slice(0)}
 					disableData={this.state.disableUsers.slice(0)}
 					onSearch={this._onSearch}
 					onCancel={() => { this.setState({ visible: false }) }}
 					onHandleOk={this._onHandleOk.bind(this)}
 					onChange={this._onChange}
-					width={710} />
+					width={800} />
 			</Row>
 		)
 	}

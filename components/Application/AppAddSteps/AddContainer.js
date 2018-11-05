@@ -68,6 +68,7 @@ class AddContainer extends Component {
     afterChoose = (item, version, imageTenant,imagePath) => {
         //组装镜像信息
         let imageInfo = null
+        if(imagePath.endsWith('/')) imagePath=imagePath.substring(0,imagePath.length-1);
         if(!this.props.check){
             if (imageTenant === "c2cloud") {
                 imageInfo = imagePath + "/c2cloud/" + item.name + ":" + version;
@@ -117,19 +118,23 @@ class AddContainer extends Component {
         let newContainer = Object.assign({},this.state.container);
         newContainer.env = envConfData;
         newContainer.name = values.name;
-				newContainer.isHealthCheck = switched;
-				//如果是自定义镜像，则将镜像的任务id以及镜像名字存入
-				if(this.state.chooseItem.taskId){
-					newContainer.imageTaskId=this.state.chooseItem.taskId;
-					newContainer.imageName=this.state.chooseItem.name;
-				}
+        newContainer.isHealthCheck = switched;
+        //如果是自定义镜像，则将镜像的任务id以及镜像名字存入
+        if(this.state.chooseItem.taskId){
+            newContainer.imageTaskId=this.state.chooseItem.taskId;
+            newContainer.imageName=this.state.chooseItem.name;
+        }
         let containerPorts = [];
         netConfData.forEach(net=>{
-            let deployContainersPort = {containerPort:net.port,conhostPort:net.innerPort,protocol:net.protocol,outerPort:net.outerPort};
+            let deployContainersPort = {containerPort:net.port,conhostPort:net.innerPort,protocol:net.protocol,nodePort:net.outerPort};
             containerPorts.push(deployContainersPort);
         })
         newContainer.ports = containerPorts;
-
+        //拼装健康检查参数
+        newContainer.base=values.base;
+        
+        newContainer.livenessProbe=values.base.probe;
+        newContainer.readinessProbe=values.base.readinessProbe;
         newContainer.image = this.state.imageInfo;
 
         //组装容器启动命令
@@ -209,11 +214,11 @@ class AddContainer extends Component {
                 maskClosable={false}
                 bodyStyle={{ height: 500, overflow: 'auto' }}
             >
-                <div style={{ width: '900px', margin: '0 0 40px 20px' }}>
+                <div style={{ width: '900px', margin: '0px 0px 40px 20px', padding:'0px 120px' }}>
                     <Steps current={this.state.current}>
                         <Step title="选择镜像" />
                         <Step title="部署配置" />
-                        <Step title="高级配置" />
+                        {/* <Step title="高级配置" /> */}
                     </Steps>
                 </div>
 								<div style={{ margin: 16 }}>

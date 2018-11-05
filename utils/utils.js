@@ -4,26 +4,50 @@ export function fixedZero(val) {
   return val * 1 < 10 ? `0${val}` : val;
 }
 
-export function deepClone(obj){
-  var proto=Object.getPrototypeOf(obj);
-  return Object.assign({},Object.create(proto),obj);
+export function formateValue(value){
+  return value?value:value===0?0:'--'
 }
 
-export function getTimeDistance(type) {
+export function deepClone(p){
+  var c = {};   //目标对象默认为空
+  for (var i in p) {       //遍历原对象中的所有可枚举key
+    if (typeof p[i] === 'object') {      //属性是否为对象或数组
+  　　  c[i] = (p[i].constructor === Array) ? [] : {};    // 将目标对象对应属性设置为空对象或空数组
+  　　  deepClone(p[i]);  //递归拷贝子对象的所有属性
+    } else {
+  　　  c[i] = p[i];         //如果为基本数据类型则直接赋值
+  　 }
+  }
+  return c;
+}
+
+export function getTimeDistance(type,num) {
   const oneDay = 1000 * 60 * 60 * 24;
+  const oneHour = 1000 * 60 * 60;
   const tempTime = new Date();
-  //取过去24小时
+  let n = 1;
+  if(num){
+    n = num;
+  }
+  if(type === "hour"){
+    
+    return [moment(tempTime.getTime()-n * oneHour),moment(tempTime)];
+  }
+  //取过去24小时 
+  if(type === "day"){
+    return [moment(tempTime.getTime()-n * oneDay),moment(tempTime)];
+  }
   if (type === 'today') {
-    return [moment(tempTime.getTime()-oneDay), moment(tempTime)];
+    return [moment(tempTime.getTime()-n * oneDay), moment(tempTime)];
   }
   if (type === 'week') {
-    return [moment(tempTime.getTime()-7*oneDay), moment(tempTime)];
+    return [moment(tempTime.getTime()-n *7*oneDay), moment(tempTime)];
   }
   if (type === 'month') {
-    return [moment(tempTime.getTime()-30*oneDay), moment(tempTime)];
+    return [moment(tempTime.getTime()-n *30*oneDay), moment(tempTime)];
   }
   if (type === 'year') {
-    return [moment(tempTime.getTime()-365*oneDay), moment(tempTime)];
+    return [moment(tempTime.getTime()-n *365*oneDay), moment(tempTime)];
   }
 }
 
@@ -144,3 +168,54 @@ export function checkCmd(cmd) {
   }
   return true;
 }
+
+/*!
+* FastJson Plugin v1.0
+* https://github.com/sdragoncai/fastjson.js
+* Copyright 2015 dragoncai（蔡小龙）
+* Email dragoncai@banbang.cn
+*/
+export var FastJson = {
+  isArray: function (a) {
+      return "object" === typeof a && "[object array]" === Object.prototype.toString.call(a).toLowerCase()
+  },
+  isObject: function (a) {
+      return "object" === typeof a && "[object object]" === Object.prototype.toString.call(a).toLowerCase()
+  },
+  format: function (a) {
+      if (null === a) return null;
+      // eslint-disable-next-line
+      "string" === typeof a && (a = eval("(" + a + ")"));
+      return this._format(a, a, null, null, null)
+  },
+  _randomId: function () {
+     // eslint-disable-next-line
+      return "randomId_" + parseInt(1E9 * Math.random())
+  },
+  _getJsonValue: function (a, c) {
+      var d = this._randomId(), b;
+       // eslint-disable-next-line
+      b = "" + ("function " + d + "(root){") + ("return root." + c + ";");
+      b += "}";
+      b += "";
+      var e = document.createElement("script");
+      e.id = d;
+      e.text = b;
+      document.body.appendChild(e);
+      d = window[d](a);
+      e.parentNode.removeChild(e);
+      return d
+  },
+  _format: function (a, c, d, b, e) {
+      d || (d = "");
+      if (this.isObject(c)) {
+          if (c.$ref) {
+              var g = c.$ref; 0 === g.indexOf("$.") && (b[e] = this._getJsonValue(a, g.substring(2)));
+              return
+          }
+           // eslint-disable-next-line
+          for (var f in c) b = d, "" !== b && (b += "."), g = c[f], b += f, this._format(a, g, b, c, f)
+           // eslint-disable-next-line
+      } else if (this.isArray(c)) for (f in c) b = d, g = c[f], b = b + "[" + f + "]", this._format(a, g, b, c, f); return a
+  }
+};

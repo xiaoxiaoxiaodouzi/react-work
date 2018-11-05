@@ -1,12 +1,11 @@
 import React,{Component} from 'react';
-import { Card,List,Avatar,Row,Col,Progress,Tooltip } from 'antd';
-import { getApplicationRes,getTenantManager,getTenantUsers} from '../../services/tenants'
-import { getAppCount,getServiceCount } from '../../services/monitor';
-import {base} from '../../services/base';
+import { Card,List,Avatar,Row,Col,Progress,Tooltip,message } from 'antd';
+
+import { getApplicationRes,getTenantManager,getUserTenants} from '../../services/tenants'
+import { getUserCount,queryAppCount,queryServiceCount } from '../../services/monitor';
+import { base } from '../../services/base';
 import constants from '../../services/constants';
 import './Overview.less';
-
-
 export default class TenantList extends Component {
   state = {
     total:0,
@@ -24,31 +23,32 @@ export default class TenantList extends Component {
     }
   }
   loadData = ()=>{
+    const environments = base.environments;
     let tempData = [];
+    let tempServiceCount = 0;
+    let tempAppCount = 0;
+    let tempMiddlewareCount = 0;
     this.setState({loading:true});
-    base.getUserTenants('admin').then(data=>{
-      // console.log('tenant',data);
+    //获取租户信息并根据租户code获取appcount、usercount、servicecount等信息
+    getUserTenants('admin').then(data=>{
       let requestUserManage = [];
       let requestRes = [];
-      let requestAppCount = [];
-      let requestMiddlewareCount = [];
-      let requestServiceCount = [];
       let requestUserCount = [];
       data.forEach(element => {
         if(element.tenant_type && element.tenant_type.indexOf('PAAS') !== -1 && element.tenant_code){
           element.description = '管理员：无';
           element.users = [];
+          element.appCount = 0;
+          element.middlewareCount = 0;
+          element.serviceCount = 0;
           requestUserManage.push(getTenantManager(element.id));
-          requestUserCount.push(getTenantUsers(element.id));
+          requestUserCount.push(getUserCount(element.id));
           requestRes.push(getApplicationRes(element.tenant_code)); 
-          requestAppCount.push(getAppCount({tenant:element.tenant_code/* ,type:'web' */}));
-          requestMiddlewareCount.push(getAppCount({tenant:element.tenant_code,type:'middleware'}));
-          requestServiceCount.push(getServiceCount({tenant:element.tenant_code}));
           tempData.push(element);
         }
       });
-      this.props.onGetTenantCount(tempData.length);
-      this.setState({data:tempData,total:tempData.length});
+      this.props.onGetTenantData({tenantCount:tempData.length},'tenant');
+      this.setState({ data:tempData,total:tempData.length,loading:false });
       Promise.all(requestUserManage).then(values=>{
         values.forEach((element,index)=>{
           element.forEach(item=>{
@@ -60,51 +60,66 @@ export default class TenantList extends Component {
             element.description ='管理员：'+ element.users.toString();
           }
         });
-        // console.log('data',tempData);
         this.setState({data:tempData});
       });
       Promise.all(requestUserCount).then(values=>{
         let tempUserCount = 0;
-        // console.log('users',values);
         values.forEach((element,index)=>{
-          tempData[index].userCount = element.length;
-          tempUserCount += element.length;
+          tempData[index].userCount = element;
+          tempUserCount += element;
         });
         this.setState({data:tempData});
-        this.props.onGetUserCount(tempUserCount);
+        this.props.onGetTenantData({userCount:tempUserCount},'user');
       }).catch(err=>{
-        this.props.onGetUserCount(0);
+        message.error('获取租户下的用户数目出错');
       });
       Promise.all(requestRes).then(values=>{
-        // console.log('res',values);
         values.forEach((element,index)=>{
-          tempData[index].cpuTotal = element.cpuUsedTotal;
-          tempData[index].ramTotal = element.memoryUsedTotal/1024/1024/1024;
+          tempData[index].cpuTotal = element.cpuUsedTotal.toFixed(1);
+          tempData[index].ramTotal = (element.memoryUsedTotal/1024/1024/1024).toFixed(1);
         });
         this.setState({data:tempData});
       });
-      Promise.all(requestAppCount).then(values=>{
-        values.forEach((element,index)=>{
-          tempData[index].appCount = element;
+      environments.forEach(item=>{
+        queryAppCount({format:'tenantAndType'},{'AMP-ENV-ID':item.id}).then(data=>{
+          if(data){
+            tempData.forEach(element=>{
+              if(data[element.tenant_code]){
+                if(data[element.tenant_code].web){
+                  element.appCount += data[element.tenant_code].web;
+                  tempAppCount += data[element.tenant_code].web;
+                }
+                
+                if(data[element.tenant_code].app){
+                  element.appCount += data[element.tenant_code].app;
+                  tempAppCount += data[element.tenant_code].app;
+                }
+                
+                if(data[element.tenant_code].app){
+                  element.middlewareCount += data[element.tenant_code].middleware; 
+                  tempMiddlewareCount += data[element.tenant_code].middleware;
+                }
+                
+              }
+            });
+            this.props.onGetTenantData({ appCount:tempAppCount,middlewareCount:tempMiddlewareCount } , 'app');
+            this.setState({ data:tempData });
+          }
         });
-        this.setState({data:tempData});
-      });
-      Promise.all(requestMiddlewareCount).then(values=>{
-        // console.log('middlewares',values);
-        values.forEach((element,index)=>{
-          tempData[index].middlewareCount = element;
-        });
-        this.setState({data:tempData});
-      });
-      Promise.all(requestServiceCount).then(values=>{
-        // console.log('serveices',values);
-        values.forEach((element,index)=>{
-          tempData[index].serviceCount = element;
-        });
-        this.setState({data:tempData,loading:false});
-      }).catch(err=>{
-        this.setState({ loading:false });
-      });
+        queryServiceCount({format:'tenant'},{'AMP-ENV-ID':item.id}).then(data=>{
+          if(data){
+            tempData.forEach(element=>{
+              if(data[element.tenant_code]){
+                element.serviceCount += data[element.tenant_code];
+                tempServiceCount += data[element.tenant_code];
+              }
+            })
+            this.props.onGetTenantData({serviceCount:tempServiceCount},'service');
+            this.setState({ data:tempData });
+          }
+          
+        }) 
+      })
     });
   }
   renderProgress = (percent)=>{
@@ -145,7 +160,7 @@ export default class TenantList extends Component {
                   description={item.description && <Tooltip title={item.description}><span style={{marginRight:48}}>{item.description.slice(0,15)+(item.description.length>15?'...':'')}</span></Tooltip>}
                 />
               </Col>
-              <Col span={8}>
+              <Col span={6}>
                 <div style={{width:'100%',padding:'0 16px 0 16px'}}>
                   <Row >
                     <Col span={6}><span>用户</span></Col>
@@ -164,16 +179,16 @@ export default class TenantList extends Component {
               <Col span={2} style={{textAlign:'right',fontSize:18,paddingRight:16,lineHeight:'42px'}}>
                 配额
               </Col>
-              <Col span={6}>
+              <Col span={8}>
                 <div style={{width:'100%'}}>
                   <Row >
-                    <Col span={12}><span>CPU： {item.cpuTotal}/{item.cpus}</span></Col>
+                    <Col span={12}><span>CPU（核）：{item.cpuTotal}/{item.cpus}</span></Col>
                     <Col span={12}>
                       { this.renderProgress(parseInt(item.cpuTotal/item.cpus*100, 10)) }
                     </Col>
                   </Row>
                   <Row>
-                    <Col span={12}><span>内存： {item.ramTotal}/{item.rams}</span></Col>
+                    <Col span={12}><span>内存（GB）：{item.ramTotal}/{item.rams}</span></Col>
                     <Col span={12}>
                       { this.renderProgress(parseInt(item.ramTotal/item.rams*100, 10)) }
                     </Col>

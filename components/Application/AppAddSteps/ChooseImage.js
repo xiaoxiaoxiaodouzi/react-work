@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { Select,Alert, List, Input, Button, Radio, Avatar, Dropdown, Menu, Tooltip } from "antd";
+import { Select,Alert, List, Input, Button, Radio, Avatar, Dropdown, Menu, Tooltip ,message,Spin} from "antd";
 import {queryImagePath, queryCategorys,queryImages, queryImageVersions, queryLatestVersion } from '../../../services/apps';
 import DataFormate from '../../../utils/DataFormate';
 import {base} from '../../../services/base'
@@ -84,7 +84,7 @@ export default class ChooseImage extends Component {
                     return false;
                 });
             }
-            this.getImages("c2cloud", {categoryid:newData[0].id});
+            this.getImages("c2cloud", {categoryids:newData[0].id});
             this.setState({
                 imageCategorys:newData,
                 imageCategoryId:newData[0].id,
@@ -100,8 +100,8 @@ export default class ChooseImage extends Component {
         })
         if (buttonValue === 'c2cloud') {
             this.getImageCategorys();
-        }else if(buttonValue === this.tenant){
-            this.getImages(this.tenant,null)
+        }else if(buttonValue === base.tenant){
+            this.getImages(base.tenant,null)
         }
     }
     //搜索框的值改变后修改 searchValue 状态
@@ -153,8 +153,12 @@ export default class ChooseImage extends Component {
         // }else{
         //     this.props.afterchoose({imagePath:newDeployPath[0]}, 'latest');
         // }
-
-        this.props.afterchoose({imagePath:this.state.deployPath}, '',this.state.buttonValue,this.state.imagePath);
+        let deployPath=this.state.deployPath;
+        if(this.state.buttonValue==='custom' && !deployPath){
+            message.error('请填写镜像地址')
+        }else{
+            this.props.afterchoose({imagePath:this.state.deployPath}, '',this.state.buttonValue,this.state.imagePath);
+        }
     }
     //镜像地址输入框的值改变后修改deployPath状态
     inputOnChange = (e) => {
@@ -167,20 +171,20 @@ export default class ChooseImage extends Component {
         this.setState({
             imageCategoryId:value
         })
-        const params = { name:this.state.searchValue,categoryid:value };
+        const params = { name:this.state.searchValue,categoryids:value };
         this.getImages(this.state.buttonValue, params);
     }
     render() {
-        const menu = (
-            <Menu style={{maxHeight:250,overflowY:'auto'}} onClick={this.handleMenuClick}>
-                {
-                    this.state.imageVersions ? this.state.imageVersions.map((item, index) => {
-                        const dateStr = DataFormate.dateFomate(item.time);
-                        return <Menu.Item key={item.tag}>@{item.tag} : {dateStr}</Menu.Item>
-                    }) : ''
-                }
-            </Menu>
-        );
+        let menu = (
+                <Menu style={{maxHeight:250,overflowY:'auto'}} onClick={this.handleMenuClick}>
+                    {
+                        ! this.state.versionLoading && this.state.imageVersions ? this.state.imageVersions.map((item, index) => {
+                            const dateStr = DataFormate.dateFomate(item.time);
+                            return <Menu.Item key={item.tag}>@{item.tag} : {dateStr}</Menu.Item>
+                        }) : <Spin />
+                    }
+                </Menu>
+            );
         const searchMargin=(
             this.state.buttonValue==='c2cloud'?{marginLeft:150}:{marginLeft:460}
         )
@@ -189,7 +193,7 @@ export default class ChooseImage extends Component {
                 <span>
                     <Radio.Group value={this.state.buttonValue}
                         onChange={this.handleButtonChange} >
-                        <Radio.Button value={this.tenant}>我的镜像</Radio.Button>
+                        <Radio.Button value={base.tenant}>我的镜像</Radio.Button>
                         <Radio.Button value="c2cloud">平台镜像</Radio.Button>
                         <Radio.Button value="custom">自定义镜像</Radio.Button>
                     </Radio.Group>

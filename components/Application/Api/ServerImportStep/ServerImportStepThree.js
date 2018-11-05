@@ -12,7 +12,9 @@ export default class ServerImportStepTwo extends React.Component {
             visible: false,
             updateServer: [],
             importServer: [],
-            grade: 1
+            grade: 1,
+            updateLoading:false,
+            importLoading:false
         }
 
         this._onUpdate = this._onUpdate.bind(this);
@@ -45,19 +47,23 @@ export default class ServerImportStepTwo extends React.Component {
     //************************************EVENT*********************************** */
     //**************************************************************************** */
     _onUpdate() {
+        this.setState({updateLoading:true})
         updateServers(this.props.appId, this.state.updateServer, this.props.swaggertext)
             .then((response) => {
+                this.setState({updateLoading:false})
                 this.props.hasChange && this.props.hasChange()
                 message.success('更新成功');
-            })
+            }).catch(err=>{this.setState({updateLoading:false})})
     }
 
     _onImport() {
+        this.setState({importLoading:false})
         addServers(this.props.appId, this.props.upstream, this.state.importServer, this.props.swaggertext, this.state.grade)
             .then((response) => {
+                this.setState({importLoading:true})
                 this.props.hasChange && this.props.hasChange()
                 message.success('导入成功');
-            })
+            }).catch(err=>{this.setState({importLoading:false})})
     }
 
     //**************************************************************************** */

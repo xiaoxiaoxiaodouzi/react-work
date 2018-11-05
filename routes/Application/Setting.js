@@ -1,161 +1,155 @@
-import React,{Component} from 'react'
-import { Card, Alert, Button, message, Switch,Modal,Input} from 'antd';
+import React, { Component } from 'react'
+import { Card, Alert, Button, message, Switch, Modal, Input, Checkbox } from 'antd';
 import DescriptionList from 'ant-design-pro/lib/DescriptionList';
 import { queryRoutes } from '../../services/deploy'
-import { deleteApp, deleteAppDeploy, updateApp,getApp} from '../../services/running';
-import { getConfigs} from '../../services/setting'
+import { deleteApp, deleteAppDeploy, updateApp, getApp, deleteUpstream,getAppByMiddleware } from '../../services/running';
+import { getConfigs, queryEnvById } from '../../services/setting'
 import constants from '../../services/constants'
 import { delServerGroup } from '../../services/api'
 import Setting from '../../components/Application/Setting/Setting'
 import SettingTable from '../../components/Application/Setting/SettingTable'
 import SettingClusterList from '../../components/Application/Setting/SettingClusterList'
-import { addEnvs, queryEnvs, queryBaseConfig, deleteEnvs, existEnvs, editEnvs} from '../../services/deploy'
-import {base} from '../../services/base'
+import { addEnvs, queryBaseConfig, deleteEnvs, existEnvs, editEnvs, queryAppVolumns, deleteVolumes } from '../../services/deploy'
+import { appStart } from '../../services/appdetail'
+import { base } from '../../services/base'
+import { GlobalHeaderContext } from '../../context/GlobalHeaderContext'
+import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
 
 const { Description } = DescriptionList;
-export default class AppSetting extends Component {
-  state={
-    name:'',      //应用名称
-    url1s:'',   //域名绑定
-    visible:false,
+class AppSetting extends Component {
+  state = {
+    name: '',      //应用名称
+    url1s: '',   //域名绑定
+    visible: false,
     host: '',      //内部地址
-    url3s:'',       
-    code:'',      //应用upstream
-    ctx:'',      //上下文
-    id:'',
-    codes:'',     //应用路由
-    checked:'',
-    urlchecked:false,    //域名列表的开启关闭状态
-    isAPM:true,  //APM地址是否支持开启
+    url3s: '',
+    code: '',      //应用upstream
+    ctx: '',      //上下文
+    id: '',
+    codes: '',     //应用路由
+    checked: '',
+    urlchecked: false,    //域名列表的开启关闭状态
+    isAPM: true,  //APM地址是否支持开启
     APMChecked: false,            //APM地址是否开启
-    APM_URL:''   ,     //APM地址
-    config:'' ,       //环境code_应用code
-    visibleDel:false,    //删除应用模态框
-    isK8s:true,         //应用部署方式是否为K8S
+    APM_URL: '',     //APM地址
+    config: '',       //环境code_应用code
+    visibleDel: false,    //删除应用模态框
+    isK8s: true,         //应用部署方式是否为K8S
+    appDatas: {},  //应用数据
+    routerDatas: [],      //路由数据
+    hasVolumes: false,     //是否有存储卷
+    isDeleteVolumes: false,
+    springCloud: false  ,     //是否开启springcloud
+    eurekaServerUrls:'',        //注册中心地址
+    type:'',
+    appNames:'',
   }
 
-  componentDidMount(){
+  componentDidMount() {
+    const { history } = this.props;
+    let b = history.location.hash === '#APMchecked' ? true : false;
+
+    if (b) {
+      let anchorElement = document.getElementById('APMChecked');
+      //先暂时写死，这里有两个div对象。我们要滚动的div是第二个；
+      let anchorElement1 = document.getElementsByClassName('ant-layout')[1];
+      if (anchorElement) {
+        anchorElement1.scrollTo(0, anchorElement.offsetTop - window.innerHeight / 2);
+      }
+
+    }
     let code = this.props.appCode;
-    const env = base.currentEnvironment;
-    const configs = env.code + '_' + code;
-    this.setState({
-      config: configs
-    })
+    const env = this.props.environment;
+    if (env) {
+      const configs = env.code + '_' + code;
+      this.setState({
+        config: configs
+      })
+    }
     let id = this.props.appId || this.state.id;
     //如果有id的话则刷新
     if (id) {
       //需要想办法 让这个方法先执行再执行下面的
       this.loadData(id);
     }
-    
+    queryAppVolumns(this.props.appCode).then(response => {
+      this.volumes = response;
+      this.setState({ hasVolumes: !!response.length });
+    });
   }
-  
-  /* APMisOpen=()=>{
-    
-    //获取全局动态路由配置
-    getConfigs().then(data1=>{ 
-      //将APM_URL地址
-      this.setState({
-        APM_URL: data1[constants.CONFIG_KEY.APM_URL],
-      })
-       //获取应用的环境变量来判断是否开启了APM地址配置
-      queryBaseConfig(code).then(data => {
-        let ary=[];
-        if(data){
-           data.forEach(item=>{
-             ary.push(queryEnvs(code, item.name))
-           }) 
-        }
-        Promise.all(ary).then(datas=>{
-          let a = false;
-          let b = false;
-          datas.forEach(items=>{
-            //设置标志位，如果环境变量中只要有一个容器不存在符合条件的key value，则为false
-            //遍历数据 ，看是否有满足条件的数据 即（环境CODE-应用CODE）
-              items.forEach((item => {
-                if (item) {
-                  //当满足情况时
-                  if (item.key === constants.APMENABLE_KEY[0] && item.value === data1[constants.CONFIG_KEY.APM_URL]) {
-                    b=true;
-                  }
-                }
-              }))
-              items.forEach((item => {
-                if (item) {
-                  //当满足情况时
-                  if (item.key === 'APPNAME' && item.value === configs) {
-                    a=true;
-                  }
-                }
-              }))
-          })
-          //如果多个容器里面都有对应的值的话，则认为APM是开启的
-          if(a && b){
+
+  loadData = (id) => {
+    if (!id) {
+      id = this.state.id
+    }
+    let envId = base.currentEnvironment.id;
+    queryEnvById(envId).then(res => {
+      this.setState({eurekaServerUrls:res.eurekaServerUrls})
+    })
+    getApp(id).then(data => {
+      getConfigs().then(data1 => {
+        if (data1) {
+          //将APM_URL地址
+          if(data1[constants.CONFIG_KEY.APM_URL]){
             this.setState({
-              APMChecked:true
+              APM_URL: data1[constants.CONFIG_KEY.APM_URL].split(":")[0],
             })
           }
-        })
-      })
-      if (data1[constants.CONFIG_KEY.GLOBAL_ROUTER_ENABLE] === '1') {
-        this.setState({ urlchecked : true })
-      }else{
-        this.setState({ urlchecked:false})
-      }
-      //判断是否有APMURL配置，如果配置了则设置APM可点击更改
-      if (data1[constants.CONFIG_KEY.APM_URL] && this.state.isK8s){
-        this.setState({
-          isAPM:false,
-        })
-      }
-    }) 
-  } */
-
-  loadData=(id)=>{
-    if(!id){
-      id=this.state.id
-    }
-    getApp(id).then(data => {
-      getConfigs().then(data1=>{
-        //将APM_URL地址
-        this.setState({
-          APM_URL: data1[constants.CONFIG_KEY.APM_URL],
-        })
+          
+        }
         //判断是否有APMURL配置，如果配置了则设置APM可点击更改
-        if (data1[constants.CONFIG_KEY.APM_URL] && data.deployMode==='k8s'){
+        if (data1[constants.CONFIG_KEY.APM_URL] && data.deployMode === 'k8s') {
           this.setState({
-            isAPM:false,
+            isAPM: false,
           })
         }
+
+        //判断动态路由配置是否开启
+        if (data1[constants.CONFIG_KEY.GLOBAL_ROUTER_ENABLE] === '1') {
+          this.setState({ urlchecked: true })
+        } else {
+          this.setState({ urlchecked: false })
+        }
       })
-      let code=''
-      let upstream = data.upstream?data.upstream.split('//'):'';
-      if (upstream.length>1){
+      let code = ''
+      let upstream = data.upstream ? data.upstream.split('//') : '';
+      if (upstream.length > 1) {
         code = upstream[1]
-      }else{
-        code=upstream[0]
+      } else {
+        code = upstream[0]
       }
+      this.setState({ appType: data.type, appDatas: data,type:data.type==='middleware'?'中间件':'应用', springCloud: data.springcloud ? true : false })
       //如果应用的部署方式是K8S才去调CCE接口
-      if(data.deployMode==='k8s'){
+      if(data.type === 'middleware'){
+        getAppByMiddleware(id).then(data=>{
+          let appNames = [];
+          data.forEach(element=>{
+            appNames.push(element.name)
+          })
+          this.setState({ appNames:appNames.join(',')})
+        })
+      }
+      if (data.deployMode === 'k8s') {
         queryRoutes(data.code).then(datas => {
           if (datas) {
             let array = [];
             datas.forEach(item => {
               array.push(item.ip + '(' + item.containerName + ')');
             })
-            this.setState({ 
+            this.setState({
               urls: array.join(','),
-           })
+              routerDatas: datas,
+            })
           }
         })
-      }else{
+      } else {
         this.setState({
-          isK8s:false
+          isK8s: false,
         })
       }
       this.setState({
-        APMChecked:data.apm,
-        name:data.name,
+        APMChecked: data.apm,
+        name: data.name,
         host: data.host,
         ctx: data.ctx,
         id: id,
@@ -164,50 +158,52 @@ export default class AppSetting extends Component {
       })
     })
   }
-  
 
-  componentWillReceiveProps(nextProps){
-    if (nextProps.appId!==this.state.id ){
-      this.setState({ id: nextProps.appId})
+
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.appId !== this.state.id) {
+      this.setState({ id: nextProps.appId })
       let id = nextProps.appId;
-    //如果有id的话则刷新
-			if(id){
+      //如果有id的话则刷新
+      if (id) {
         getApp(id).then(data => {
-          if(data.deployMode!=='k8s'){
+          if (data.deployMode !== 'k8s') {
             this.setState({
-              isK8s:false
+              isK8s: false
             })
           }
           this.setState({
-            name:data.name,
+            appType: data.type,
+            name: data.name,
             host: data.host,
             ctx: data.ctx,
             codes: data.code,
           })
         })
-			}
-		}
+      }
+    }
   }
   //删除应用
-  handleDelete=()=>{
-    this.setState({deleteLoading:true});
-    const appid=this.props.appId;
-    const appCode = this.props.appCode;
-    if(appCode){
-      deleteAppDeploy(appCode).then(data=>{
+  handleDelete = () => {
+    this.setState({ deleteLoading: true });
+    const appid = this.props.appId;
+    const appCode=this.props.appCode;
+    const isK8s = this.state.isK8s;
+    if (isK8s) {
+      deleteAppDeploy(appCode).then(data => {
         this.deleteApp(appid);
-      }).catch(error=>{
-          message.error("删除应用部署失败");
+      }).catch(error => {
+        message.error("删除应用部署失败");
       });
-    }else{
+    } else {
       this.deleteApp(appid);
     }
   }
 
-  showModal=()=>{
+  showModal = () => {
     this.setState({
-      key:'',
-      visibleDel:true
+      key: '',
+      visibleDel: true
     })
   }
 
@@ -219,85 +215,99 @@ export default class AppSetting extends Component {
     })
   }
 
-  handleCancel=()=>{
+  handleCancel = () => {
     this.setState({
-      visibleDel:false,
+      visibleDel: false,
     })
   }
 
-  handleOk=()=>{
-    let key=this.state.key;
-    let code=this.props.appCode;
-    if (key === code){
+  handleOk = () => {
+    let key = this.state.key;
+    let code = this.props.appCode;
+    if (key.trim() === code) {
       this.handleDelete();
-    }else{
-      message.error('请输入正确的应用CODE')
+    } else {
+      message.error(`请输入正确的${this.state.type}CODE`)
     }
   }
 
-  deleteApp = (appid)=>{
-    deleteApp(appid).then(data=>{
-      delServerGroup(appid);
-      this.setState({deleteLoading:false});
-      message.success('删除应用成功')
-      window.location.href='/#/apps';
-    }).catch(error=>{
-      message.error("删除应用失败");
-      this.setState({deleteLoading:false});
+  deleteApp = (appid) => {
+    if (this.state.isDeleteVolumes) {
+      //勾选删除存储卷
+      this.volumes.forEach(element => {
+        deleteVolumes(element.name)
+      })
+    }
+    deleteApp(appid).then(data => {
+      if (this.state.isK8s && this.state.appType === 'apps') {
+        delServerGroup(appid);
+      }
+      deleteUpstream(this.state.code).then(res => {
+        this.setState({ deleteLoading: false });
+        message.success(`删除${this.state.type}成功`)
+        if (this.state.appType === 'middleware') {
+          window.location.href = '/#/middlewares';
+        } else {
+          window.location.href = '/#/apps';
+        }
+      })
+    }).catch(error => {
+      message.error(`删除${this.state.type}失败`);
+      this.setState({ deleteLoading: false });
     });
   }
 
   handleHttpChange = (value) => {
-    let id=this.state.id;
+    let id = this.state.id;
     let queryParams = {
       type: '2'
     }
-    let schema='';
-    if(value){
-      schema='https'
-    }else{
-      schema='http'
+    let schema = '';
+    if (value) {
+      schema = 'https'
+    } else {
+      schema = 'http'
     }
-    
-    let bodyParams={
+
+    let bodyParams = {
       schema: schema
     }
-    updateApp(id,queryParams,bodyParams).then(data=>{
-      this.loadData();  
+    updateApp(id, queryParams, bodyParams).then(data => {
+      this.loadData();
     })
     this.setState({
-      checked:value
+      checked: value
     })
   }
 
-  handleClickPush=()=>{
+  handleClickPush = () => {
     const { history } = this.props
-    history.push({pathname: '/setting/syssetting'})
+    history.push({ pathname: '/setting/syssetting' })
   }
 
-  _handleClick=()=>{
+  _handleClick = () => {
     this.setState({
-      visible:true,
+      visible: true,
     })
   }
 
-  _handleCancle=()=>{
+  _handleCancle = () => {
     this.setState({
-      visible:false
+      visible: false
     })
   }
 
-  _handleOk=()=>{
+  _handleOk = (restart) => {
     let code = this.props.appCode;
     let checked = this.state.APMChecked;
     const configs = this.state.config;
     let APM_URL = this.state.APM_URL;
     let ary = [
       {
-        key: 'APPNAME',
+        key: constants.APMENABLE_KEY[1],
         value: configs,
-        source:1,
-        desc:'开启监控用到的应用名'
+        source: 1,
+        desc: '开启监控用到的应用名'
       },
       {
         key: constants.APMENABLE_KEY[0],
@@ -306,7 +316,7 @@ export default class AppSetting extends Component {
         desc: '性能监控地址',
       },
     ];
-    let bodyParams={};
+    let bodyParams = {};
     //如果是的开启状态，则把APM对应的环境变量删除
     queryBaseConfig(code).then(data => {
       let pro = [];
@@ -314,131 +324,270 @@ export default class AppSetting extends Component {
       let containers = [];//用于将容器名存储以便后面做新增接口调用
       if (data) {
         data.forEach(item => {
-          //先调查询接口，如果数据存在，则调删除接口，否则不处理
-          pros.push(existEnvs(code, item.name, 'APPNAME'));
+          pros.push(existEnvs(code, item.name, constants.APMENABLE_KEY[1]));
           pros.push(existEnvs(code, item.name, constants.APMENABLE_KEY[0]));
           containers.push(item.name);
         })
         Promise.all(pros).then(response => {
-          response.forEach((item,i) => {
-            //先判断是否是开启状态，然后调查询接口，如果存在则调删除（修改）接口，否则不处理（新增接口）；
-            if (checked) {
-              //将应用APM改为false
-              bodyParams.APM=false;
-              if (item) {
-                pro.push(deleteEnvs(code, item.name, item.id))
-              }
-            } else {
-              bodyParams.APM=true;
-              if (item) {
-                if (item.key === constants.APMENABLE_KEY[0]) {
-                  pro.push(editEnvs(code, item.containerName, {
-                    key: constants.APMENABLE_KEY[0],
-                    value: APM_URL
-                  }, item.id));
-                }
-                if (item.key === 'APPNAME') {
-                  pro.push(editEnvs(code, item.containerName, {
-                    key: 'APPNAME',
-                    value: configs,
-                  }, item.id));
+          if(response){
+            response.forEach((item, i) => {
+              //先判断是否是开启状态，然后调查询接口，如果存在则调删除（修改）接口，否则不处理（新增接口）；
+              if (checked) {
+                //将应用APM改为false
+                bodyParams.apm = false;
+                if (item) {
+                  pro.push(deleteEnvs(code, item.name, item.id))
                 }
               } else {
-                //遍历所有的容器名，然后调新增接口
-                containers.forEach(items => {
-                  pro.push(addEnvs(code, items, ary[i]))
-                })
+                bodyParams.apm = true;
+                //如果是关闭状态，先判断该环境变量key存不存在，有的话
+                if (item) {
+                  if (item.key === constants.APMENABLE_KEY[0]) {
+                    pro.push(editEnvs(code, item.containerName, {
+                      key: constants.APMENABLE_KEY[0],
+                      value: APM_URL
+                    }, item.id));
+                  }
+                  if (item.key === constants.APMENABLE_KEY[1]) {
+                    pro.push(editEnvs(code, item.containerName, {
+                      key: constants.APMENABLE_KEY[1],
+                      value: configs,
+                    }, item.id));
+                  }
+                } else {
+                  //遍历所有的容器名，然后调新增接口
+                  containers.forEach(items => {
+                    if(ary[i]){
+                      pro.push(addEnvs(code, items, ary[i]))
+                    }
+                    
+                  })
+                }
               }
-            }
-          })
-          //当有存在的key才去调接口
-          if (pro.length > 0) {
-            Promise.all(pro).then(res => {
-              this.setState({
-                APMChecked: !checked,
-              })
-              message.success('环境变量更改成功！')
-              let queryParams = {
-                type: '2'
-              }
-              updateApp(this.state.id,queryParams,bodyParams).then(data=>{
-                message.success('修改应用成功')
-              })
-              /* appStart(code).then(data=>{
-              }) */
+            });
+            //当有存在的key才去调接口
+          Promise.all(pro).then(res => {
+            this.setState({
+              APMChecked: !checked,
             })
-          }
-          this.setState({
-            visible:false
+            message.success('环境变量更改成功！')
+            let queryParams = {
+              type: '2'
+            }
+            updateApp(this.state.id, queryParams, bodyParams).then(data => {
+              if (restart) {
+                appStart(data.code).then(data => {
+                  message.success(`${this.state.type}重启成功！`);
+                })
+              } else {
+                message.success(`修改${this.state.type}成功`)
+              }
+            })
+            /* appStart(code).then(data=>{
+            }) */
+          }).catch((err) => {
+            message.error('环境变量操作失败')
           })
+          this.setState({
+            visible: false
+          })
+          }
+          
+          
+        }).catch(() => {
+          message.error('查询环境变量存在出错')
         })
+      }else{
+        //遍历所有的容器名，然后调新增接口
+        for(let i = 0 ; i < ary.length ; i ++){
+          containers.forEach(items => {
+            if(ary[i]){
+              pro.push(addEnvs(code, items, ary[i]))
+            }
+            
+          })
+        }
+        
       }
     })
   }
-  render(){
-    const { host, ctx, code, id, codes, checked,name}=this.state;
+
+  //开启关闭springcloud，新增环境变量
+  handleSpringCloud = () => {
+    let code = this.props.appCode;
+    let envId = base.currentEnvironment.id;
+    queryEnvById(envId).then(res => {
+      queryBaseConfig(code).then(data => {
+        let pro = [];
+        let pros = [];
+        let containers = [];//用于将容器名存储以便后面做新增接口调用
+
+        let params=[{
+          key: constants.SPRING_CLOUD_KEY[0],
+          value: code,
+          source:'1',
+          desc:'应用CODE(启用SpringCloud特性支持)'
+        },{
+          key: constants.SPRING_CLOUD_KEY[1],
+          value: res.eurekaServerUrls,
+          source:'1',
+          desc:'注册中心地址(启用SpringCloud特性支持)'
+        }]
+        this.setState({eurekaServerUrls:res.eurekaServerUrls})
+        if (data.length>0) {
+          data.forEach(item => {
+            //先调查询接口，如果数据存在，则调删除接口，否则不处理
+            pros.push(existEnvs(code, item.name, constants.SPRING_CLOUD_KEY[0]));
+            pros.push(existEnvs(code, item.name, constants.SPRING_CLOUD_KEY[1]));
+            containers.push(item.name);
+          })
+          Promise.all(pros).then(response => {
+            response.forEach((item, i) => {
+              //如果是开启状态
+              if (this.state.springCloud) {
+                if (item) {
+                  pro.push(deleteEnvs(code, item.name, item.id))
+                }
+
+              } else {
+                //如果是关闭状态
+
+                if (item) {
+                  //如果数据存在则修改环境变量
+                  if (item.key === constants.SPRING_CLOUD_KEY[0]) {
+                    pro.push(editEnvs(code, item.containerName, params[0], item.id));
+                  }
+                  if (item.key === constants.SPRING_CLOUD_KEY[1]) {
+                    pro.push(editEnvs(code, item.containerName, params[1], item.id));
+                  }
+                } else {
+                  containers.forEach(items => {
+                    pro.push(addEnvs(code, items, params[i]))
+                  })
+                }
+              }
+            })
+            //当有存在的key才去调接口
+            Promise.all(pro).then(response => {
+              let queryParams = {
+                type: '2'
+              }
+              let bodyParams = {
+                springcloud:!this.state.springCloud
+            }
+              this.setState({
+                springCloud: !this.state.springCloud,
+              })
+              message.success('环境变量更改成功！')
+              updateApp(this.state.id, queryParams, bodyParams).then(data => {
+                message.success(`修改${this.state.type}成功`)
+              })
+            })
+          })
+        }
+      })
+    })
+  }
+
+  render() {
+    const Authorized = RenderAuthorized(base.allpermissions);
+    const { host, ctx, code, id, codes, checked, name, routerDatas, appDatas } = this.state;
+    const { history } = this.props;
+    let isApp = history.location.pathname.startsWith('/apps') ? true : false;
     let ip = {
       host: host,
       ctx: ctx,
     }
     // const action = <Setting appCode={codes} appId={id} onOk={()=>this.loadData()} urls={ip}/>
-    
+
     return (
       <div>
-        <Card bordered={false} style={{ margin: 24 }} title='应用访问地址设置' extra={<Setting appCode={codes} appId={id} onOk={() => this.loadData()} urls={ip} />}>
-          <DescriptionList col={1}>
+        {isApp ?
+          <Card bordered={false} style={{ margin: 24 }} title='应用访问地址设置' extra={<Setting appDatas={appDatas} routerDatas={routerDatas} appCode={codes} appId={id} onOk={() => this.loadData()} urls={ip} />}>
+            <DescriptionList col={1}>
 
-            <Description term='应用访问地址' style={{ marginBottom: 24 }}>
-              {host}
-            </Description>
-            <Description term='上下文' style={{ marginBottom: 24 }}>
-              {ctx}
-            </Description>
-          </DescriptionList>
-        </Card>
+              <Description term='应用访问地址' style={{ marginBottom: 24 }}>
+
+                {host ? host.split(',').map(i => {
+                  return <a href={i.startsWith('http') ? i : 'http://' + i} target="_blank">{i} </a>
+                }) : ''}
+              </Description>
+              <Description term='上下文' style={{ marginBottom: 24 }}>
+                {ctx ? ctx : '/'}
+              </Description>
+            </DescriptionList>
+          </Card>
+          :
+          ''
+        }
         <Card bordered={false} style={{ margin: 24 }} title='域名列表'>
-          {this.state.urlchecked ? <SettingTable appCode={code} ctx={ctx} appId={id} checked={checked} />
-            : <span>请前往 <a onClick={this.handleClickPush}>系统设置</a>开启全局动态路由配置</span> 
+          {this.state.urlchecked ? <SettingTable appCode={code} ctx={ctx} appId={id} checked={checked} appType={this.state.appType}/>
+            : <span>请联系管理员{/* 请前往 <a onClick={this.handleClickPush}>系统设置</a>开启全局动态路由配置 */}</span>
           }
         </Card>
 
 
         <Card bordered={false} style={{ margin: 24 }} title='应用集群'>
-          <SettingClusterList appUpstream={code} appId={id} appCode={codes} name={name} checked={(e)=>this.handleHttpChange(e)}/>
+          <SettingClusterList springCloud={this.state.springCloud} appDatas={appDatas} routerDatas={routerDatas} appUpstream={code} appId={id} appCode={codes} name={name} checked={(e) => this.handleHttpChange(e)} appType={this.state.appType} />
         </Card>
-        <Card bordered={false} style={{ margin: 24 }} title='监控管理'>
+        <Card bordered={false} style={{ margin: 24 }} title='性能监控' id='APMChecked'>
           <div style={{ marginBottom: 24 }}>
-            <span>是否开启性能监控: </span>  <Switch style={{ marginLeft: 24 }} checked={this.state.APMChecked} onClick={this._handleClick} disabled={this.state.isAPM} />
-            <p style={{ marginTop: 24 }}>  如果需要开启性能监控地址的话 请点击 <a onClick={this.handleClickPush}>这里</a>来修改性能监控地址</p>
+            <span>启用性能监控: </span> <Authorized authority={appDatas.type==='middleware'?'middleware_performance':'app_performanceMonitor'} noMatch={<Switch style={{ marginLeft: 24 }} checked={this.state.APMChecked} onClick={this._handleClick} disabled='true' />}> <Switch style={{ marginLeft: 24 }} checked={this.state.APMChecked} onClick={this._handleClick} disabled={this.state.isAPM} /></Authorized>
+            <p style={{ marginTop: 24 }}>  如果需要开启性能监控地址的话请联系管理员 {/* 请点击 <a onClick={this.handleClickPush}>这里</a>来修改性能监控地址 */}</p>
           </div>
-        </Card>  
-        <Card bordered={false} style={{margin:24}} title='应用删除'>
-          <Alert message="删除应用时，应用相关的所有资源都会被删除，此操作不能够撤销 !" type="error" style={{marginBottom:10}}/>
-          <Button loading={this.state.deleteLoading} type='danger' size='large' icon='delete' onClick={this.showModal}>删除</Button>
         </Card>
-          <Modal
-            title={this.state.APMChecked?'是否关闭性能监控':'是否开启性能监控'}
-            onOk={this._handleOk}
-            onCancel={this._handleCancle}
-            visible={this.state.visible}
-          >
-            <strong>此操作会修改环境变量，手动重启应用才会生效！</strong><br/>
-            <p style={{ marginTop: 24 }}>{constants.APMENABLE_KEY[0]}:{this.state.APM_URL}</p>
-            <p> APPNAME:{this.state.config}</p>
-          </Modal>
 
-          <Modal
-            title='确认删除？'
-            onOk={this.handleOk}
-            onCancel={this.handleCancel}
-            visible={this.state.visibleDel}
-          >
-          <p>您要删除的应用是：<span style={{color:'red'}}>{this.state.name}</span></p>
-          <p>删除应用时，应用相关的所有资源都会被删除，此操作不能够撤销 !</p>
-          <p>应用code: <strong>{this.props.appCode}</strong> </p> 
-          <Input style={{marginTop:12,width:300}} placeholder='请填写上方的应用CODE' value={this.state.key} onChange={e => this.confirmInput(e)} />
-          </Modal>
+        <Card bordered={false} style={{ margin: 24 }} title='Spring  Cloud'>                                                                          
+          <span>接入注册中心: </span> <Authorized authority={appDatas.type==='middleware'?'middleware_springCloud':'app_springCloud'} noMatch={<Switch style={{ marginLeft: 24 }} checked={this.state.springCloud} onClick={this.handleSpringCloud} disabled='true'/>}> <Switch style={{ marginLeft: 24 }} checked={this.state.springCloud} onClick={this.handleSpringCloud} disabled={!this.state.isK8s}/> </Authorized>
+          {this.state.springCloud?<p style={{marginTop: 24}}>注册中心地址：{this.state.eurekaServerUrls}</p>:''}
+        </Card>
+
+        <Card bordered={false} style={{ margin: 24 }} title={appDatas.type==='middleware'?'中间件删除':'应用删除'} >
+          <Alert message={`删除${this.state.type}时，${this.state.type}相关的所有资源都会被删除，此操作不能够撤销 !`} type="error" style={{ marginBottom: 10 }} />
+          <Authorized authority={appDatas.type==='middleware'?'middleware_delete':'app_delete'} noMatch={null}>
+            <Button loading={this.state.deleteLoading} type='danger' size='large' icon='delete' onClick={this.showModal}>删除</Button>
+          </Authorized>
+        </Card>
+        <Modal
+          title={this.state.APMChecked ? '关闭性能监控' : '开启性能监控'}
+          footer={[
+            <Button onClick={this._handleCancle}>取消</Button>,
+            <Button type='primary' onClick={e => this._handleOk(false)}>确认</Button>,
+            <Button type='danger' onClick={e => this._handleOk(true)}>确认并且重启</Button>
+          ]}
+          onOk={this._handleOk}
+          onCancel={this._handleCancle}
+          visible={this.state.visible}
+        >
+          <strong>此操作会修改环境变量，重启{this.state.type}才会生效！</strong><br />
+          <p style={{ marginTop: 24 }}><strong>{constants.APMENABLE_KEY[0]}</strong>:{this.state.APM_URL}</p>
+          <p> <strong>{constants.APMENABLE_KEY[1]}</strong>:{this.state.config}</p>
+        </Modal>
+
+        <Modal
+          title='确认删除？'
+          footer={[
+            <Button type='danger' onClick={this.handleOk}>确认</Button>,
+          ]}
+          onOk={this.handleOk}
+          onCancel={this.handleCancel}
+          visible={this.state.visibleDel}
+        >
+          <p>您要删除的{this.state.type}是：<span style={{ color: 'red' }}>{this.state.name}</span></p>
+          {this.state.type==='中间件' && <p>与此中间件关联的应用是：<strong>{this.state.appNames}</strong></p>}
+          <p>删除{this.state.type}时，{this.state.type}相关的所有资源都会被删除，此操作不能够撤销 !</p>
+          <p>{this.state.type}code: <strong>{this.props.appCode}</strong> </p>
+          <Input style={{ marginTop: 12, width: 300 }} placeholder='请填写上方的应用CODE' value={this.state.key} onChange={e => this.confirmInput(e)} />
+          {this.state.hasVolumes &&
+            <Checkbox style={{ marginTop: 16 }} onChange={(e) => this.setState({ isDeleteVolumes: e.target.checked })}>是否删除{this.state.type}挂载存储卷</Checkbox>}
+        </Modal>
       </div>
     )
   }
 }
+
+export default props => (
+  <GlobalHeaderContext.Consumer>
+    {context => <AppSetting {...props} tenant={context.tenant} environment={context.currentEnvironment} />}
+  </GlobalHeaderContext.Consumer>
+);

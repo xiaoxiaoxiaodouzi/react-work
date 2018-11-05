@@ -2,11 +2,10 @@ import React, { Fragment } from 'react';
 import { ChartCard } from 'ant-design-pro/lib/Charts';
 import { Row,Col,Icon,Card,Tooltip,Spin } from 'antd';
 import GatewayDash from '../../components/Dashboard/GatewayDash';
-import ClustersDash from '../../components/Dashboard/ClustersDash';
+import Clusters from '../../components/Dashboard/Clusters';
 import TenantList from '../../components/Dashboard/TenantList';
-import {allClusterInfo,getAppCount,getServiceCount,tenantsNodes,getApigatewayApp,getAppMonit,getClusterNode} from '../../services/monitor'
-import {base} from '../../services/base'
 import '../Application/Overview.less';
+import {formateValue} from '../../utils/utils'
 
 class Dashboard extends React.Component {
   state={
@@ -34,98 +33,37 @@ class Dashboard extends React.Component {
       appLoading:true,
       serviceLoading:true
     })
-    //集群数据
-    allClusterInfo().then(data=>{
-      // console.log("allClusterInfo",data);
-      let hostCount =0;
-      let cpus = 0;
-      let cpuTotal = 0;
-      let rams = 0;
-      let ramsTotal = 0;
-      let requestApps = [];
-      let requestMiddlewares = [];
-      data.forEach(element=>{
-        hostCount += element.sub.length;
-        cpus += parseInt(element.cpuUsed,10);
-        cpuTotal += parseInt(element.cpuTotal,10);
-        rams += parseInt(element.memoryUsed,10);
-        ramsTotal += parseInt(element.memoryTotal,10);
-        // requestApps.push(getAppCount({cluster:element.name}));
-        // requestMiddlewares.push(getAppCount({cluster:element.name,type:'middleware'}))
-      });
-      Promise.all(requestApps).then(values=>{
-        // console.log('appCount',values);
-        values.forEach((element,index)=>{
-          data[index].appCount = element;
-        });
-        this.setState({ clusterData:data });
-      });
-      Promise.all(requestMiddlewares).then(values=>{
-        // console.log('middlewareCount',values);
-        values.forEach((element,index)=>{
-          data[index].middlewareCount = element;
-        });
-        this.setState({ clusterData:data }); 
-      });
+  }
+  //获取集群信息，通过子组件clusters返回集群信息
+  onClusterInfo = (clusterData = {}) =>{
+    this.setState({
+      clusterCount:clusterData.clusterCount,
+      hostCount:clusterData.hostCount,
+      cpus:parseInt(clusterData.cpus/1000,10),
+      cpuTotal:parseInt(clusterData.cpuTotal/1000,10),
+      rams:parseInt(clusterData.rams/1024/1024/1024,10),
+      ramsTotal:parseInt(clusterData.ramsTotal/1024/1024/1024,10),
+      clusterLoading:false,
+    });
+  }
+  //获取租户及应用，服务数量信息，通过子组件tenantlist返回
+  onGetTenantData=(data,loading)=>{
+    if(loading === 'app'){
       this.setState({
-        clusterCount:data.length,
-        hostCount,
-        cpus:parseInt(cpus/1000,10),
-        cpuTotal:parseInt(cpuTotal/1000,10),
-        rams:parseInt(rams/1024/1024/1024,10),
-        ramsTotal:parseInt(ramsTotal/1024/1024/1024,10),
-        clusterLoading:false,
-      });
-      tenantsNodes().then(nodes=>{
-        let requestNodes = [];
-        // console.log("tenantsNodes",nodes);
-        nodes.forEach(node=>{
-          requestNodes.push(getClusterNode(node.name));
-        });
-        Promise.all(requestNodes).then(values=>{
-          values.forEach((element,index)=>{
-            nodes[index].nodeDetail = element;
-          });
-          // console.log('nodes',nodes);
-          nodes.forEach(node=>{
-            data.forEach(cluster=>{
-              cluster.containInfos.forEach(element=>{
-                if(node.name === element.nodeName){
-                  let dockerVersion = node.nodeInfo.containerRuntimeVersion;
-                  element.dockerVersion = dockerVersion.slice(dockerVersion.indexOf('://')+3);
-                  element.totalCPU = node.totalCPU;
-                  element.totalMemory = node.totalMemory;
-                  element.nodeDetail = node.nodeDetail;
-                }
-              })
-            })
-          });
-          this.setState({ clusterData:data }); 
-        });
-      });
-    }).catch(err=>{
-      this.setState({ clusterLoading:false });
-    })
-    //应用数
-    getAppCount(null,{'AMP-ENV-ID':'82dzJh8dROWprfsE228g-A'}).then(data=>{
-      this.setState({ appCount:data,appLoading:false });
-    }).catch(err=>{
-      this.setState({ appLoading:false });
-    })
-    //服务数
-    getServiceCount().then(data=>{
-      this.setState({serviceCount:data,serviceLoading:false});
-    }).catch(err=>{
-      this.setState({ serviceLoading:false });
-    })
-    //环境
-    console.log('xxx',base.environments);
-  }
-  onGetTenantCount=(tenantCount)=>{
-    this.setState({tenantCount});
-  }
-  onGetUserCount = (userCount)=>{
-    this.setState({userCount,tenantLoading:false});
+        ...data,
+        appLoading:false,
+      })
+    }else if(loading === 'service'){
+      this.setState({
+        ...data,
+        serviceLoading:false
+      })
+    }else{
+      this.setState({
+        ...data,
+        tenantLoading:false,
+      })
+    }
   }
   renderCluster = ()=>{
     const { cpus,cpuTotal,rams,ramsTotal,clusterCount,hostCount } = this.state;
@@ -142,8 +80,8 @@ class Dashboard extends React.Component {
         total={resourceTotal} >
         <div style={{marginTop:24,width:'100%'}}>
           <Row style={{marginBottom:8}}>
-            <Col span={12}><span>CPU</span><span style={{marginLeft:8}}>{cpus}/{cpuTotal}</span></Col>
-            <Col span={12}><span>内存</span><span style={{marginLeft:8}}>{rams}/{ramsTotal}</span></Col>
+            <Col span={12}><span>CPU</span><span style={{marginLeft:8}}>{formateValue(cpus)}/{formateValue(cpuTotal)}</span></Col>
+            <Col span={12}><span>内存</span><span style={{marginLeft:8}}>{formateValue(rams)}/{formateValue(ramsTotal)}</span></Col>
           </Row> 
         </div>
       </ChartCard>
@@ -155,22 +93,28 @@ class Dashboard extends React.Component {
       <ChartCard
         title="租户"
         action={<Tooltip title="平台支持的租户数量和用户数量统计"><Icon type="info-circle-o" /></Tooltip>}
-        total={tenantCount} >
+        total={formateValue(tenantCount)} >
         <div style={{marginTop:24,width:'100%'}}>
           <Row style={{marginBottom:8}}>
-            <Col span={12}><span>用户</span><span style={{marginLeft:8}}>{userCount}</span></Col>
+            <Col span={12}><span>用户</span><span style={{marginLeft:8}}>{formateValue(userCount)}</span></Col>
           </Row>
         </div>
       </ChartCard>
     )
   }
   renderApp = ()=>{
-    const { appCount } = this.state;
+    const { appCount,middlewareCount } = this.state;
+    const appTotal = (
+      <span>
+        {appCount}<span style={{fontSize:14,marginRight:18}}>应用</span>
+        {middlewareCount}<span style={{fontSize:14}}>中间件</span>
+      </span>
+    )
     return(
       <ChartCard
-        title="应用"
+        title="应用-中间件"
         action={<Tooltip title="平台管理的应用数量及应用状态统计"><Icon type="info-circle-o" /></Tooltip>}
-        total={appCount} >
+        total={appTotal} >
         <div style={{marginTop:24,width:'100%'}}>
           <Row style={{marginBottom:8,height:21}}>
             {/* <Col span={12}><span>正常</span><span style={{marginLeft:8}}>100</span></Col>
@@ -186,7 +130,7 @@ class Dashboard extends React.Component {
       <ChartCard
         title="服务总数"
         action={<Tooltip title="平台管理的服务数量及服务状态统计"><Icon type="info-circle-o" /></Tooltip>}
-        total={serviceCount} >
+        total={formateValue(serviceCount)} >
         <div style={{marginTop:24,width:'100%'}}>
           <Row style={{marginBottom:8,height:21}}>
           </Row>
@@ -196,7 +140,7 @@ class Dashboard extends React.Component {
   }
   render(){
     const { 
-      clusterLoading,tenantLoading,appLoading,serviceLoading,clusterData
+      clusterLoading,tenantLoading,appLoading,serviceLoading
     } = this.state;
     const topColResponsiveProps = { xs:24,sm:12,md:12,lg:12,xl:6,style:{ marginBottom: 24 }};
     return (
@@ -231,12 +175,15 @@ class Dashboard extends React.Component {
             }
           </Col>
         </Row>
-        <TenantList onGetTenantCount={this.onGetTenantCount} onGetUserCount={this.onGetUserCount} />
+        {/* <Card bordered={false} bodyStyle={{ padding: 0 }} style={{marginBottom:24}}>
+          <ClustersDash clusterData={clusterData} />
+        </Card> */}
+        <Card bordered={false} bodyStyle={{ padding: 0 }} style={{marginBottom:24}}>
+          <Clusters  onClusterInfo={this.onClusterInfo}/>
+        </Card>
+        <TenantList onGetTenantData={this.onGetTenantData} />
         <Card bordered={false} bodyStyle={{ padding: 0 }} style={{marginTop:24}}>
           <GatewayDash />
-        </Card>
-        <Card bordered={false} bodyStyle={{ padding: 0 }} style={{marginTop:24}}>
-          <ClustersDash clusterData={clusterData} />
         </Card>
       </Fragment>
     )

@@ -49,7 +49,7 @@ export default class ApplicationTopo extends PureComponent {
         } else if (this.state.data && this.state.data.nodes.length > 0) {
             return <Graph graph={this.state.data} options={this.props.options} events={this.props.events} getNetwork={network => this.setState({ network })} />;
         } else {
-            return <Exception title="无数据" desc="没有启用性能监控功能" img="images/exception/404.svg" actions={<div />} />
+            return <Exception title="无数据" desc="没有获取到性能监控数据" img="images/exception/404.svg" actions={<div />} />
         }
     }
 
@@ -70,7 +70,7 @@ export default class ApplicationTopo extends PureComponent {
             if (res.exception) {
                 throw new Error(res.exception.message);
             } else {
-                const data = this.getTopoData(res.applicationMapData.nodeDataArray,res.applicationMapData.linkDataArray);
+                const data = this.getTopoData(res.nodeDataArray,res.linkDataArray);
                 this.setState({ loading: false, error: null, data: data });
             }
         }).catch(error => {

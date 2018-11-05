@@ -16,3 +16,8 @@ export function getApplicationLog(pod,container,queryParams){
   const url=proxy+`cce/v1/tenants/${base.tenant}/pods/${pod}/containers/${container}/logs`
   return C2Fetch.get(url,queryParams,'获取日志失败')
 }
+
+export function getLogs(params){
+  const url=proxy+`log/v1/resource/logsearch`
+  return C2Fetch.get(url,params,'查询日志出错')
+}

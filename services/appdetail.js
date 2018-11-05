@@ -14,7 +14,7 @@ export function changeAppProperty(appid, property, value) {
 
 //获取应用管理用户 SYSTEM_MANAGER/BUSINESS_MANAGER/AUDIT_MANAGER
 export function getAppManager(appid, type) {
-    return C2Fetch.get(proxy + `aip/v1/apps/${appid}/manageroles/roleId/users/roleUser`, { role: type }, "获取应用管理用户信息出错！");
+    return C2Fetch.get(proxy + `aip/v1/apps/${appid}/manageroles/${type}/users`,{}, "获取应用管理用户信息出错！");
 }
 
 //获取应用管理用户 SYSTEM_MANAGER/BUSINESS_MANAGER/AUDIT_MANAGER
@@ -27,6 +27,16 @@ export function getInstanceInfo( application) {
     return C2Fetch.get(proxy + `cce/v1/tenants/${base.tenant}/applications/${application}`, {}, "获取应用实例信息出错！");
 }
 
+//迁移应用
+export function changeAppCluster(appId,clusterId){
+    return C2Fetch.post(proxy+`cce/v1/tenants/${base.tenant}/applications/${appId}/migration`,clusterId,{},"应用迁移失败！")
+}
+
+//应用伸缩
+export function changeAppExtention(appId,num){
+    return C2Fetch.post(proxy+`cce/v1/tenants/${base.tenant}/applications/${appId}/extension`,num,{},"修改副本数失败")
+}
+
 //检查标签是否存在
 export function checkTagExist(name) {
     return C2Fetch.post(proxy + `aip/v1/tags/names/checkifexist`, [{ name: name }], {}, "检查标签是否存在出错！");
@@ -34,12 +44,12 @@ export function checkTagExist(name) {
 
 //获得所有应用标签
 export function getAppsTags() {
-    return C2Fetch.get(proxy + `aip/v1/tags`, {}, "获取应用标签出错！");
+    return C2Fetch.get(proxy + `aip/v1/tags`, {tenant:base.tenant}, "获取应用标签出错！");
 }
 
 //创建标签
-export function createAppTags(name) {
-    return C2Fetch.post(proxy + `aip/v1/tags`, [{ name: name }], {}, "创建应用标签出错！");
+export function createAppTags(queryParam) {
+    return C2Fetch.post(proxy + `aip/v1/tags`,[queryParam] , {}, "创建应用标签出错！");
 }
 
 //获取指定应用标签

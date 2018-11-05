@@ -29,18 +29,16 @@ class Components extends React.PureComponent {
   }
   //当时间范围变化时重新获取数据
   componentWillReceiveProps(nextProps){
-    let flag = this.props.appCode !== nextProps.appCode 
+    /* let flag = this.props.appCode !== nextProps.appCode 
     || this.props.from !== nextProps.from 
     || this.props.to !== nextProps.to 
     || this.props.type !== nextProps.type 
-    || this.props.datas !== nextProps.datas;
-    console.log('fff2',flag,nextProps,this.props);
+    || this.props.datas !== nextProps.datas; */
     if(this.props.appCode !== nextProps.appCode 
       || this.props.from !== nextProps.from 
       || this.props.to !== nextProps.to 
       || this.props.type !== nextProps.type 
       || this.props.datas !== nextProps.datas ){
-        console.log('fff3',nextProps);
       if(nextProps.type === 'dot'){
         this.dotGetTransData({},nextProps.datas);
       }else if(nextProps.type === 'pie'){
@@ -69,7 +67,6 @@ class Components extends React.PureComponent {
     }
   }  
   handleRangePickerChange = (rangePickerValue) => {
-    console.log('rangepicker',rangePickerValue);
     this.setState({
       rangePickerValue,
     });
@@ -191,15 +188,15 @@ class Components extends React.PureComponent {
       return (
         <Form layout="inline">
           <Row  style={{ marginBottom: 24 ,marginLeft:12}} gutter={{ md: 8, lg: 24, xl: 48 }}>
-            <Col md={8} sm={24}>
-              <FormItem label="路径">
+            <Col md={8} sm={24}  style={{ paddingLeft:48}}>
+              <FormItem label="路径" >
                 {getFieldDecorator('path')(
                   <Input placeholder="请输入" />
                 )}
               </FormItem>
             </Col>
             <Col md={8} sm={24}>
-              <FormItem label="异常">
+              <FormItem label="状态">
                 {getFieldDecorator('exception')(
                   <Select style={{ width: '100%' }} >
                     <Option value="0">正常</Option>
@@ -232,7 +229,7 @@ class Components extends React.PureComponent {
             </Col>
             <Col md={8} sm={24}>
               <span>
-                <Button type="primary" onClick={this.handleFormSubmit}>查询</Button>
+                <Button type="primary" htmlType="submit" onClick={this.handleFormSubmit}>查询</Button>
                 <Button style={{ marginLeft: 8 }} onClick={this.handleFormReset}>重置</Button>
               </span>
             </Col>
@@ -243,7 +240,7 @@ class Components extends React.PureComponent {
         return (
           <Form layout="inline">
             <Row  style={{ marginBottom: 24 ,marginLeft:12}} gutter={{ md: 8, lg: 24, xl: 48 }}>
-              <Col md={8} sm={24}>
+              <Col md={4} sm={24}  style={{ paddingLeft:48}}>
                 <FormItem label="耗时">
                   {getFieldDecorator('elapsed')(
                     <Select style={{ width: '100%' }} >
@@ -255,8 +252,8 @@ class Components extends React.PureComponent {
                   )}
                 </FormItem>
               </Col>
-              <Col md={8} sm={24}>
-                <FormItem label="异常">
+              <Col md={8} sm={24} style={{paddingLeft:48}}>
+                <FormItem label="状态">
                   {getFieldDecorator('exception')(
                     <Select style={{ width: '100%' }} >
                       <Option value="0">正常</Option>
@@ -290,7 +287,7 @@ class Components extends React.PureComponent {
               </Col>
               <Col md={8} sm={24}>
                 <span>
-                  <Button type="primary" onClick={this.handleFormSubmit}>查询</Button>
+                  <Button type="primary" htmlType="submit" onClick={this.handleFormSubmit}>查询</Button>
                   <Button style={{ marginLeft: 8 }} onClick={this.handleFormReset}>重置</Button>
                 </span>
               </Col>
@@ -301,15 +298,15 @@ class Components extends React.PureComponent {
         return (
           <Form layout="inline">
             <Row  style={{ marginBottom: 24 ,marginLeft:12}} gutter={{ md: 8, lg: 24, xl: 48 }}>
-              <Col md={8} sm={24}>
+              <Col md={8} sm={24}  style={{ paddingLeft:48}}>
                 <FormItem label="路径">
                   {getFieldDecorator('path')(
                     <Input placeholder="请输入" />
                   )}
                 </FormItem>
               </Col>
-              <Col md={8} sm={24}>
-                <FormItem label="异常">
+              <Col md={8} sm={24} style={{paddingLeft:48}}>
+                <FormItem label="状态">
                   {getFieldDecorator('exception')(
                     <Select style={{ width: '100%' }} >
                       <Option value="0">正常</Option>
@@ -339,7 +336,7 @@ class Components extends React.PureComponent {
                     )}
                   </FormItem>:'' }
               </Col>
-              <Col md={8} sm={24}>
+              <Col md={4} sm={24}>
                 {!this.state.checkedValue?
                   <FormItem label="耗时">
                     {getFieldDecorator('elapsed')(
@@ -354,7 +351,7 @@ class Components extends React.PureComponent {
               </Col>
               <Col md={8} sm={24}>
               <span>
-                <Button type="primary" onClick={this.handleFormSubmit}>查询</Button>
+                <Button type="primary" htmlType="submit" onClick={this.handleFormSubmit}>查询</Button>
                 <Button style={{ marginLeft: 8 }} onClick={this.handleFormReset}>重置</Button>
               </span>
               </Col>
@@ -366,15 +363,15 @@ class Components extends React.PureComponent {
         return (
           <Form layout="inline">
             <Row  style={{ marginBottom: 24 ,marginLeft:12}} gutter={{ md: 8, lg: 24, xl: 48 }}>
-              <Col md={8} sm={24}>
+              <Col md={8} sm={24} style={{paddingLeft:24}}>
                 <FormItem label="路径">
                   {getFieldDecorator('path')(
                     <Input placeholder="请输入" />
                   )}
                 </FormItem>
               </Col>
-              <Col md={8} sm={24}>
-                <FormItem label="异常">
+              <Col md={8} sm={24} style={{paddingLeft:48}}>
+                <FormItem  label="状态">
                   {getFieldDecorator('exception')(
                     <Select style={{ width: '100%' }} >
                       <Option value="0">正常</Option>
@@ -402,6 +399,8 @@ class Components extends React.PureComponent {
                     value={this.state.rangePickerValue}
                     onChange={this.handleRangePickerChange}
                     style={{ width:'100%'}}
+                    showTime={true}
+                    format="YYYY-MM-DD HH:mm:ss"
                   />
                 </FormItem>
               </Col>
@@ -412,7 +411,7 @@ class Components extends React.PureComponent {
                   )}
                 </FormItem>
               </Col>
-              <Col md={8} sm={24}>
+              <Col md={4} sm={12}>
                 <FormItem label="耗时">
                   {getFieldDecorator('elapsed')(
                     <Select style={{ width: '100%' }} >
@@ -432,7 +431,7 @@ class Components extends React.PureComponent {
               </Col>
               <Col md={8} sm={24}>
                 <span>
-                  <Button type="primary" onClick={this.handleFormSubmit}>查询</Button>
+                  <Button type="primary" htmlType="submit" onClick={this.handleFormSubmit}>查询</Button>
                   <Button style={{ marginLeft: 8 }} onClick={this.handleFormReset}>重置</Button>
                 </span>
               </Col>
@@ -443,7 +442,7 @@ class Components extends React.PureComponent {
         return (
           <Form layout="inline">
             <Row  style={{ marginBottom: 24 ,marginLeft:12}} gutter={{ md: 8, lg: 24, xl: 48 }}>
-              <Col md={8} sm={24}>
+              <Col md={8} sm={24} style={{ paddingLeft:48}}>
                 <FormItem label="路径">
                   {getFieldDecorator('path')(
                     <Input placeholder="请输入" />
@@ -451,7 +450,7 @@ class Components extends React.PureComponent {
                 </FormItem>
               </Col>
               <Col md={8} sm={24}>
-                <FormItem label="异常">
+                <FormItem label="状态">
                   {getFieldDecorator('exception')(
                     <Select style={{ width: '100%' }} >
                       <Option value="0">正常</Option>
@@ -486,7 +485,7 @@ class Components extends React.PureComponent {
               </Col>
               <Col md={8} sm={24}>
               <span>
-                <Button type="primary" onClick={this.handleFormSubmit}>查询</Button>
+                <Button type="primary" htmlType="submit" onClick={this.handleFormSubmit}>查询</Button>
                 <Button style={{ marginLeft: 8 }} onClick={this.handleFormReset}>重置</Button>
               </span>
               </Col>

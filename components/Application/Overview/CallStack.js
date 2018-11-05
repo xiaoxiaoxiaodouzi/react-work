@@ -16,7 +16,6 @@ export default class CallStack extends Component {
   }
   componentWillReceiveProps(nextProps){
     if (nextProps.traceId.length>0 && this.props.traceId !== nextProps.traceId){
-      console.log('tarceid111',this.props.traceId);
       this.loadData(nextProps.traceId[0]);
     }
   }

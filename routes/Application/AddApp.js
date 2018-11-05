@@ -1,43 +1,44 @@
 import React from 'react';
-import { message, Card, Steps, Col, Row } from 'antd';
+import { message, Card, Steps, Col, Row,Breadcrumb, Divider} from 'antd';
 import PageHeader from 'ant-design-pro/lib/PageHeader';
 import { Step1, Step2, Step3 } from '../../components/Application/AppAddSteps';
 import { addAppBasicInfo, addAppDeployInfo, deleteAppBasicInfo } from '../../services/apps';
-import {addEnvs} from '../../services/deploy'
-import {addServerGroup} from '../../services/api'
-import {base} from '../../services/base'
-import {doUpstream} from '../../services/domainList'
+import { updateApp } from '../../services/running'
+import { addEnvs } from '../../services/deploy'
+import { addServerGroup } from '../../services/api'
+import { base } from '../../services/base'
+import { doUpstream } from '../../services/domainList'
 
 const Step = Steps.Step;
 class AddApp extends React.Component {
   state = {
-    type:this.props.location.search.substring(1)==='middleware'?'middleware':'app',
+    type: this.props.location.search.substring(1) === 'middleware' ? 'middleware' : 'app',
     current: 0,
     displayStep1: true,
     displayStep2: false,
     displayStep3: false,
-    status:"",
+    status: "",
     appInfo: {
       name: "",//应用名称
       groupId: "default",
-      code: "",//应用id
+      code: "",//应用code
       type: "web",//应用类型
       tags: [],
-      deployMode:'k8s',//默认应用部署类型
-      tenant:base.tenant
+      deployMode: 'k8s',//默认应用部署类型
+      tenant: base.tenant
     },
 
     deployment: {
       metadata: {
         labels: {
           cluster: "",//集群id
-          application:"",
-          environment:base.currentEnvironment.id,//当前环境ID
+          application: "",
+          environment: base.currentEnvironment.id,//当前环境ID
         },
         annotations: {
           name: "",//应用名
           creator: base.currentUser.realname,//当前用户名
-          environment:base.currentEnvironment.name,
+          environment: base.currentEnvironment.name,
         },
         namespace: base.tenant,//租户
         name: ""//应用 id
@@ -80,11 +81,11 @@ class AddApp extends React.Component {
       }
     },
 
-    clusterService:{
+    clusterService: {
       metadata: {
         annotations: {
           name: "",
-          creator:base.currentUser.realname
+          creator: base.currentUser.realname
         }
       },
       spec: {
@@ -92,11 +93,11 @@ class AddApp extends React.Component {
         ports: []
       }
     },
-    nodePortService : {
+    nodePortService: {
       metadata: {
         annotations: {
           name: "",
-          creator:base.currentUser.realname
+          creator: base.currentUser.realname
         }
       },
       spec: {
@@ -104,30 +105,30 @@ class AddApp extends React.Component {
         ports: []
       }
     },
-    ingress : {
+    ingress: {
       metadata: {
-          annotations: {
-              name: "",
-              creator:base.currentUser.realname
-          },
-          namespace: base.tenant
+        annotations: {
+          name: "",
+          creator: base.currentUser.realname
+        },
+        namespace: base.tenant
       },
       spec: {
         rules: [{
           host: "",
           http: {
-              paths: {
-                  backend: {
-                      servicePort: {
-                          IntVal: ''
-                      }
-                  }
+            paths: {
+              backend: {
+                servicePort: {
+                  IntVal: ''
+                }
               }
+            }
           }
         }]
       }
     },
-    configMap : {
+    configMap: {
       metadata: {
         annotations: {
           data: {}
@@ -146,9 +147,9 @@ class AddApp extends React.Component {
     newAppInfo.name = values.name;
     newAppInfo.code = values.id;
 
-    if(this.state.type==="middleware"){
+    if (this.state.type === "middleware") {
       newAppInfo.type = "middleware";
-    }else{
+    } else {
       newAppInfo.type = values.type;
     }
 
@@ -173,45 +174,58 @@ class AddApp extends React.Component {
 
       let clusterPorts = this.state.clusterService.spec.ports;
       let nodePortPorts = this.state.nodePortService.spec.ports;
-      containers.forEach(c=>{
-        c.ports.forEach(p=>{
-          let clusterPort = {port:p.conhostPort,protocol:p.protocol,targetPort:{IntVal:p.containerPort,StrVal:p.containerPort+'',}}
-          if(p.conhostPort)clusterPorts.push({...clusterPort});
-          clusterPort.port = p.outerPort;
-          if(p.outerPort)nodePortPorts.push(clusterPort);
+      nodePortPorts = [];
+      containers.forEach(c => {
+        c.ports.forEach(p => {
+          let clusterPort = { port: p.conhostPort ? p.conhostPort : p.containerPort, protocol: p.protocol, targetPort: { IntVal: p.containerPort }, name: c.name, nodePort: p.nodePort }
+          //if(p.conhostPort)clusterPorts.push({...clusterPort});
+          //clusterPort.port = p.nodePort;
+
+          //如果填写了集群外地址，才将数据加入到nodePortService里面
+          if (p.nodePort) nodePortPorts.push(clusterPort);
+          //如果填了集群内地址，才将数据加入到clusterService里面
+          if (p.conhostPort) clusterPorts.push(clusterPort);
         })
-        c.config.forEach(c=>{
+        c.config.forEach(c => {
           // eslint-disable-next-line
           this.state.configMap.data[c.key] = c.contents;
         })
       })
-    }else{
+    } else {
       message.error("请先添加容器！");
       return;
     }
     this.setState({
       deployment: newDeployment
     })
-    
+
     //应用管理添加应用
     addAppBasicInfo(this.state.appInfo).then(newAppInfo => {
       //部署平台添加应用
-      addAppDeployInfo({ deployment: newDeployment,configMap:this.state.configMap,clusterService:this.state.clusterService,nodePortService:this.state.nodePortService }).then(data => {
+      addAppDeployInfo({ deployment: newDeployment, configMap: this.state.configMap, clusterService: this.state.clusterService, nodePortService: this.state.nodePortService }).then(data => {
         //保存为已生效环境变量
         let appContainers = newDeployment.spec.template.spec.containers;
-        appContainers.forEach(c=>{
+        appContainers.forEach(c => {
           let containerName = c.name;
-          c.env.forEach(e=>{
+          c.env.forEach(e => {
             e.key = e.name;
             e.operateWay = 'effect';
-            addEnvs(this.state.appInfo.code,containerName,e);
+            addEnvs(this.state.appInfo.code, containerName, e);
           });
         })
+        //创建应用之后添加集群
+        let queryParams = {
+          code: newAppInfo.upstream,
+          name: newAppInfo.name,
+          targets: [],
+        }
+        doUpstream(newAppInfo.upstream, queryParams, { appId: newAppInfo.id }).then(res => {
+        })
         //将应用ID添加为服务分组
-        addServerGroup({id:newAppInfo.id,name:newAppInfo.name});
+        if (this.state.type !== 'middleware') addServerGroup({ id: newAppInfo.id, name: newAppInfo.name });
         this.setState({
-          newAppInfo:newAppInfo,
-          status:data.status,
+          newAppInfo: newAppInfo,
+          status: data.status,
           current: 2,
           displayStep1: false,
           displayStep2: false,
@@ -225,58 +239,63 @@ class AddApp extends React.Component {
   }
 
   //其他方式部署创建应用
-  otherSubmitstep2=(arrays)=>{
-    addAppBasicInfo({...this.state.appInfo,deployMode:'custom'}).then(newAppInfo => {
-      if(arrays instanceof Array && arrays.length>0){
+  otherSubmitstep2 = (arrays) => {
+    addAppBasicInfo({ ...this.state.appInfo, deployMode: 'custom' }).then(newAppInfo => {
+      if (arrays instanceof Array && arrays.length > 0) {
         //调用集群新增接口
-        let targets=[];
-        arrays.forEach(item=>{
-          let target={
-            ip: item.ip,
-            port: item.port,
-            weight: '10',
-          }
-          targets.push(target)
+        let targets = [];
+        let str = '';
+        let ctx = '';
+        arrays.forEach(item => {
+          item.ip.forEach(i => {
+            let target = {
+              ip: i.ip,
+              port: i.port,
+              weight: '10',
+            }
+            str += 'http://' + i.ip + ':' + i.port + ','
+            targets.push(target)
+            ctx = item.ctx;
+          })
         })
-        let queryParams={
+        let queryParams = {
           code: newAppInfo.upstream,
-          name:newAppInfo.name,
+          name: newAppInfo.name,
           targets: targets,
         }
-        doUpstream(newAppInfo.upstream,queryParams).then(res=>{
-          if(res){
+        let params = {
+          type: '2'
+        }
+
+        let bodyParams = {
+          host: str.substring(0, str.length - 1),
+          //先暂时这样写
+          ctx: ctx ? ctx : '',
+        }
+        updateApp(newAppInfo.id, params, bodyParams).then(data => {
+          if (data) {
             message.success('操作成功')
+            doUpstream(newAppInfo.upstream, queryParams, { appId: newAppInfo.id }).then(res => {
+            })
           }
         })
       }
-      addServerGroup({id:newAppInfo.id,name:newAppInfo.name});
+      //将应用ID添加为服务分组
+      if (this.state.type !== 'middleware') {
+        addServerGroup({ id: newAppInfo.id, name: newAppInfo.name });
+      }
       this.setState({
-        newAppInfo:newAppInfo,
+        newAppInfo: newAppInfo,
         current: 2,
         displayStep1: false,
         displayStep2: false,
         displayStep3: true,
         //状态为1表示应用创建成功
-        status:1,
+        status: 1,
       })
     })
 
   }
-  // getStepContent = () => {
-  //   const current = this.state.current;
-  //   switch (current) {
-  //     case 0:
-  //       return <Step1 submitstep1={this.submitStep1} />
-  //       break;
-  //     case 1:
-  //       return <Step2 tenant="c2cloud"
-  //         submitstep2={this.submitstep2} />
-  //       break;
-  //     case 2:
-  //       return <Step3 deployment={this.state.deployment} />
-  //       break;
-  //   }
-  // }
   stepBack = () => {
     this.setState({
       current: 0,
@@ -289,27 +308,24 @@ class AddApp extends React.Component {
     const description = (
       <div style={{ height: '100px' }}></div>
     )
-    // const stepContent = this.getStepContent();
-    let breadcrumbList = [{
-        title: '应用列表',
-        href: '/#/apps',
-      }, {
-        title: '创建应用',
-    }];
+
+    let breadcrumbList = <Breadcrumb style={{marginTop:6}}>
+    <Breadcrumb.Item><Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a","verticalAlign":"text-bottom"}}/> <a href="/#/apps">应用列表</a></Breadcrumb.Item>
+    <Breadcrumb.Item>创建应用</Breadcrumb.Item>
+    </Breadcrumb>;
     let labelName = "应用";
     if(this.state.type==="middleware"){
-      breadcrumbList = [{
-        title: '中间件列表',
-        href: '/#/middlewares',
-      }, {
-        title: '创建中间件',
-      }];
+      
+      breadcrumbList = <Breadcrumb style={{marginTop:6}}>
+    <Breadcrumb.Item><Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a","verticalAlign":"text-bottom"}}/> <a href="/#/middlewares">中间件列表</a></Breadcrumb.Item>
+    <Breadcrumb.Item>创建中间件</Breadcrumb.Item>
+    </Breadcrumb>;
       labelName = "中间件";
     }
 
     return (
       <div style={{ margin: '-24px -24px 0' }}>
-        <PageHeader title={labelName+'创建向导'} breadcrumbList={breadcrumbList}
+        <PageHeader title={breadcrumbList} 
           content={labelName+'创建过程分为应用基本信息、部署配置过程'} />
         <Card bordered={false} style={{ margin: 24 }}>
           <Row>
@@ -322,12 +338,13 @@ class AddApp extends React.Component {
             </Col>
             <Col span={20}>
               <Step1 submitstep1={this.submitStep1} display={this.state.displayStep1}
-                type={this.state.type}/>
+                type={this.state.type} />
               <Step2 stepback={this.stepBack}
                 submitstep2={this.submitstep2} display={this.state.displayStep2}
                 otherSubmitstep2={this.otherSubmitstep2}
-                type={this.state.type} tenant={base.tenant}/>
-              <Step3 display={this.state.displayStep3} appinfo={this.state.newAppInfo} type={this.state.type} 
+                type={this.state.type} tenant={base.tenant}
+              />
+              <Step3 display={this.state.displayStep3} appinfo={this.state.newAppInfo} type={this.state.type}
                 status={this.state.status} />
             </Col>
           </Row>

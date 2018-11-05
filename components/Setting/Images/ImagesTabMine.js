@@ -7,6 +7,8 @@ import {getImages,getImageCategorys} from '../../../services/images'
 import dockerImg from '../../../assets/images/docker.png'
 import TagSelect from 'ant-design-pro/lib/TagSelect';
 import ImagesUpload from '../../../common/ImagesUpload'
+import { base } from '../../../services/base';
+import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
 
 const FormItem = Form.Item;
 class ImagesFormTabMine extends Component{
@@ -175,6 +177,7 @@ class ImagesFormTabMine extends Component{
   }
 
   render(){
+    const Authorized = RenderAuthorized(base.allpermissions);
     const {getFieldDecorator} =this.props.form;
     const {myList,platformList}=this.state;
     const formItemLayout = {
@@ -203,13 +206,15 @@ class ImagesFormTabMine extends Component{
                 {item.name}
               </Tooltip>  
               </a>}      
-              description={item.descri}
+
+              description={<Tooltip title={item.descri}>{item.descri}</Tooltip>}
             />
             <div className='cardItemContent'>
               <span>{moment(item.updated).fromNow()}</span>
               {
                 this.state.tenant!=='c2cloud'?
                   <div >
+                    <Authorized authority={'image_update'} noMatch={null}>
                     <ImagesUpload onOk={this.initDatas} tenant={this.state.tenant} artifact={item.name}
                       renderButton={
                       <Tooltip title='更新镜像' >
@@ -217,6 +222,7 @@ class ImagesFormTabMine extends Component{
                       </Tooltip> 
                       }
                     />
+                    </Authorized>
                   </div>:''
               }
                 
@@ -224,14 +230,16 @@ class ImagesFormTabMine extends Component{
           </Card>
         </List.Item>:
         <List.Item>
+        <Authorized authority={'image_add'} noMatch={null}>
           <Card hoverable style={{ height:'344px'}}>
-          <ImagesUpload renderButton={ 
-              (<Button style={{ height:'295px'}} type="dashed" className='newButton' >
-              <Icon type="plus" /> 新增镜像
-            </Button>)
-          } onOk={this.initDatas} tenant={this.state.tenant}
-        />
-        </Card>
+            <ImagesUpload renderButton={ 
+                (<Button style={{ height:'295px'}} type="dashed" className='newButton' >
+                <Icon type="plus" /> 新增镜像
+              </Button>)
+            } onOk={this.initDatas} tenant={this.state.tenant}
+            />
+          </Card>
+        </Authorized>
       </List.Item>
       )}
     />

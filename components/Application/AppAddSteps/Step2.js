@@ -104,27 +104,37 @@ class Step2 extends React.Component {
 					const newContainers = this.state.containers.filter(item => item.id !== container.id);
 					newContainers.push(container);
 					newContainers.forEach(item=>{
-						if(item.imageTaskId){
+						//如果有镜像任务ID，则去查询任务状态
+					if(item.imageTaskId){
 							ids.push(item.imageTaskId)
 						}
 					})
-					this.setState({
-						ids
-					})
-					this.getStatus(newContainers,ids)
+					if(ids.length>0){
+						this.setState({
+							ids
+						})
+						this.getStatus(newContainers,ids)
+					}else{
+						this.setState({containers:newContainers})
+					}
 				} else {
 					container.id = "newContainer" + this.index;
 					this.index += 1;
 					this.state.containers.push(container);
 					this.state.containers.forEach(item=>{
-						if(item.imageTaskId){
+					//如果有镜像任务ID，则去查询任务状态
+					if(item.imageTaskId){
 							ids.push(item.imageTaskId)
 						}
 					})
-					this.setState({
-						ids
-					})
-					this.getStatus(this.state.containers,ids)
+					if(ids.length>0){
+						this.setState({
+							ids
+						})
+						this.getStatus(this.state.containers,ids)
+					}else{
+						this.setState({containers:this.state.containers})
+					}
 				}
 			}
 			this.setState({
@@ -164,7 +174,9 @@ class Step2 extends React.Component {
 			this.props.form.validateFields((err, values) => {
 				if (!err) {
 					this.props.submitstep2(values, this.state.containers);
+					
 				}
+				this.setState({btnLoading:false});
 			});
 		}
 		onSelectChange = (selectedRowKeys) => {
@@ -190,6 +202,7 @@ class Step2 extends React.Component {
 		}
 		//查询所有镜像打包情况
 		handleClick=()=>{
+			this.setState({btnLoading:true});
 			let ids=this.state.ids;
 			let queryStatus=[];
 			let flag=false;
@@ -197,24 +210,25 @@ class Step2 extends React.Component {
 				ids.forEach(id=>{
 					queryStatus.push(getTaskById(id));
 				})
-			}else{
-				this.handleSubmit();
-			}
-			Promise.all(queryStatus).then(res=>{
-				res.forEach(item=>{
-					if(item.status!==4){
-						flag=true
+				Promise.all(queryStatus).then(res=>{
+					res.forEach(item=>{
+						if(item.status!==4){
+							flag=true
+						}
+					})
+					//如果有状态不为4的，则打开模态框
+					if(flag){
+						this.setState({
+							visible:true,
+						})
+					}else{
+						this.handleSubmit();
 					}
 				})
-				//如果有状态不为4的，则打开模态框
-				if(flag){
-					this.setState({
-						visible:true,
-					})
-				}else{
-					this.handleSubmit();
-				}
-			})
+			}else{
+				
+				this.handleSubmit();
+			}
 		}
 
 		//模态框确认
@@ -225,7 +239,7 @@ class Step2 extends React.Component {
 			})
 		}
 
-		handleCancle=()=>{
+		handleCancel=()=>{
 			this.setState({
 				visible:false
 			})
@@ -274,7 +288,7 @@ class Step2 extends React.Component {
 					title: '镜像',
 					dataIndex: 'image',
 					key: 'image',
-					width: '30%',
+					width: '35%',
 				}, {
 					title: '计算资源',
 					dataIndex: 'resources',
@@ -288,7 +302,7 @@ class Step2 extends React.Component {
 					title: '状态',
 					dataIndex: 'status',
 					key: 'status',
-					width: '20%',
+					width: '10%',
 					render:(text,record)=>{
 						if(text===1){
 							return  <LogModal  id={record.imageTaskId} name={record.imageName}/> 
@@ -311,7 +325,7 @@ class Step2 extends React.Component {
 					title: '操作',
 					dataIndex: 'id',
 					key: 'id',
-					width: '15%',
+					width: '20%',
 					render: (text, record) => ( 
 						<span>
 							<Divider type = "vertical" />
@@ -399,7 +413,7 @@ class Step2 extends React.Component {
 										<br/>
 										<FormItem { ...formTailLayout}>
 											<Button onClick = {this.props.stepback} > 上一步 </Button>  
-											<Button type = "primary" 	onClick={this.handleClick} style = {{marginLeft: '20px'}} > 创建 </Button>  
+											<Button type = "primary" loading={this.state.btnLoading} 	onClick={this.handleClick} style = {{marginLeft: '20px'}} > 创建 </Button>  
 											</FormItem> 
 										</Form>
 						} 
@@ -408,7 +422,7 @@ class Step2 extends React.Component {
 						<Modal
 						title='确认？'
 						onOk={this.handleOk}
-						onCancle={this.handleCancle}
+						onCancel={this.handleCancel}
 						visible={this.state.visible}
 						>
 							<p>还有镜像未打包成功是否继续创建?</p>

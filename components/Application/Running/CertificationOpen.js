@@ -1,12 +1,11 @@
 import React, { Component } from 'react';
-import { Modal, Card, Switch, Form, Input, Select, InputNumber, message } from 'antd';
+import { Modal, Card, Switch, Form, Input, Select, InputNumber, message, Icon, Tooltip } from 'antd';
 import DescriptionList from 'ant-design-pro/lib/DescriptionList';
 import User from './User'
 import { updateOrgs, getApp, updateApp, getSso, openSso, closeSso, eidtSso, getOrgs, getCategoryorgs, getOrg, getManagerOrgs } from '../../../services/running'
-import WhiteUser from './WhiteUser'
-import OrgSelectModal from '../../../common/OrgSelectModal'
 import "./running.less";
-
+import { base } from '../../../services/base';
+import RenderAuthorized from 'ant-design-pro/lib/Authorized';
 const { Description } = DescriptionList;
 const Option = Select.Option;
 const FormItem = Form.Item;
@@ -31,6 +30,7 @@ class CertificationOpenForm extends Component {
 		switch: false,
 		status: '',
 		help: '',
+		doSee: false,			//是否可见
 	}
 
 	componentDidMount() {
@@ -46,11 +46,7 @@ class CertificationOpenForm extends Component {
 			if (data) {
 				if (data.securityLevel === "0") {
 					data.securityLevel = "普通"
-				}
-				if (data.securityLevel === "1") {
-					data.securityLevel = "中级"
-				}
-				if (data.securityLevel === "2") {
+				} else {
 					data.securityLevel = "高安全级"
 				}
 				this.setState({
@@ -73,25 +69,29 @@ class CertificationOpenForm extends Component {
 				if (item.categoryOrgId === item.orgId) {
 					//获取分类机构数据
 					getCategoryorgs(item.orgId).then(org => {
-						item.name = org.name;
-						item.categoryOrgName = org.name;
-						item.id=item.orgId;
-						this.state.orgs.push(item);
-						this.setState({
-							orgName: this.state.orgName + "," + org.name
-						})
+						if (org) {
+							item.name = org.name;
+							item.categoryOrgName = org.name;
+							item.id = item.orgId;
+							this.state.orgs.push(item);
+							this.setState({
+								orgName: this.state.orgName + "," + org.name
+							})
+						}
 					})
 				} else {
 					//获取机构数据
 					getOrg(item.orgId).then(org => {
 						getCategoryorgs(item.categoryOrgId).then(datas => {
-							item.name = org.name;
-							item.categoryOrgName = datas.name;
-							item.id = item.orgId;
-							this.state.orgs.push(item);
-							this.setState({
-								orgName: this.state.orgName + "," + org.name + '(' + datas.name + ')'
-							})
+							if (datas) {
+								item.name = org.name;
+								item.categoryOrgName = datas.name;
+								item.id = item.orgId;
+								this.state.orgs.push(item);
+								this.setState({
+									orgName: this.state.orgName + "," + org.name + '(' + datas.name + ')'
+								})
+							}
 						})
 
 					})
@@ -145,12 +145,9 @@ class CertificationOpenForm extends Component {
 			}
 			if (values.securityLevel === "普通") {
 				values.securityLevel = "0"
-			}
-			if (values.securityLevel === "中级") {
+			} else {
+
 				values.securityLevel = "2"
-			}
-			if (values.securityLevel === "高安全级") {
-				values.securityLevel = "1"
 			}
 			if (!values.clinetUrl) {
 				this.setState({
@@ -178,13 +175,10 @@ class CertificationOpenForm extends Component {
 						if (val.clientType === "2") {
 							val.clientType = "app"
 						}
-						if (val.securityLevel === '2') {
-							val.securityLevel = '中级'
-						}
 						if (val.securityLevel === '0') {
 							val.securityLevel = '普通'
 						}
-						if (val.securityLevel === '1') {
+						if (val.securityLevel === '2') {
 							val.securityLevel = '高安全级'
 						}
 						updateApp(appid, queryParams, bodyParams).then(data => {
@@ -222,13 +216,10 @@ class CertificationOpenForm extends Component {
 						if (val.clientType === "2") {
 							val.clientType = "app"
 						}
-						if (val.securityLevel === '2') {
-							val.securityLevel = '中级'
-						}
 						if (val.securityLevel === '0') {
 							val.securityLevel = '普通'
 						}
-						if (val.securityLevel === '1') {
+						if (val.securityLevel === '2') {
 							val.securityLevel = '高安全级'
 						}
 						this.setState({
@@ -287,23 +278,23 @@ class CertificationOpenForm extends Component {
 		})
 		let orgary = [];
 		const appid = this.props.appid;
-		if (Array.isArray(orgs)){
-			orgs.forEach(item=>{
-				item.orgId=item.id;
+		if (Array.isArray(orgs)) {
+			orgs.forEach(item => {
+				item.orgId = item.id;
 				orgary.push(item)
 			})
 		}
 		updateOrgs(appid, orgary).then(data => {
-			let orgName=''
+			let orgName = ''
 			orgs.forEach(item => {
-				if(item.id===item.categoryOrgId){
+				if (item.id === item.categoryOrgId) {
 					orgName += "," + item.name
-				}else{
+				} else {
 					orgName += "," + item.name + '(' + item.categoryOrgName + ')'
 				}
 			})
 			this.setState({
-				orgs:orgs,
+				orgs: orgs,
 				orgName: orgName
 			})
 		})
@@ -313,8 +304,7 @@ class CertificationOpenForm extends Component {
 	handleChange = (e) => {
 		let url = e.target.value;
 		if (url) {
-			let regex = /^(?:http(?:s|):\/\/|)(?:(?:\w*?)\.|)(?:\w*?)\.(?:\w{2,4})(?:\?.*|\/.*|)$/ig;
-			if (!regex.test(url)) {
+			if (!url.startsWith('http://')) {
 				this.setState({
 					status: 'error',
 					help: '应用回调地址格式错误'
@@ -333,13 +323,15 @@ class CertificationOpenForm extends Component {
 		}
 	}
 	renderOpen = () => {
-		const action1 = <a style={{ float: "right", fontSize: 14 }} onClick={this.showModal1}>修改</a>
-
+		let action1;
+		if(base.allpermissions.includes('app_editUnifiedCertification')){
+			action1 = <a style={{ float: "right", fontSize: 14 }} onClick={this.showModal1}>修改</a>;
+		}
 		return (
 			<div>
-				<DescriptionList style={{ marginBottom: 24 }} title={action1}>
+					<DescriptionList style={{ marginBottom: 24 }} title={action1}>
 					<Description term="客户端ID">{this.state.clientId}</Description>
-					<Description term="客户端凭证">{this.state.clientSecret}</Description>
+					<Description term="客户端凭证">{this.state.doSee ? this.state.clientSecret : '******'} <Icon style={{ marginLeft: 8, cursor: 'pointer' }} type={this.state.doSee ? 'eye' : 'eye-o'} onClick={e => this.setState({ doSee: !this.state.doSee })} /></Description>
 					<Description term="应用类型">{this.state.clientType}</Description>
 					<Description term="凭证有效时长(秒)">{this.state.expirein}</Description>
 					<Description term="刷新凭证有效时长(秒)">{this.state.reExpirein}</Description>
@@ -358,12 +350,13 @@ class CertificationOpenForm extends Component {
 		)
 	}
 	render() {
-		const title = <span>统一认证  <Switch style={{ marginLeft: 24 }} checkedChildren="开" unCheckedChildren="关" checked={this.state.isOpen} onClick={this.handleClick} /></span>
+		const Authorized = RenderAuthorized(base.allpermissions);
+		const title = <span>统一认证 <Authorized authority='app_unifiedCertification' noMatch={<Switch disabled='true' style={{ marginLeft: 24 }} checkedChildren="开" unCheckedChildren="关" checked={this.state.isOpen} onClick={this.handleClick} />}>  <Switch style={{ marginLeft: 24 }} checkedChildren="开" unCheckedChildren="关" checked={this.state.isOpen} onClick={this.handleClick} /> </Authorized></span>
 		const { getFieldDecorator } = this.props.form;
 		const formItemLayout = {
 			labelCol: {
 				xs: { span: 24 },
-				sm: { span: 7 },
+				sm: { span: 10 },
 			},
 			wrapperCol: {
 				xs: { span: 24 },
@@ -371,7 +364,22 @@ class CertificationOpenForm extends Component {
 				md: { span: 13 },
 			},
 		};
-		const orgModal = <OrgSelectModal title={'机构选择'} renderButton={() => { return <a style={{ float: "right", fontSize: 14 }}>修改</a> }} defaultValue={this.state.orgs} onOk={orgs => this.handleOnOk(orgs)} multiple={true} checkableTopOrg={false} checkableCategoryOrg={true} checkableOrg={true}/>;
+		// const orgModal = <OrgSelectModal title={'机构选择'} renderButton={() => { return <a style={{ float: "right", fontSize: 14 }}>修改</a> }} defaultValue={this.state.orgs} onOk={orgs => this.handleOnOk(orgs)} multiple={true} checkableTopOrg={false} checkableCategoryOrg={true} checkableOrg={true}/>;
+		const levelLabel = <span><Tooltip overlayStyle={{ width: '420px' }} title={<pre style={{ fontSize: '10px' }}>
+			{`普通：默认等级，应用的用户凭证与用户在
+认证服务器的凭证的生命周期一致，
+默认为七天(该时间可配置)，
+七天内有使用过应用则会自动续期，无需重新登录。
+中级：应用的用户凭证在超时后，
+在服务器重新进行认证时会需要用户再次输入密码进行身份校验。
+一般会配合较短的应用用户凭证有效期配置来使用，
+比如应用的凭证有效期设置为10分钟，
+如果10分钟内用户没有在应用内进行操作，那么再次使用应用时，
+会要求用户输入自己的密码才能继续访问。用户凭证存储在cookie中，
+关闭浏览器用户凭证不会失效
+高级：有效期策略与中级一致，但是关闭浏览器后用户凭证会立即失效，
+关闭后立即打开浏览器也需要重新输入密码验证身份。
+			`}</pre>} ><Icon type="info-circle-o" /></Tooltip>应用安全等级</span>
 		return (
 			<div>
 				<Card title={title} style={{ margin: 24 }} bordered={false}>
@@ -382,14 +390,15 @@ class CertificationOpenForm extends Component {
 				</Card>
 				{
 					this.state.isOpen ?
-						<Card title="设置允许访问应用的用户" style={{ margin: 24 }} bordered={false}>
-							<DescriptionList col="1" style={{ marginBottom: 24 }} title={orgModal}>
+						<Card title="可访问应用的用户列表" style={{ margin: 24 }} bordered={false}>
+							{/* 	<DescriptionList col="1" style={{ marginBottom: 24 }} title={orgModal}>
 								<Description term="允许以下机构的用户访问应用">{this.state.orgName.slice(1)}</Description>
-							</DescriptionList>
-							<User orgs={this.state.orgs} appid={this.props.appid} />
+							</DescriptionList> */}
+							{/* 传入用户集合id */}
+							<User orgs={this.state.orgs} appId={this.props.appid} />
 
-							<div className="sub-title-text" style={{ marginTop: 24 }}>白名单</div>
-							<WhiteUser appid={this.props.appid} />
+							{/* <div className="sub-title-text" style={{ marginTop: 24 }}>白名单</div>
+							<WhiteUser appid={this.props.appid} /> */}
 						</Card>
 						: null
 				}
@@ -415,22 +424,21 @@ class CertificationOpenForm extends Component {
 								</Select>
 							)}
 						</FormItem>
-						<FormItem {...formItemLayout} label="凭证有效时间">
+						<FormItem {...formItemLayout} label="凭证有效时间(s)">
 							{getFieldDecorator('expirein', { initialValue: this.state.expirein })(
 								<InputNumber style={{ width: '100%' }} min={60} placeholder="输入时间" />
 							)}
 						</FormItem>
-						<FormItem {...formItemLayout} label="刷新凭证有效时间">
+						<FormItem {...formItemLayout} label="刷新凭证有效时间(s)">
 							{getFieldDecorator('reExpirein', { initialValue: this.state.reExpirein })(
 								<InputNumber style={{ width: '100%' }} min={60} placeholder="输入时间" />
 							)}
 						</FormItem>
-						<FormItem {...formItemLayout} label="应用安全等级">
+						<FormItem {...formItemLayout} label={levelLabel}>
 							{getFieldDecorator('securityLevel', { initialValue: this.state.securityLevel })(
 								<Select>
 									<Option value="0">普通</Option>
-									<Option value="2">中级</Option>
-									<Option value="1">高安全级</Option>
+									<Option value="2">高安全级</Option>
 								</Select>
 							)}
 						</FormItem>

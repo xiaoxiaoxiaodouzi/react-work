@@ -20,6 +20,10 @@ export function deleteCluster(id){
   return C2Fetch.delete(url,null,'删除集群出错')
 }
 
+export function getClusterInfo(){
+  const url=proxy+`cce/v1/tenants/info`
+  return C2Fetch.get(url,null,'获取集群详情出错')
+}
 //获取集群中的节点信息
 export function getNodes(id){
   const url=proxy+`cce/v1/tenants/${base.tenant}/clusters/${id}/nodes`

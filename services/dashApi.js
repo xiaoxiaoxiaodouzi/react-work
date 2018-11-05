@@ -2,11 +2,17 @@ import C2Fetch from '../utils/Fetch';
 
 let proxy = 'proxy/';
 
+//查询应用详情
+export function getApp(appid){
+  const url=proxy+`aip/v1/apps/${appid}`;
+  return C2Fetch.get(url,null,false);
+}
+
 //APM性能管理服务
 export function getAPM(appCode,queryParam) {
   const url = proxy + `apm/v1/apps/${appCode}/scatter`
   //const url = `http://172.16.25.127:8080/apm/v1/getScatterData`
-  return C2Fetch.get(url, queryParam, '获取APM散点图数据失败')
+  return C2Fetch.get(url, queryParam, false)
 }
 
 export function getApplicationTopo({ appCode, from, to, callerRange, calleeRange }) {
@@ -16,17 +22,18 @@ export function getApplicationTopo({ appCode, from, to, callerRange, calleeRange
 
 //获取应用资源使用情况
 export function getAppmonit(appid) {
-  const url = proxy + `aip/v1/appmonit/${appid}/appinfo`
+  const url = proxy + `cce/v1/appmonit/${appid}/appinfo`
   return C2Fetch.get(url, null, '获取应用资源使用情况失败')
 }
 
 //查询应用所有服务的平均响应时间
 export function getAvgTime(appid) {
-  const url = proxy + `aip/v1/appmonit/${appid}/appAvgTime`
-  return C2Fetch.get(url, null, '查询应用所有服务的平均响应时间失败')
+  const url = proxy +`monit/v1/app/statistics/?appIds=${appid}`
+  return C2Fetch.get(url,{}, '查询应用所有服务的平均响应时间失败')
 }
 
 //查询应用调用服务错误次数,queryParam={startTime:统计开始时间（结束时间默认当天）apikeyId: 应用主键id
+//该接口有问题，返回200状态，但是内容为空，到时转json出错!
 export function getErrCount(queryParam) {
   const url = proxy + `aip/v1/servicemonit/errorCount`
   return C2Fetch.get(url, queryParam, '查询应用调用服务错误次数失败')
@@ -34,7 +41,7 @@ export function getErrCount(queryParam) {
 
 //查询应用的pvuv startTime:统计开始时间endTime: 统计结束时间apikeyId: 应用主键id,Type: 需指定是查PV还是UV（如查PV传值‘PV’, 查UV传’UV’）
 export function getApppvoruv(queryParam) {
-  const url = proxy + `aip/v1/appmonit/apppvoruv`
+  const url = proxy + `monit/v1/app/uvpv`
   return C2Fetch.get(url, queryParam, '查询应用的pvuv失败')
 }
 
@@ -53,7 +60,7 @@ export function getSlow(queryParam) {
 //根据node名称查询node的响应时长apm/v1/apps/{applicationName}/resphistogram
 export function getRespHistogram(appCode,queryParam) {
   const url = proxy + `apm/v1/apps/${appCode}/resphistogram`
-  return C2Fetch.get(url, queryParam, '查询node的响应时长失败')
+  return C2Fetch.get(url, queryParam, false)
 }
 
 //查询应用CPU 内存 网络数据
@@ -70,7 +77,7 @@ export function getTransactionInfo(appCode,queryParam){
 //查询事务列表数据
 export function getTransactionInfoSlow(appCode,queryParam){
   const url = proxy +`apm/v1/apps/${appCode}/slowTransactions`
-  return C2Fetch.get(url,queryParam,'获取事务数据失败')
+  return C2Fetch.get(url,queryParam,false)
 }
 //查询事务列表数据
 export function selectDotGetTrans(queryParams,bodyParams){

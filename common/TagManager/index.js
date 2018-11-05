@@ -12,7 +12,7 @@ export default class TagManager extends React.PureComponent {
         super(props)
 
         this.state = {
-            visible: false
+            visible: props.visible
         }
 
         this.selectedTags = {};
@@ -48,10 +48,6 @@ export default class TagManager extends React.PureComponent {
             th.tags[element.id] = element;
         })
     }
-
-    componentDidMount() {
-
-    }
     //************************************************************************ */
     //*********************************EVENTS********************************* */
     //************************************************************************ */
@@ -84,7 +80,7 @@ export default class TagManager extends React.PureComponent {
     //标签弹窗管理可见回调
     onVisibleChange(visible) {
         this.tagtempcontent = null;
-        this.tagitem = null;
+        // this.tagitem = null;
         this.props.onVisibleChange && this.props.onVisibleChange(visible);
     }
 
@@ -106,8 +102,19 @@ export default class TagManager extends React.PureComponent {
                     this.props.onChange && this.props.onChange({ event: 'create', value: { name: this.tagtempcontent } })
                 }
             } else {
+                //过滤重复选中
+                var isRepetition = false;
+                for (let index = 0; index < this.props.selectedTags.length; index++) {
+                    const element = this.props.selectedTags[index];
+                    if (element.name === this.tagitem.name) {
+                        isRepetition = true;
+                        break;
+                    }
+                }
                 //绑定选中已经存在的标签
-                this.props.onChange && this.props.onChange({ event: 'add', value: this.tagitem })
+                if (!isRepetition) {
+                    this.props.onChange && this.props.onChange({ event: 'add', value: this.tagitem })
+                }
             }
             this.setState({
                 visible: false
@@ -155,14 +162,14 @@ export default class TagManager extends React.PureComponent {
 
     render() {
         return (
-            <Col style={{ justifyContent: 'center', lineHeight: '22px' }}>
+            <span style={[{ justifyContent: 'center', lineHeight: '22px' },this.props.style]}>
                 {this.props.selectedTags.map((element) => {
                     return <Tag key={element.id} style={{ marginRight: 10 }} closable onClose={() => { this.removeTag(element) }}>{element.name}</Tag>
                 })}
                 <Popover visible={this.state.visible} trigger={'click'} onVisibleChange={this.onVisibleChange} content={this.renderTagsAddContainer()} title="添加标签" onClick={() => this.setState({ visible: true })}>
                     <Button type="dashed" icon={'plus'} size={'small'} />
                 </Popover>
-            </Col>
+            </span>
         )
     }
 }

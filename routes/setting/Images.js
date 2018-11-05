@@ -1,17 +1,9 @@
 import React,{Component} from 'react'
-import { Form} from 'antd';
+import { Form,Breadcrumb,Divider} from 'antd';
 import PageHeaderLayout from './layouts/PageHeaderLayout'
 import ImagesTabMine from '../../components/Setting/Images/ImagesTabMine'
 import {base} from '../../services/base'
 import ImageTaskList from '../../components/Setting/Images/ImageTaskList'
-
-const breadcrumbList=[{
-  title: '高级设置',
-  href:'/'
-},{
-  title:'镜像管理',
-  href:'/#/setting/images'
-}]
 
 const tabList = [{
   key: 'mine',
@@ -40,12 +32,15 @@ class ImagesForm extends Component{
     })
   }
   render(){
-    const {history}=this.props
+    const {history}=this.props;
+    let title = <Breadcrumb style={{marginTop:6}}>
+    <Breadcrumb.Item><Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a","verticalAlign":"text-bottom"}}/> 高级设置</Breadcrumb.Item>
+    <Breadcrumb.Item>镜像管理</Breadcrumb.Item>
+    </Breadcrumb>;
     return (
       <div>
       <PageHeaderLayout
-      title='镜像列表'
-      breadcrumbList={breadcrumbList}
+      title={title}
       onTabChange={this.onTabChange}
       tabList={tabList}
       tabActiveKey={this.state.key}

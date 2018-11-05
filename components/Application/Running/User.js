@@ -1,254 +1,174 @@
-import React, { Fragment,Component } from 'react';
-import { Table,Row, Col, Form, Input, Select, Icon, Button,  Divider,  message,Modal,Tree} from 'antd';
-import {getUsers,getRoles,deleteUser,addUser,roleTree,updateRoleTree} from '../../../services/running'
+import React, { Component } from 'react';
+import { Table, Row, Col, Form, Input, Select, Button} from 'antd';
 import './User.css'
-import TreeHelp from '../../../utils/TreeHelp'
-
+import { getUsers } from '../../../services/running'
+import Link from 'react-router-dom/Link';
+import PropTypes from 'prop-types'
 
 
 const FormItem = Form.Item;
 const { Option } = Select;
 
-const TreeNode = Tree.TreeNode;
-class UserForm extends Component{
-  state={
-    visible:false,      //授权窗口
-    expandForm: false,    //搜索展开与否
-    users:[],         //用户总数
-    roles:[],         //应用角色列表
-    userId:'',
-    loading:false,
-    currentPage:1,
-    pageSize:10,
-    total:'',
-    checkedKeys:[],       //被选中的角色
-    roleTree:[],
-    orgs:[],
+class UserForm extends Component {
+  static propTypes = {
+    prop: PropTypes.object,
   }
-  componentDidMount(){
-    const appid=this.props.appid
-    getUsers(appid).then(data=>{
-      this.setState({
-        users:data.contents,
-        total:data.total,
-        currentPage:this.state.currentPage,
-        pageSize:10
-      })
-    })
-    getRoles(appid).then(data=>{
-      console.log("data",data)
-      this.setState({
-        roles:data
-      })
+
+  state = {
+    expandForm: false,
+    data: [],
+    current: 1,
+    total: 1,
+    pageSize: 10,
+    roles: [],      //用户角色集合
+    users: [],      //用户集合
+    data1: [],       //功能集合
+    userCollectionId: [],
+    totalData: [],
+  }
+  componentDidMount() {
+    this.loadDatas();
+  }
+  componentWillReceiveProps(nextProps) {
+
+    /* if (nextProps.userCollectionId !== this.props.userCollectionId) {
+      this.setState({userCollectionId:nextProps.userCollectionId})
+      this.loadDatas({userCollectionId:nextProps.userCollectionId});
+    } */
+  }
+
+  loadDatas = (queryParam) => {
+    getUsers(this.props.appId, queryParam).then(data => {
+      this.setState({ totalData: data, total: data.length, data: data })
     })
   }
 
-  componentWillReceiveProps(nextProps){
-    if(this.state.orgs!==nextProps.orgs){
-      const appid = this.props.appid
-      getUsers(appid).then(data => {
-        this.setState({
-          orgs:nextProps.orgs,
-          users: data.contents,
-          total: data.total,
-          currentPage: this.state.currentPage,
-          pageSize: 10
-        })
-      })
-    }
-  }
-
-  toggleForm=()=>{
-    this.setState({
-      expandForm:!this.state.expandForm
-    })
-  }
-  //查询搜若
-  handleSearch=(e)=>{
-    this.setState({
-      loading:true
-    })
-    const appid=this.props.appid
+  handleSearch = (e) => {
     e.preventDefault();
-    let queryParams=this.formParams();
-    this.loadData(appid,queryParams);
-  }
-  //页面跳转
-  handleData=(current,pageSize)=>{
-    this.setState({
-      loading:true
-    })
-    const appid=this.props.appid;
-    let queryParams= this.formParams();
-    queryParams.page=current;
-    queryParams.rows=pageSize;
-    this.loadData(appid,queryParams)
+    this.props.form.validateFields((err, values) => {
+      if (!err) {
+        this.loadDatas(values)
+      };
+    });
   }
 
-  //查询数据
-  loadData=(appid,queryParams)=>{
-    getUsers(appid,queryParams).then(data=>{
-      this.setState({
-        users:data.contents,
-        pageSize:data.pageSize,
-        currentPage:data.pageIndex,
-        total:data.total,
-        loading:false
-      })
-    })
-  }
 
-  handleFormReset=()=>{
-    const appid=this.props.appid;
+  handleFormReset = () => {
     const { form } = this.props;
     form.resetFields();
-    this.loadData(appid)
+    this.loadDatas();
   }
-  //获取表格数据 并且处理数据
-  formParams=()=>{
-    var queryParams={
-      name:'',
-      roleId:'',
-      status:'',
-      orgIds:[]
-    }
 
-    this.props.form.validateFields((err, values) => {
-      if (err) {
-        return;
-      }
-      //如果选择所有 则将父组件的所有机构ID传入进去
-      if(values.orgIds!=='all'){
-        var orgs=this.props.orgs;
-        //遍历所有机构判断选择的机构是分类机构还是机构
-        orgs.forEach(element => {
-          if(values.orgIds===element.orgId){
-            if(element.orgId===element.categoryOrgId){
-              queryParams.orgIds.push(element.orgId)
-            }else{
-              queryParams.orgIds.push(element.categoryOrgId+'/'+element.orgId)
-            }
-          }
-        });
-      }
-      if(values.name){
-        queryParams.name=values.name
-      }
-      if(values.role){
-        if(values.role!=='all'){
-          queryParams.roleId=values.role
-        }
-      }
-      if(values.status){
-        if(values.status==='open'){
-          queryParams.status="开启"
-        }
-        if(values.status==='close'){
-          queryParams.status="禁用"
-        }
-      }
-    })
-    return queryParams;
+  toggleForm = () => {
+    this.setState({
+      expandForm: !this.state.expandForm,
+    });
   }
-  renderSimpleForm() {
+
+
+  renderSimple = () => {
     const { getFieldDecorator } = this.props.form;
     return (
-      <div className="tableList">
+      <div className='tableList'>
         <Form onSubmit={this.handleSearch} layout="inline">
-          <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
+          <Row style={{ marginBottom: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
             <Col md={8} sm={24}>
-              <FormItem label="姓名">
+              <FormItem label="用户名">
                 {getFieldDecorator('name')(
                   <Input placeholder="请输入" />
                 )}
               </FormItem>
             </Col>
             <Col md={8} sm={24}>
-              <FormItem label="可使用机构">
-                {getFieldDecorator('orgIds')(
-                  <Select placeholder="请选择" style={{ width: '100%' }}>
-                    {this.props.orgs.map(item=>
-                    <Option key={item.id} value={item.orgId}>{item.name}</Option>
-                    )}
-                    <Option key="all">所有</Option>
-                  </Select>
-                )}
-              </FormItem>
-            </Col>
-            <Col md={8} sm={24}>
-              <span >
-                <Button type="primary" htmlType="submit">查询</Button>
+              <span style={{ float: 'right' }}>
+                <Button type="primary" htmlType="submit" onClick={this.handleSearch}>查询</Button>
                 <Button style={{ marginLeft: 8 }} onClick={this.handleFormReset}>重置</Button>
-                <a style={{ marginLeft: 8 }} onClick={this.toggleForm}>
+                {/* <a style={{ marginLeft: 8 }} onClick={this.toggleForm}>
                   展开 <Icon type="down" />
-                </a>
+                </a> */}
               </span>
             </Col>
           </Row>
         </Form>
       </div>
-      
-    );
+    )
   }
 
   renderAdvancedForm() {
     const { getFieldDecorator } = this.props.form;
     return (
-      <div className="tableList">
+      <div className='tableList'>
+
         <Form onSubmit={this.handleSearch} layout="inline">
-          <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
+          <Row style={{ marginBottom: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
             <Col md={8} sm={24}>
-              <FormItem label="姓名">
+              <FormItem label="用户名">
                 {getFieldDecorator('name')(
                   <Input placeholder="请输入" />
                 )}
               </FormItem>
             </Col>
-            <Col md={8} sm={24}>
-              <FormItem label="可使用机构">
-                {getFieldDecorator('orgIds')(
-                  <Select placeholder="请选择" style={{ width: '100%' }}>
-                    {this.props.orgs.map(item=>
-                    <Option key={item.id} value={item.orgId}>{item.name}</Option>
-                    )}
-                    <Option value="all">所有</Option>
+           {/*  <Col md={8} sm={24}>
+              <FormItem label="用户集合">
+                {getFieldDecorator('userCollectionId', { initialValue: this.props.selectedTag })(
+                  <Select placeholder="请选择"
+                  >
+                    {
+                      this.state.userCollectionId.length > 0 ?
+                        this.state.userCollectionId.map((value, index) => {
+                          return (
+                            <Option key={index} value={value.collectionId}>{value.collectionName}</Option>
+                          )
+                        }) : null
+                    }
                   </Select>
                 )}
               </FormItem>
-            </Col>
+            </Col> */}
             <Col md={8} sm={24}>
-              <FormItem label="角色">
-                {getFieldDecorator('role',{initialValue:'all'})(
-                  <Select style={{ width: '100%' }} >
-                  {this.state.roles.map(item=>
-                  <Option key={item.id} value={item.id}>{item.name}</Option>
-                  )}
-                  <Option value="all">所有</Option>
+              <FormItem label="功能角色">
+                {getFieldDecorator('roles')(
+                  <Select placeholder="请选择"
+                  >
+                    {
+                      this.state.roles.length > 0 ?
+                        this.state.roles.map((value, index) => {
+                          return (
+                            <Option key={index} value={value.id}>{value.name}</Option>
+                          )
+                        }) : null
+                    }
                   </Select>
                 )}
               </FormItem>
             </Col>
           </Row>
-          <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
-            <Col md={8} sm={24}>
-              <FormItem label="状态">
-                {getFieldDecorator('status',{initialValue:'all'})(
-                  <Select  style={{ width: '100%' }}>
-                    <Option value="open">开启</Option>
-                    <Option value="close">禁用</Option>
-                    <Option value="all" >所有</Option>
+          {/* <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
+           {/*  <Col md={8} sm={24}>
+              <FormItem label="功能">
+                {getFieldDecorator('data1')(
+                  <Select placeholder="请选择"
+                  >
+                    {
+                      this.state.data1.length > 0 ?
+                        this.state.data1.map((value, index) => {
+                          return (
+                            <Option key={index} value={value.id}>{value.name}</Option>
+                          )
+                        }) : null
+                    }
                   </Select>
                 )}
               </FormItem>
-            </Col>
-          </Row>
+            </Col> }
+          </Row> */}
           <div style={{ overflow: 'hidden' }}>
             <span style={{ float: 'right', marginBottom: 24 }}>
-              <Button type="primary" htmlType="submit">查询</Button>
+              <Button type="primary" htmlType="submit" onClick={this.handleSearch}>查询</Button>
               <Button style={{ marginLeft: 8 }} onClick={this.handleFormReset}>重置</Button>
-              <a style={{ marginLeft: 8 }} onClick={this.toggleForm}>
+              {/* <a style={{ marginLeft: 8 }} onClick={this.toggleForm}>
                 收起 <Icon type="up" />
-              </a>
+              </a> */}
             </span>
           </div>
         </Form>
@@ -256,180 +176,82 @@ class UserForm extends Component{
     );
   }
 
-  renderForm() {
-    return this.state.expandForm ? this.renderAdvancedForm() : this.renderSimpleForm();
-  }
+  render() {
 
-  handleAddUser=(id) => {
-    const appid=this.props.appid;
-    let queryParams={
-      userIds:id
-    }
-    //queryParams.userIds.push(id);
-    addUser(appid,queryParams).then(data=>{
-      this.loadData(appid,null);
-      message.success('启用成功');
-    })
-  } 
+    const { current, total, pageSize } = this.state;
 
-  handleDeleteUser=(id) => {
-    const appid=this.props.appid;
-    deleteUser(appid,id).then(data=>{
-      this.loadData(appid,null);
-      message.success('禁用成功')
-    })
-  }
-
-  //用户角色授权按钮
-  handleClick=(e,id)=>{
-    const appid=this.props.appid;
-    roleTree(appid,id).then(data=>{
-      let childArray=TreeHelp.toChildrenStruct(data)
-      let checkedKeys=[];
-      childArray.forEach(item=>{
-        if(item.checked){
-          checkedKeys.push(item.key)
-        }
-      })
-      this.setState({
-        checkedKeys:checkedKeys,
-        roleTree:childArray,
-        visible:true,
-        userId:id
-      })
-    })
-    
-  }
-  //用户角色授权树
-  renderTreeNodes = (data) => {
-    return data.map((item) => {
-      if (item.children) {
-        return (
-          <TreeNode title={item.name} key={item.key} dataRef={item} >
-            {this.renderTreeNodes(item.children)}
-          </TreeNode>
-        );
-      }
-      return <TreeNode title={item.name} key={item.key}  dataRef={item} />;
-    });
-  }
-
-  //用户角色模态框确认
-  onOk=()=>{
-    const appid=this.props.appid;
-    let userid=this.state.userId;
-    let queryParams=this.state.checkedKeys;
-    updateRoleTree(appid,userid,{roleIds:queryParams}).then(data=>{
-      this.loadData(appid);
-      this.setState({
-        id:'',
-        visible:false
-      })
-      message.success('授权成功')
-      
-    })
-  }
-
-  // 点击复选框触发事件
-  onCheck=(checkedKeys)=>{
-    console.log("checkedKeys",checkedKeys)
-    this.setState({
-      checkedKeys:checkedKeys
-    })
-  }
-
-  onCancel=()=>{
-    this.setState({
-      visible:false,
-      id:''
-    })
-  }
-
-  render(){
     const columns = [
       {
-        title: '名称',
+        title: '用户名',
         dataIndex: 'userName',
-        width: '15%',
+       // width: '10%',
       },
       {
-        title: '所属机构',
-        dataIndex: 'orgName',
-        width: '40%',
-      },
-      {
-        title: '角色',
-        dataIndex: 'role',
-        width: '15%',
-      },
-      {
-        title: '状态',
-        dataIndex: 'status',
-        width: '15%',
-      },
-      {
-        title: '操作',
-        width: '15%',
-        render: (text,record) => {
-          if(record.status==='启用'){
-            return(
-              <Fragment>
-                <a onClick={e=>this.handleClick(e,record.userId)}>授权</a>
-                <Divider type="vertical" />
-                <a onClick={e=>{this.handleDeleteUser(record.userId)}}>禁用</a>
-              </Fragment>
-            )
-          }else{
-            return (
-              <Fragment>
-                <a onClick={e=>{this.handleAddUser(record.userId)}}>启用</a>
-              </Fragment>
-            )
+        title: '关联功能角色',
+        dataIndex: 'roleList',
+       // width: '20%',
+        render: (text, record) => {
+          if (record.roleList) {
+            /*return <Tooltip placement="topLeft" title={record.roleList.map(element => {
+              return <Link style={{ color: 'yellow', marginLeft: 6 }} to={`/applications/${element.appId}/functionalroles/${element.id}`}>{element.name}</Link>
+            })}>
+              <div>
+                <Ellipsis lines={1} length='20' tooltip>{record.roleList.map(element => {
+                  return <Link style={{ marginLeft: 6 }} to={`/applications/${element.appId}/functionalroles/${element.id}`}>{element.name}</Link>
+                })}</Ellipsis>
+              </div>
+            </Tooltip>*/
+            return record.roleList.map(element => {
+              return <Link style={{ marginLeft: 6 }} to={`/applications/${element.appId}/functionalroles/${element.id}`}>{element.name}</Link>
+            })
+          } else {
+            return '无'
           }
         }
+      },
+      /* {
+        title: '操作',
+        width: '20%',
+        render: (record, text) => {
+          /*  return (
+             <Fragment>
+               <a >授权</a>
+               <Divider type='vertical' />
+               <a>详情</a>
+             </Fragment>
+           )
+        }
+      }, */
+    ]
+
+    const pagination =
+      {
+        total: total,
+        current: current,
+        pageSize: pageSize,
+        showTotal: total => `共有${total}条数据`,
+        onChange: (current, pageSize) => {
+          //this.loadDatas(current, pageSize)
+          this.setState({
+            current:current,
+            pageSize:pageSize
+          })
+        },
+        showQuickJumper: true
       }
-    ];
-    const paginationProps={
-      current:this.state.currentPage,
-      pageSize:this.state.pageSize,
-      total:this.state.total,
-      onChange:(current,pageSize) => {
-        this.handleData(current,pageSize)
-      }  
-    } 
-    return(
+    return (
       <div>
-          <div style={{marginBottom:24}}>
-            {this.renderForm()}
-          </div>
-        <div>
-          <Table
-            rowKey={record => record.key}
-            columns={columns}
-            dataSource={this.state.users}
-            loading={this.state.loading}
-            pagination={paginationProps}
-            />    
-            <Modal
-              title='用户角色授权'
-              visible={this.state.visible}
-              onCancel={this.onCancel}
-              onOk={this.onOk}
-            >
-            <Tree
-              checkable
-              checkedKeys={this.state.checkedKeys}
-              onCheck={this.onCheck}
-            >
-            {this.renderTreeNodes(this.state.roleTree)}
-            </Tree>
-            
-            </Modal>   
-        </div>
+        {this.state.expandForm ? this.renderAdvancedForm() : this.renderSimple()}
+        <Table
+          dataSource={this.state.data}
+          columns={columns}
+          rowKey={record => record.code}
+          pagination={pagination}
+        />
       </div>
     )
   }
 }
 
-const User=Form.create()(UserForm)
+const User = Form.create()(UserForm)
 export default User;

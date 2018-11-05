@@ -69,6 +69,19 @@ export function deleteApp(appid){
   return C2Fetch.delete(url,null,false)
 }
 
+//删除应用UPSTREAM
+export function deleteUpstream(upstreamCode){
+ const url=`amp/v1/upstreams/${upstreamCode}`;
+ return C2Fetch.delete(url,null,false);
+}
+
+
+//查询中间件关联的应用名称
+export function getAppByMiddleware(middlewareId){
+  const url=proxy+`aip/v1/middlewares/${middlewareId}/apps`;
+  return C2Fetch.get(url,null,"查询中间件关联的应用出错");
+}
+
 export function deleteAppDeploy(appCode){
   const url=proxy+`cce/v1/tenants/${base.tenant}/applications/${appCode}`;
   return C2Fetch.delete(url,null,false);
@@ -182,6 +195,7 @@ export function getUsers(appid,queryParams){
   const url=proxy+`aip/v1/apps/${appid}/permittedusers`;
   return C2Fetch.get(url,queryParams,"获取用户列表出错")
 }
+
 //将用户从应用可反问列表中移除
 export function deleteUser(appid,userid){
   const url=proxy+`aip/v1/apps/${appid}/users/${userid}`

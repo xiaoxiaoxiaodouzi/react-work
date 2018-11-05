@@ -38,7 +38,7 @@ ul.anticons-list {
 .anticon {
   display: inline-block;
   font-style: normal;
-  vertical-align: baseline;
+  verticalAlign: baseline;
   text-align: center;
   text-transform: none;
   line-height: 1;
@@ -103,5 +103,5 @@ ul.anticons-list li .anticon-class {
   position: relative;
   display: inline-block;
   line-height: 1;
-  vertical-align: middle;
+  verticalAlign: middle;
 }

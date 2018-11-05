@@ -1,5 +1,6 @@
 import React,{Component,Fragment} from 'react';
-import {Table,Input,Divider,Modal,Popconfirm,Button,Form} from 'antd'
+import {Table,Input,Divider,Modal,Popconfirm,Button,Form,Icon} from 'antd'
+import IconSelectModal from '../../../common/IconSelectModal'
 
 const FormItem=Form.Item
 class ServiceTable extends Component{
@@ -53,6 +54,11 @@ class ServiceTable extends Component{
     this.initState();
   }
 
+  selectIcon=(icon)=>{
+    this.setState({
+      icon:icon
+    })
+  }
   onOk=()=>{
     this.props.form.validateFields((err, values) => {
       if(err){
@@ -81,7 +87,7 @@ class ServiceTable extends Component{
     const columns=[
       {
         dataIndex:'name',
-        title:'页面名称',
+        title:'服务名称',
         width:'50%',
        },
        {
@@ -128,19 +134,23 @@ class ServiceTable extends Component{
         >
         </Table>
         <Modal
-          title={this.state.isUpdate?'修改页面':'新增页面'}
+          title={this.state.isUpdate?'修改服务':'新增服务'}
           onCancel={this.onCancel}
           onOk={this.onOk}
           visible={this.state.visible}
         >
           <Form>
-              <FormItem {...formItemLayout} label="页面名称" 
+              <FormItem {...formItemLayout} label="服务名称" 
               >
-                  {getFieldDecorator('name')(
+                  {getFieldDecorator('name',{rules:[{
+                    required: true,
+                    whitespace: true,
+                    message: '请输入服务名称!',
+                  }]})(
                       <Input />
                   )}
               </FormItem>
-
+  
               <FormItem {...formItemLayout} label="地址" 
               >
                   {getFieldDecorator('url')(
@@ -151,7 +161,7 @@ class ServiceTable extends Component{
               <FormItem {...formItemLayout} label="图标" 
               >
                   {getFieldDecorator('icon')(
-                      <Input />
+                    <Input addonAfter={<IconSelectModal renderButton={<Icon type={this.state.icon ? this.state.icon:'setting'}/>} selectIcon={(icon) => this.selectIcon(icon)}/>} />
                   )}
               </FormItem>
           </Form>

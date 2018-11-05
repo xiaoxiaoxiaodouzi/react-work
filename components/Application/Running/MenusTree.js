@@ -145,7 +145,6 @@ class AppMenusForm extends React.PureComponent {
   //删除确认框
   handleConfirm=()=>{
     let id=this.state.id
-    console.log(id)
     if(id){
       if(id!=='0' || id!=='sourceTree'){
         this.setState({

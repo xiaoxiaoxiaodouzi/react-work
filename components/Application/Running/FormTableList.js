@@ -141,7 +141,7 @@ class FormTable extends Component{
         width:'40%',
        },
        {
-         dataIndex:'id',
+         dataIndex:'code',
          title:'编码',
          width:'20%'
        },
@@ -195,17 +195,21 @@ class FormTable extends Component{
           <Form>
               <FormItem {...formItemLayout} label="资源名称" 
               >
-                  {getFieldDecorator('name')(
+                  {getFieldDecorator('name',
+                  {rules:[{
+                    required: true, message: '请输入资源名称',
+                  }]
+                })(
                       <Input />
                   )}
               </FormItem>
 
-              <FormItem {...formItemLayout} label="地址" 
+              {/* <FormItem {...formItemLayout} label="地址" 
               >
-                  {getFieldDecorator('parentId')(
+                  {getFieldDecorator('url')(
                       <Input />
                   )}
-              </FormItem>
+              </FormItem> */}
 
               <FormItem {...formItemLayout} label="资源编码" 
               >

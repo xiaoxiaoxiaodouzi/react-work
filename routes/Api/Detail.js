@@ -1,10 +1,9 @@
 import React from 'react'
 
-import { Row, Col, Button, Popconfirm } from 'antd';
+import { Row, Col, Button, Popconfirm, message } from 'antd';
 import PageHeader from 'ant-design-pro/lib/PageHeader';
 import DescriptionList from 'ant-design-pro/lib/DescriptionList';
 import { Route } from 'react-router-dom';
-
 import InputInline from '../../common/Input';
 import TagManager from '../../common/TagManager';
 import PermissionCard from '../../components/Application/ApiDetail/PermissionCard';
@@ -12,6 +11,10 @@ import ParamsCard from '../../components/Application/ApiDetail/ParamsCard';
 import { getServicesApi, queryTags, changeApiProperty, createTag, removeServiceApi } from '../../services/api'
 import { getAppInfo } from '../../services/appdetail'
 import constants from '../../services/constants'
+import Ellipsis from 'ant-design-pro/lib/Ellipsis';
+import { getupstream } from '../../services/domainList';
+
+import { base } from '../../services/base';
 
 const { Description } = DescriptionList;
 
@@ -31,7 +34,7 @@ class ApiDetail extends React.Component {
     tabList.forEach(t => {
       if (props.location.pathname.indexOf(t.key) > 0) tabActiveKey = t.key;
     })
-
+    this.upstream = '';
     this.state = {
       appName: '',
       apiName: '',
@@ -46,9 +49,11 @@ class ApiDetail extends React.Component {
       tags: [],
       allTags: [],
       tabActiveKey: tabActiveKey,
+      obj: {},
+      clustersName: ''
     }
 
-    this.appId = props.match.params.appId;
+    this.appId = '0';
     this.apiId = props.match.params.apiId;
 
     this._onTabChange = this._onTabChange.bind(this);
@@ -56,37 +61,73 @@ class ApiDetail extends React.Component {
     this._onApiDescriptionChangeCommit = this._onApiDescriptionChangeCommit.bind(this);
   }
 
+
   componentDidMount() {
 
-    Promise.all([getAppInfo(this.appId), getServicesApi(this.appId, this.apiId), queryTags(this.appId)])
-      .then((response) => {
-        var obj = {};
-        obj.appName = response[0].name;
-        obj.avatar = response[0].icon;
-        obj.apiName = response[1].name;
-        obj.httpMethod = response[1].methods;
-        obj.uri = response[1].uri;
-        obj.ctx = response[1].ctx;
-        obj.visibility = response[1].visibility;
-        obj.desc = response[1].desc;
-        obj.upstreamConnectTimeout = response[1].upstreamConnectTimeout;
-        obj.upstreamSendTimeout = response[1].upstreamReadTimeout;
-        obj.upstreamReadTimeout = response[1].upstreamSendTimeout;
-        obj.allTags = response[2] || [];
-        if (response[1].tagName) {
-          var tagArr = response[1].tagName.split(',');
-          var tags = [];
-          tagArr.forEach((element) => {
-            for (var n = 0; n < obj.allTags.length; n++) {
-              if (element === obj.allTags[n].name) {
-                tags.push(obj.allTags[n]);
+    //查询服务详情可以不用传应用ID，所以想暂时先写是一个0
+    getServicesApi('0', this.apiId).then(res => {
+      var obj = {};
+      obj.code = res.code;
+      obj.apiName = res.name;
+      obj.httpMethod = res.methods;
+      obj.uri = res.uri;
+      obj.ctx = res.ctx;
+      obj.visibility = res.visibility;
+      obj.desc = res.desc;
+      obj.upstreamConnectTimeout = res.upstreamConnectTimeout;
+      obj.upstreamSendTimeout = res.upstreamSendTimeout;
+      obj.upstreamReadTimeout = res.upstreamReadTimeout;
+      this.appId = res.groupId;
+      getAppInfo(this.appId).then(data => {
+        this.upstream = data.upstream
+        obj.upstream = data.upstream
+        obj.appName = data.name;
+        obj.avatar = data.icon;
+        queryTags(this.appId).then(datas => {
+          obj.allTags = datas || [];
+          if (res.tagName) {
+            var tagArr = res.tagName.split(',');
+            var tags = [];
+            tagArr.forEach((element) => {
+              for (var n = 0; n < obj.allTags.length; n++) {
+                if (element === obj.allTags[n].name) {
+                  tags.push(obj.allTags[n]);
+                }
               }
-            }
-          });
-          obj.tags = tags;
-        }
-        this.setState(obj);
+            });
+            obj.tags = tags;
+          }
+          this.setState(obj);
+          this.setState({ obj: obj })
+        }).catch(err => {
+          this.setState(obj)
+        })
+
+        //获取服务所属集群
+        let index = this.upstream.indexOf("//");
+        let upstream = this.upstream.substr(index + 2);
+        getupstream(upstream).then(data => {
+          if (data) {
+            let targets = data.targets;
+            let clusters = [];
+            targets.forEach(tar => {
+              if (tar.weight > 0) {
+                let cluster = tar.ip + ":" + tar.port;
+                clusters.push(cluster);
+              }
+
+            });
+
+            this.setState({
+              clustersName: clusters.toString()
+            })
+          }
+        });
+      }).catch(err => {
+        this.setState(obj)
       })
+    })
+
 
   }
 
@@ -96,7 +137,7 @@ class ApiDetail extends React.Component {
   //*************************************************************************** */
   _onTabChange(key) {
     let { history } = this.props;
-    history.push({ pathname: `/apps/${this.appId}/apis/${this.apiId}/${key}` });
+    history.push({ pathname: `/apis/${this.apiId}/${key}` });
     this.setState({ tabActiveKey: key });
   }
 
@@ -166,6 +207,7 @@ class ApiDetail extends React.Component {
 
   _onApiDescriptionChangeCommit(property) {
     var params = Object.assign({ upstreamConnectTimeout: this.state.upstreamConnectTimeout, upstreamSendTimeout: this.state.upstreamSendTimeout, upstreamReadTimeout: this.state.upstreamReadTimeout }, property)
+
     changeApiProperty(this.appId, this.apiId, params)
       .then((response) => {
         if (property.tags != null) {
@@ -174,12 +216,38 @@ class ApiDetail extends React.Component {
         this.setState(property)
       })
   }
+  onContextChange = (value) => {
+    let params = {
+      ctx: value
+    }
+    changeApiProperty(this.appId, this.apiId, params)
+      .then((response) => {
+        this.setState({ ctx: value })
+        message.success('修改上下文信息成功')
+      })
+  }
 
   _delete() {
-    debugger;
     removeServiceApi(this.appId, this.apiId)
       .then(() => {
         window.history.back();
+      })
+  }
+
+  //应用名称修改
+  onAppNameChangeCommit = (value) => {
+    var apiName = this.state.apiName;
+    this.setState({
+      apiName: value
+    })
+    changeApiProperty(this.appId, this.apiId, { name: value })
+      .then((response) => {
+
+      })
+      .catch((e) => {
+        this.setState({
+          apiName: apiName
+        })
       })
   }
   //*************************************************************************** */
@@ -190,7 +258,7 @@ class ApiDetail extends React.Component {
       <Row type={'flex'} justify="end">
         <Col>
           <div style={{ color: 'rgba(0, 0, 0, 0.43)' }}>状态</div>
-          <div style={{ color: 'rgba(0, 0, 0, 0.85)', fontSize: 20 }}>NULL</div>
+          <div style={{ color: 'rgba(0, 0, 0, 0.85)', fontSize: 20 }}>未知</div>
         </Col>
       </Row>
     )
@@ -200,27 +268,57 @@ class ApiDetail extends React.Component {
     return (
       <DescriptionList size="small" col="2">
         <Description term="所属应用">{this.state.appName}</Description>
-        <Description term="上下文">{this.state.ctx}</Description>
+        {/* <Description term="上下文">{this.state.ctx?this.state.ctx:'/'}</Description> */}
+        <Description term="上下文">
+          {base.allpermissions.includes('service_edit') ?
+            <InputInline inputWidth={120}
+              value={this.state.ctx}
+              onChange={this.onContextChange}
+              dataType={'Input'} mode={'inline'}
+              defaultNullValue={'/'} />:this.state.ctx}
+        </Description>
+        <Description term="HTTP Method">{this.state.httpMethod}</Description>
+        <Description term="所属集群">{this.state.clustersName || '--'}</Description>
+        <Description term="请求路径"><Ellipsis lines={1} tooltip>{this.state.uri}</Ellipsis></Description>
       </DescriptionList>
     )
   }
 
   renderTitle() {
     return (
-      <Row type={'flex'}>
-        <Row type={'flex'}>{"服务名称："}<InputInline value={this.state.apiName} onChange={this.onAppNameChangeCommit} dataType={'Input'} mode={'inline'} defaultNullValue={'暂无'} rule={{ required: true }} /></Row>
-        <TagManager selectedTags={this.state.tags} allTags={this.state.allTags} onVisibleChange={() => null} onChange={this._onTagsManagerChange} />
-      </Row>
+      base.allpermissions.includes('service_edit') ?
+        <InputInline
+          title={'服务名称'}
+          onChange={this.onAppNameChangeCommit}
+          editing={this.state.editing}
+          value={this.state.apiName}
+          dataType={'Input'}
+          mode={'inline'}
+          defaultNullValue={'暂无'}
+          rule={{ required: true }}
+          renderExtraContent={() => {
+            return (<TagManager style={{ marginLeft: 10 }} selectedTags={this.state.tags} allTags={this.state.allTags} onVisibleChange={() => null} onChange={this._onTagsManagerChange} />)
+          }}
+        /> : ''
     )
+    // return (
+    //   <div style={{ display: 'flex', height: 'auto' }}>
+    //     <InputTag title={'服务名称'} value={this.state.apiName} onChange={this.onAppNameChangeCommit} dataType={'Input'} mode={'inline'} defaultNullValue={'暂无'} rule={{ required: true }} selectedTags={this.state.tags} allTags={this.state.allTags} onVisibleChange={() => null} onTagChange={this._onTagsManagerChange} />
+    //   </div>
+    // )
   }
 
   render() {
+    const action = <div>
+      <Popconfirm title="确认删除?" onConfirm={() => this._delete()}><Button type="danger">删除</Button></Popconfirm>
+    </div>
+
     return (
       <div style={{ margin: '-24px -24px 0' }}>
         <PageHeader
           title={this.renderTitle()}
           logo={<img alt="" src={constants.PIC.service} />}
-          action={<Popconfirm title="确认删除?" onConfirm={() => this._delete()}><Button>删除</Button></Popconfirm>}
+          action={base.allpermissions.includes('service_delete') ? action : ''}
           content={this.renderconstDescription()}
           extraContent={this.renderExtra()}
           tabList={tabList}
@@ -228,9 +326,9 @@ class ApiDetail extends React.Component {
           onTabChange={this._onTabChange}
         />
 
-        <Route path="/apps/:appId/apis/:apiId" render={() => <ParamsCard appId={this.appId} apiId={this.apiId} />} exact />
-        <Route path="/apps/:appId/apis/:apiId/params" render={() => <ParamsCard appId={this.appId} apiId={this.apiId} />} />
-        <Route path="/apps/:appId/apis/:apiId/permission" render={() => <PermissionCard appId={this.appId} apiId={this.apiId} />} />
+        <Route path="/apis/:apiId" render={() => <ParamsCard obj={this.state.obj} appId={this.appId} apiId={this.apiId} />} exact />
+        <Route path="/apis/:apiId/params" render={() => <ParamsCard obj={this.state.obj} appId={this.appId} apiId={this.apiId} />} />
+        <Route path="/apis/:apiId/permission" render={() => <PermissionCard appId={this.appId} apiId={this.apiId} />} />
       </div>
     )
   }

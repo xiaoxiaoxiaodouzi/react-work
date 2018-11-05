@@ -14,10 +14,10 @@ const statusMap = {
   update:'processing',
   delete:'error'
 }
+//弹窗显示环境变量变更信息，确认是否修改其他模块变更并重启应用
 export default function showConfirmModal(nextOperation,cancelOperation,args){
   const { appCode,containerName } = args; 
   queryEnvs(appCode,containerName).then((data)=>{
-    //console.log("appenvs",data);
     let newData = [];
     if(data){
       newData = data.filter(element => element.operateWay !=='effect');

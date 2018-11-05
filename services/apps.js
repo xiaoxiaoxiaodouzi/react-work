@@ -58,7 +58,7 @@ export function queryCategorys(){
 
 //校验应用id和name是否存在 
 export function checkIdName(bodyParams,queryParams){
-  return C2Fetch.post(proxy+'aip/v1/apps/1/checkexist',bodyParams,queryParams,"校验失败！");
+  return C2Fetch.post(proxy+'aip/v1/checkappexist',bodyParams,queryParams,"校验失败！");
 }
 
 //校验应用code是否存在 
@@ -72,5 +72,5 @@ export function queryAppInfo(application){
 }
 //查询应用信息 
 export function queryAppCount(params){
-  return C2Fetch.get(proxy+'/aip/v2/appcount',params,"获取应用信息失败");
+  return C2Fetch.get(proxy+'aip/v2/appcount',params,"获取应用信息失败");
 }

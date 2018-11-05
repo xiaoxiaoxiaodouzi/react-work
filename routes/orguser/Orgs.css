@@ -1,0 +1,135 @@
+/*Ant Design3.0.0版本将基础字体由12px变为14px*/
+/**样式调整开始**/
+/*.ant-advanced-search-form {
+  padding: 24px;
+  background: #fbfbfb;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+}*/
+
+.search-result-list {
+  margin-top: 12px;
+}
+
+/*.table-tool-bar .ant-btn {
+  margin-left: 8px;
+}*/
+
+#user-form-inline .ant-form-inline .ant-form-item {
+  
+    display: inline-block;
+    margin-right: 0px;
+    margin-bottom: 20px;
+    width: 50%;
+}
+
+.formOrg{
+	color: rgba(0, 0, 0, 0.85);
+	font-size: 12px;
+	margin-left: 22px;
+	margin-bottom: 20px;
+}
+
+.search-item-name {
+	float:left;
+	width:30px;
+	margin-right:20px;
+ 	color: #999;
+}
+
+.search-item-org{
+	float:right;
+	color: #999;
+}
+
+.search-item-count{
+	float:left;
+	margin-right:20px;
+	color: #999;
+}
+
+/*
+.certain-category-search-dropdown .ant-select-dropdown-menu-item-group-title {
+  color: #666;
+  font-weight: bold;
+}
+
+.certain-category-search-dropdown .ant-select-dropdown-menu-item-group {
+  border-bottom: 1px solid #F6F6F6;
+}
+
+.certain-category-search-dropdown .ant-select-dropdown-menu-item {
+  padding-left: 16px;
+}
+
+.certain-category-search-dropdown .ant-select-dropdown-menu-item.show-all {
+  text-align: center;
+  cursor: default;
+}
+
+.certain-category-search-dropdown .ant-select-dropdown-menu {
+  max-height: 300px;
+  overflow:auto
+}
+
+.delTenant{
+	color: red;
+  margin-right: 10px;
+  position: relative;
+  top: -5px;
+  cursor: pointer;
+}*/
+
+/*
+.user-selected-tags .ant-tag{margin: 10px 10px 0 0;}
+.authAppDiv .ant-checkbox-group{
+  padding-left: 15px;
+}
+.authAppDiv label.ant-checkbox-wrapper{
+  font-weight: normal;
+  margin-bottom: 5px;
+}
+.authAppDiv .ant-checkbox-group label.ant-checkbox-wrapper{
+  margin-left: 8px;
+}
+*/
+.authAppDiv button{
+  float:right;
+  margin-right: 10px;
+  display: none;
+}
+.authAppDiv.allBtn:hover button{
+  display: block;
+}
+#org-user-hr hr{
+  border: 0;
+  border-top: 1px solid #eee;
+  margin: 0px 0px 5px;
+}
+
+
+.orgTableList .ant-form-item {
+  margin-bottom: 24px;
+  margin-right: 0;
+  display: flex;
+}
+
+.orgTableList .ant-form-item> .ant-form-item-label {
+  width: auto;
+ /* line-height: 32px;*/
+
+}
+.orgTableList .ant-form-item-control-wrapper {
+  flex: 1;
+}
+.orgTableList .submitButtons {
+  white-space: nowrap;
+  margin-bottom: 24px;
+} 
+
+/*.viewFramework-product-navbar {
+  box-shadow: 2px 0 2px #ccc;
+}*/
+.viewFramework-product-body {
+  background-color:#f0f2f5;
+}

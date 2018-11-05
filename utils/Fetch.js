@@ -1,7 +1,11 @@
-import fetch from "isomorphic-fetch";
+import isoFetch from "isomorphic-fetch";
 import { message } from "antd";
 import { base } from '../services/base'
 
+
+//覆盖原生的fetch方法，解决mock不生效的问题
+// eslint-disable-next-line
+fetch = isoFetch;
 /**
  * 将对象转为'key=value'字符串数组，用来拼接到url上。
  * 对象值为数组也能处理成key=a&key=b
@@ -41,7 +45,12 @@ const responseHandle = (response, errorMessage) => {
         // }else
         //如果返回内容为空，返回一个空的Promise对象，确保能够正确进入then的回调
         if (response.status === 204) return new Promise((resolve, reject) => { resolve() });
-        else return response.json();
+        else {
+            if (response.headers.get('Content-Type').indexOf('application/json') !== -1) {
+                return response.json();
+            }
+            return response.text();
+        }
     } else return remoteErrorHandle(errorMessage, response);
 }
 /**
@@ -78,7 +87,7 @@ const remoteErrorHandle = (errorMessage, response, defaultMessage) => {
                 throw error;
             }
         }
-        
+
     })
 }
 
@@ -91,7 +100,7 @@ message.config({
     top: 24,
     duration: 2,
     maxCount: 1
-  });
+});
 
 class C2Fetch {
     static urlBase = "";
@@ -99,17 +108,17 @@ class C2Fetch {
         let queryParams = getQueryParams(params);
         let queryUrl = queryParams.length > 0 ? "?" + queryParams.join("&") : "";
         let ampEnvId = getAmpEnvId();
-        if(headers&&headers['AMP-ENV-ID'])ampEnvId=headers['AMP-ENV-ID'];
+        if (headers && headers['AMP-ENV-ID']) ampEnvId = headers['AMP-ENV-ID'];
         let httpHeaders = { 'accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': ampEnvId };
-        return fetch(this.urlBase + url + queryUrl, { credentials: "include", headers:httpHeaders  }).then(response => responseHandle(response, errorMessage));
+        return fetch(this.urlBase + url + queryUrl, { credentials: "include", headers: httpHeaders }).then(response => responseHandle(response, errorMessage));
     }
     static post(url, bodyParams, queryParams, errorMessage) {
         let parray = getQueryParams(queryParams);
         let queryUrl = parray.length > 0 ? "?" + parray.join("&") : "";
         return fetch(this.urlBase + url + queryUrl, {
             method: "POST", credentials: "include",
-            headers: { 'accept': 'application/json','Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': getAmpEnvId() },
-            body: JSON.stringify(bodyParams)
+            headers: { 'accept': 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': getAmpEnvId() },
+            body: typeof bodyParams === 'string' ? bodyParams : JSON.stringify(bodyParams)
         }).then(response => responseHandle(response, errorMessage));
     }
     static put(url, bodyParams, queryParams, errorMessage) {
@@ -128,6 +137,23 @@ class C2Fetch {
             method: "DELETE", credentials: "include",
             headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': getAmpEnvId() }
         }).then(response => responseHandle(response, errorMessage));
+    }
+
+    /**
+     * 
+     * @param {String} url 下载url,必须返回一个文件流
+     * @param {String} fileName 下载的文件名称
+     */
+    static download(url,fileName){
+        let httpHeaders = {'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': getAmpEnvId() };
+        fetch(url,{headers:httpHeaders}).then(res=>res.blob().then(blob=>{
+            var link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            // var filename = res.headers.get('Content-Disposition');
+            link.download = fileName;
+            link.click();
+            window.URL.revokeObjectURL(link.href);
+        }));
     }
 }
 

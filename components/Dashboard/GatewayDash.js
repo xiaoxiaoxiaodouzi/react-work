@@ -1,16 +1,20 @@
 import React,{PureComponent,Fragment} from 'react';
-import {base} from '../../services/base'
-import { Row,Col,Card,Table,Tooltip as AntdTooltip } from 'antd';
+import {base} from '../../services/base';
+import { withRouter } from 'react-router-dom';
+import { Row,Col,Card,Table,Tooltip as AntdTooltip,Modal,message } from 'antd';
 import { Chart, Geom, Axis, Tooltip } from 'bizcharts';
 import moment from 'moment';
-import Exception from 'ant-design-pro/lib/Exception';
+import LoadingComponent from '../../common/LoadingComponent';
+import {GlobalHeaderContext} from '../../context/GlobalHeaderContext'
 import { getServicecalltimes,getServiceavgtimes,getAppMonit,getApigatewayApp } from '../../services/monitor';
+import {getApp} from '../../services/dashApi';
 import './Overview.less';
+const confirm = Modal.confirm;
 
 const scale = {
   date:{
     type:'timeCat',
-    mask:'HH:mm',
+    mask:'MM-DD',
   },
   avgtime: {
     min: 0,
@@ -31,35 +35,54 @@ const getEvn = (evns,id)=>{
 }
 
 let lastActiveEnvId;
-export default class GatewayDash extends PureComponent {
+class GatewayDash extends PureComponent {
   state = {
     serviceAvgtimes:[],
     serviceCalltimes:[],
     data:[],
     environments:[],
     evnGetwayInstances:[],
-    getwayInstancesTableLoading:true
+    getwayInstancesTableLoading:true,
+    loading:false,
   };
   componentDidMount(){
     //环境
     base.getEnvironments().then(envs=>{
       let activeEnv;
-      if(envs.length>0)activeEnv=envs[0].id
-      this.setState({environments:envs,activeEnv});
+      if(envs.length>0){
+        envs.forEach(element=>{
+          if(this.props.environment === element.id){
+            activeEnv = element.id
+          }
+        })
+        if(!activeEnv){
+          activeEnv = envs[0].id
+        }
+        this.setState({environments:envs,activeEnv});
+      }
+      let env = getEvn(envs,activeEnv);
+      lastActiveEnvId = env.id;
     });
-
-    let st = moment().subtract(1,'month').format('x');
-    let et = moment().add(1,'day').format('x');
-    getServiceavgtimes({startTime:st,endTime:et,aggregate:false,rownum:7}).then(data=>{
-      this.setState({serviceAvgtimes:data});
+  }
+  showConfirm=(service)=> {
+    confirm({
+      title: '该服务未部署在当前环境中，是否切换环境并查看服务详情?',
+      onOk:()=> {
+      }
     });
-    getServiceavgtimes({startTime:st,endTime:et,aggregate:true}).then(data=>{
-      // console.log('data',data);
-      this.setState({ data:data.slice(0,7) });
-    });
-    getServicecalltimes({startTime:st,endTime:et,aggregate:false,rownum:7}).then(data=>{
-      this.setState({serviceCalltimes:data});
-    });
+  }
+  onServiceDetail=(service)=>{
+    if(this.state.activeEnv === this.props.environment){
+      getApp(service.groupId).then(data=>{
+        if(data){
+          this.props.history.push({ pathname: `/apis/${service.id}` });
+        }
+      }).catch(err=>{
+        message.error('当前环境下不存在该应用')
+      })
+    }else{
+      message.error('该服务未部署在当前环境中，无法查看服务详情，请切换全局环境后在点击查看')
+    }
   }
   renderTabContent=()=>{
     if(this.state.activeEnv&&this.state.activeEnv!==lastActiveEnvId){
@@ -83,6 +106,25 @@ export default class GatewayDash extends PureComponent {
           });
         }
       });
+      this.setState({ loading:true });
+      let st = moment().subtract(1,'month').format('x');
+      let et = moment().add(1,'day').format('x');
+      getServiceavgtimes({startTime:st,endTime:et,aggregate:false,rownum:7},{'AMP-ENV-ID':lastActiveEnvId}).then(data=>{
+        this.setState({serviceAvgtimes:data});
+      }).catch(err=>{
+        this.setState({serviceAvgtimes:[]});
+      });
+      getServiceavgtimes({startTime:st,endTime:et,aggregate:true},{'AMP-ENV-ID':lastActiveEnvId}).then(data=>{
+        console.log('xxx',data.slice(0,7));
+        this.setState({ data:data.slice(0,7),loading:false });
+      }).catch(err=>{
+        this.setState({ data:[],loading:false });
+      });
+      getServicecalltimes({startTime:st,endTime:et,aggregate:false,rownum:7},{'AMP-ENV-ID':lastActiveEnvId}).then(data=>{
+        this.setState({serviceCalltimes:data});
+      }).catch(err=>{
+        this.setState({serviceCalltimes:[]});
+      });
     }
 
     const { serviceAvgtimes,serviceCalltimes,data } = this.state;
@@ -91,62 +133,82 @@ export default class GatewayDash extends PureComponent {
       dataIndex: 'tname',
       width:'20%',
     }, {
-      title: 'CPU使用率',
+      title: 'CPU使用率(%)',
       dataIndex: 'cpu',
       width:'20%',
     }, {
-      title: '内存使用率',
+      title: '内存使用率(%)',
       dataIndex: 'memory',
       width:'20%',
     }, {
-      title: '流入速率',
+      title: '流入速率(kb/s)',
       dataIndex: 'rx',
       width:'20%',
+      render:(text,record)=>{
+        if(text){
+          return text.toFixed(2);
+        }else{
+          return text
+        }
+      }
     }, {
-      title: '流出速率',
+      title: '流出速率(kb/s)',
       dataIndex: 'tx',
       width:'20%',
+      render:(text,record)=>{
+        if(text){
+          return text.toFixed(2);
+        }else{
+          return text
+        }
+      }
     }];
+    const chart = (
+      <Chart padding={[ 20, 80, 80, 80]}
+        height={320} scale={scale} forceFit data={data} >
+        <Axis
+          name="avgtime" title
+          grid={null}
+          label={{
+            textStyle:{
+              fill: '#fdae6b'
+            }
+          }} />
+        <Axis title 
+          name="times" />
+        <Tooltip />
+        <Geom type="interval" position="date*times"/>
+        <Geom tooltip={['date*avgtime', (date, avgtime) => {
+          return {
+            //自定义 tooltip 上显示的 title 显示内容等。
+            name:'平均响应时间',
+            value:avgtime+'ms'
+          };
+          }]} type="line" position="date*avgtime" color="#fdae6b" size={3} shape="smooth" />
+        <Geom tooltip={['date*avgtime', (date, avgtime) => {
+          return {
+            //自定义 tooltip 上显示的 title 显示内容等。
+            name:'平均响应时间',
+            value:avgtime+'ms'
+          };
+          }]} type="point" position="date*avgtime" color="#fdae6b" size={3} shape="circle" />
+      </Chart>
+    )
     // const topColResponsiveProps = { xs:24,sm:12,md:12,lg:12,xl:6,style:{ marginBottom: 24 }};
     return (
       <Fragment>
-        <Table dataSource={this.state.evnGetwayInstances} loading={false} columns={columns} pagination={false} />
+        <Table dataSource={this.state.evnGetwayInstances} columns={columns} pagination={false} />
         <Row style={{marginTop:24}}>
           <Col xl={12} lg={12} md={12} sm={24} xs={24}>
             <div className={'salesBar'}>
             <h4 className={'rankingTitle'}>周服务统计</h4>
-            { data.length > 0 ?
-              <Chart padding={[ 20, 80, 80, 80]}
-                height={320} scale={scale} forceFit data={data} >
-                <Axis
-                  name="avgtime" title
-                  grid={null}
-                  label={{
-                    textStyle:{
-                      fill: '#fdae6b'
-                    }
-                  }} />
-                <Axis title 
-                  name="times" />
-                <Tooltip />
-                <Geom type="interval" position="date*times"/>
-                <Geom tooltip={['date*avgtime', (date, avgtime) => {
-                  return {
-                    //自定义 tooltip 上显示的 title 显示内容等。
-                    name:'平均响应时间',
-                    value:avgtime+'ms'
-                  };
-                  }]} type="line" position="date*avgtime" color="#fdae6b" size={3} shape="smooth" />
-                <Geom tooltip={['date*avgtime', (date, avgtime) => {
-                  return {
-                    //自定义 tooltip 上显示的 title 显示内容等。
-                    name:'平均响应时间',
-                    value:avgtime+'ms'
-                  };
-                  }]} type="point" position="date*avgtime" color="#fdae6b" size={3} shape="circle" />
-              </Chart> :
-              <Exception style={{height:280}} title={<span style={{fontSize:40}}>无数据</span>} desc="服务统计暂无数据" img="images/exception/404.svg" actions={<div />} />
-            }
+            <LoadingComponent 
+              loadingText='周服务统计'
+              loading={this.state.loading} 
+              exceptionText='服务统计暂无数据'
+              exception={ data.length>0 ? false : true } >
+              {chart}
+            </LoadingComponent>
             </div>
           </Col>
           <Col xl={6} lg={6} md={6} sm={24} xs={24}>
@@ -156,7 +218,13 @@ export default class GatewayDash extends PureComponent {
                 {serviceCalltimes.map((item, i) => (
                   <li key={i}>
                     <span className={i < 3 ? 'active' : ''}>{i + 1}</span>
-                    <AntdTooltip title={item.service.name}><span>{item.service.name.length > 8 ? item.service.name.slice(0,8)+'...':item.service.name}</span></AntdTooltip>
+                    <AntdTooltip title={item.service.name}>
+                      <span 
+                        onClick={()=>this.onServiceDetail(item.service)} 
+                        style={{cursor:'pointer'}} >
+                        {item.service.name.length > 8 ? item.service.name.slice(0,8)+'...':item.service.name}
+                        </span>
+                    </AntdTooltip>
                     <span>{item.count}</span>
                   </li>
                 ))}
@@ -170,7 +238,13 @@ export default class GatewayDash extends PureComponent {
                 {serviceAvgtimes.map((item, i) => (
                   <li key={i}>
                     <span className={i < 3 ? 'active' : ''}>{i + 1}</span>
-                    <AntdTooltip title={item.service.name}><span>{item.service.name.length > 8 ? item.service.name.slice(0,8)+'...':item.service.name}</span></AntdTooltip>
+                    <AntdTooltip title={item.service.name}>
+                      <span 
+                        onClick={()=>this.onServiceDetail(item.service)} 
+                        style={{cursor:'pointer'}} >
+                        {item.service.name.length > 8 ? item.service.name.slice(0,8)+'...':item.service.name}
+                      </span>
+                    </AntdTooltip>
                     <span>{item.avgTime}ms</span>
                   </li>
                 ))}
@@ -184,7 +258,9 @@ export default class GatewayDash extends PureComponent {
   render() {
     let operationTabList = [];
     this.state.environments.forEach(env => {
-      operationTabList.push({key:env.id,tab:env.name});
+      if(base.currentEnvironment.isMain){
+        operationTabList.push({key:env.id,tab:env.name});
+      }
     });
     return (
         <Card
@@ -197,3 +273,8 @@ export default class GatewayDash extends PureComponent {
     );
   }
 }
+export default withRouter(props=>
+  <GlobalHeaderContext.Consumer>
+    {context=><GatewayDash {...props} environment={context.environment} changeEnv={context.changeEnvironment}/>}
+  </GlobalHeaderContext.Consumer>
+)

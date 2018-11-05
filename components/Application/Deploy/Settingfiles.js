@@ -1,6 +1,8 @@
 import React, { PureComponent } from 'react';
 import showConfirmModal from './ShowConfirmModal';
-import { Button,Table,Modal,Form,Input,message,Divider } from 'antd';
+import { Button,Table,Modal,Form,Input,Divider } from 'antd';
+import { base } from '../../../services/base';
+import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
 const FormItem = Form.Item;
 /* 部署页面配置文件,props(configs,aftersetting)
  * configs arr 配置文件数据
@@ -104,9 +106,7 @@ class Settingfiles extends PureComponent {
   }
   saveCMD = ()=>{
     const { startCmd } = this.state;
-    if(!!startCmd && (startCmd.indexOf(' ')<1 || startCmd.indexOf(' ')===startCmd.length-1)){
-      message.error("启动命令格式有误，请重新输入");
-    }else{
+    if(startCmd){
       this.setState({loadSave:false,tempCmd:startCmd});
       this.showConfirmStartCMD();
     }
@@ -233,6 +233,7 @@ class Settingfiles extends PureComponent {
     this.props.isAddApp?this.handleModalOk():this.showConfirmAddOrEdit();
   }
   render() {
+    const Authorized = RenderAuthorized(base.allpermissions);
     const { data,loadSave,startCmd,visibleModal,content,path,titleModal } = this.state;
     const formItemLayout = {
       labelCol: {
@@ -257,9 +258,13 @@ class Settingfiles extends PureComponent {
       render: (text, record) => {
         return (
           <span>
-            <a onClick={e => this.editSettingfile(e,record.key)}>编辑</a>
+             <Authorized authority='app_editConfigFile' noMatch={<a disabled="true" onClick={e => this.editSettingfile(e,record.key)}>编辑</a>}>
+              <a onClick={e => this.editSettingfile(e,record.key)}>编辑</a>
+            </Authorized>
             <Divider type="vertical" />
-            <a onClick={e =>this.props.isAddApp?this.remove(record.key):this.showConfirmDelete(record.key)}>删除</a>
+            <Authorized authority='app_deleteConfigFile' noMatch={<a disabled="true" onClick={e =>this.props.isAddApp?this.remove(record.key):this.showConfirmDelete(record.key)}>删除</a>}>
+              <a onClick={e =>this.props.isAddApp?this.remove(record.key):this.showConfirmDelete(record.key)}>删除</a>
+            </Authorized>
           </span>
         );
       },
@@ -267,19 +272,21 @@ class Settingfiles extends PureComponent {
     return (
       <div>
         <div className="card-title">配置文件</div>
-        <Button style={{marginBottom: 16}} type="primary" 
-          onClick={() => 
-            this.setState({
-              titleModal:'add',
-              visibleModal:true,
-              editKey:null,
-              path:'',
-              content:'',
-              validatePath:null,
-              validateContent:null,
-              helpPath:null,
-              helpContent:null
-            })}>新增</Button>
+        <Authorized authority='app_addConfigFile' noMatch={null}>
+          <Button style={{marginBottom: 16}} type="primary" 
+            onClick={() => 
+              this.setState({
+                titleModal:'add',
+                visibleModal:true,
+                editKey:null,
+                path:'',
+                content:'',
+                validatePath:null,
+                validateContent:null,
+                helpPath:null,
+                helpContent:null
+              })}>新增</Button>
+        </Authorized>
         <Modal 
           title={titleModal ==='add'?"新增配置文件":"编辑配置文件"}
           visible={visibleModal}
@@ -315,7 +322,7 @@ class Settingfiles extends PureComponent {
           this.props.hidecmd?"":
             <div style={{ marginTop: 24 }}>
               <span>启动命令:</span>
-              <Input style={{ marginLeft:8,width:400 }} value={startCmd} onChange={this.onCMDChange} placeholder="容器启动命令"/>              
+              <Input style={{ marginLeft:8,width:400 }} value={startCmd} onChange={this.onCMDChange} placeholder="示例：systemctl restart docker"/>              
               {loadSave?<Button type='primary' onClick={this.saveCMD} style={{ marginLeft: 16 }}>保存</Button>:''}
             </div>
         }

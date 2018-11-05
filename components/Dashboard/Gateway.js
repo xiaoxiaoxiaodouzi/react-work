@@ -12,37 +12,38 @@ export default class Gateway extends PureComponent {
 
   componentDidMount(){
     getApigatewayApp(base.tenant).then(data=>{
-      getAppMonit(data.contents[0].id).then(data=>{
-        let gateway = {
-          gatewayNormal:0,
-          gatewayWarning:0,
-          gatewayError:0,
-          gateWayTotal:0
-        };
-        //this.props.onGetGatewayData(gateway);
-        if(data && data.containers){
-          let getwayInstances = data.containers;
-          //console.log('getwayInstancesb',getwayInstances);
-          getwayInstances.forEach(element => {
-            if(element.cpu < constants.PROGRESS_STATUS[0] && element.memory < constants.PROGRESS_STATUS[0]){
-              gateway.gatewayNormal ++;
-            }else if(
-              (element.cpu >= constants.PROGRESS_STATUS[0] 
-              && element.cpu < constants.PROGRESS_STATUS[1])
-              || (element.memory >= constants.PROGRESS_STATUS[0] 
-              && element.memory < constants.PROGRESS_STATUS[1])
-            ){
-              gateway.gatewayWarning ++;  
-            }else{
-              gateway.gatewayError ++;
-            }
-          });
-          if(getwayInstances.length>0)this.setState({operationkey:getwayInstances[0].name});
-          this.setState({getwayInstances});
-          gateway.gateWayTotal = getwayInstances.length;
-          this.props.onGetGatewayData(gateway);
-        }
-      });
+      if(data && data.contents && data.contents.length > 0){
+        getAppMonit(data.contents[0].id).then(data=>{
+          let gateway = {
+            gatewayNormal:0,
+            gatewayWarning:0,
+            gatewayError:0,
+            gateWayTotal:0
+          };
+          //this.props.onGetGatewayData(gateway);
+          if(data && data.containers){
+            let getwayInstances = data.containers;
+            getwayInstances.forEach(element => {
+              if(element.cpu < constants.PROGRESS_STATUS[0] && element.memory < constants.PROGRESS_STATUS[0]){
+                gateway.gatewayNormal ++;
+              }else if(
+                (element.cpu >= constants.PROGRESS_STATUS[0] 
+                && element.cpu < constants.PROGRESS_STATUS[1])
+                || (element.memory >= constants.PROGRESS_STATUS[0] 
+                && element.memory < constants.PROGRESS_STATUS[1])
+              ){
+                gateway.gatewayWarning ++;  
+              }else{
+                gateway.gatewayError ++;
+              }
+            });
+            if(getwayInstances.length>0)this.setState({operationkey:getwayInstances[0].name});
+            this.setState({getwayInstances});
+            gateway.gateWayTotal = getwayInstances.length;
+            this.props.onGetGatewayData(gateway);
+          }
+        });
+      }
     });
   }
 

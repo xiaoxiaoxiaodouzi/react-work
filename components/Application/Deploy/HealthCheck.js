@@ -1,14 +1,14 @@
 import React, { PureComponent } from 'react';
-import { Switch,Modal,Form,Input,InputNumber } from 'antd';
+import { Switch,Modal,Form,Input,InputNumber,message } from 'antd';
 
 const confirm = Modal.confirm;
 const FormItem = Form.Item;
 class Component extends PureComponent {
   state = {
     visibleModal:false,
+    healthChecked:false,
   };
   componentDidMount() {
-    //console.log('healthcheck',this.props.probe);
     if(this.props.probe){
       this.setState({healthChecked:true});
     }else{
@@ -16,7 +16,6 @@ class Component extends PureComponent {
     }
   }
   componentWillReceiveProps(nextProps) {
-    //console.log('healthcheck11',nextProps.probe);
     if(nextProps.probe){
       this.setState({healthChecked:true});
     }else{
@@ -33,6 +32,10 @@ class Component extends PureComponent {
     });
   }
   handleHealtchClick = ()=>{
+    if(!this.props.container){
+      message.error('未填写容器名称，请先填写再开启健康检查');
+      return;
+    }
     if(!this.state.healthChecked){
       this.setState({visibleModal:true});
       const { setFieldsValue } = this.props.form;
@@ -72,7 +75,6 @@ class Component extends PureComponent {
     const { validateFields } = this.props.form;
     validateFields((error, values) => {
       if (!error) {
-        //console.log('ok',values);
         if(values.interface){
           let probe = {
             id: Math.random(),
@@ -109,7 +111,7 @@ class Component extends PureComponent {
   checkPath = ()=>{
     const { getFieldValue } = this.props.form;
      // eslint-disable-next-line
-    let patt = /^\/[0-9a-zA-Z\u4e00-\u9fa5.\/_-]*[0-9a-zA-Z\u4e00-\u9fa5_.\/-]+$/;
+    let patt = /\/[^\s]*/;
     if(getFieldValue('interface') && !patt.test(getFieldValue('interface'))){
       this.setState({
         validatePath:'error',
@@ -136,7 +138,8 @@ class Component extends PureComponent {
     };
     return (
       <div>
-        <Switch style={{marginRight:16}} 
+        <Switch style={{marginRight:16}}
+          disabled={this.props.disabled} 
           checkedChildren="开" unCheckedChildren="关" checked={healthChecked} 
           onClick={this.handleHealtchClick} />
         {healthChecked?<a style={{fontSize:14}} onClick={this.onOpenModal}>修改</a>:''}
@@ -154,14 +157,14 @@ class Component extends PureComponent {
                 )}
               </FormItem>
               <FormItem {...formItemLayout} 
-                label="初始延时">
+                label="初始延时(s)">
                 {getFieldDecorator('delay', {
                   rules: [{ required: true, message: '请输入初始延时' }],
                 })(
                   <InputNumber min={1} max={10000} style={{width:'100%'}} />
                 )}
               </FormItem>
-              <FormItem {...formItemLayout} label="周期">
+              <FormItem {...formItemLayout} label="周期(s)">
                 {getFieldDecorator('period', {
                   rules: [{ required: true, message: '请输入周期' }],
                 })(
@@ -190,7 +193,7 @@ const Antdes = Form.create({
         path = props.probe.httpGet.path;
         portNumber = props.probe.httpGet.port.intVal;
       }else{
-        portNumber = props.probe.tcpSocket.port.intVal;
+        portNumber = props.probe.tcpSocket?props.probe.tcpSocket.port.intVal:'';
       }
       return {
         portNumber: Form.createFormField({

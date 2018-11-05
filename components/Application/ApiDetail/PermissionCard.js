@@ -4,6 +4,10 @@ import Ellipsis from 'ant-design-pro/lib/Ellipsis';
 import { queryAppAIP } from '../../../services/apps';
 import DataFormate from '../../../utils/DataFormate';
 import { getApiGrationinfo, removeAppServer,addAppsToServer } from '../../../services/api'
+import { base } from '../../../services/base';
+import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+
+const Authorized = RenderAuthorized(base.allpermissions);
 export default class PermissionCard extends React.Component {
 
   constructor(props) {
@@ -21,7 +25,7 @@ export default class PermissionCard extends React.Component {
       searchText: null,
       appName:'',
       filterMethod: null,
-      pagination: { current: 1, total: 1, pageSize: 1, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, },
+      pagination: { current: 1, total: 1, showTotal: this.showTotal, pageSize: 1, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, },
     }
 
     this._removeApi = this._removeApi.bind(this);
@@ -32,7 +36,14 @@ export default class PermissionCard extends React.Component {
     this._addServerApis = this._addServerApis.bind(this);
     this._removeServerApis = this._removeServerApis.bind(this);
   }
-
+  showTotal = () => {
+		if (this.state.pagination) {
+			const { total, current,pageSize } = this.state.pagination;
+			return `共 ${total} 条记录  第 ${current}/${Math.ceil(total/pageSize)} 页 `;
+		} else {
+			return '';
+		}
+	}
   componentDidMount() {
     this._pullData( 1, 10);
   }
@@ -57,7 +68,7 @@ export default class PermissionCard extends React.Component {
 
     getApiGrationinfo(this.props.appId, this.props.apiId, page, rows, condition)
       .then((response) => {
-        let pagination = { current: response.pageIndex, total: response.total, pageSize: response.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, };
+        let pagination = { current: response.pageIndex, showTotal: this.showTotal, total: response.total, pageSize: response.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, };
         this.setState({
           dataSource: response.contents,
           pagination: pagination
@@ -66,7 +77,8 @@ export default class PermissionCard extends React.Component {
   }
 
   _getColumn() {
-    return [{
+
+    let cols =  [{
       title: '应用名称',
       dataIndex: 'name',
       key: 'name',
@@ -87,22 +99,28 @@ export default class PermissionCard extends React.Component {
     },
     {
       title: '应用描述',
-      dataIndex: 'description',
-      key: 'description',
+      dataIndex: 'desc',
+      key: 'desc',
       width: '45%',
-    }, {
-      title: '操作',
-      dataIndex: 'options',
-      key: 'options',
-      width: '15%',
-      render: (text, record) => {
-        return (
-          <div>
-            <a onClick={()=>{this._removeServerApis(record.id)}} style={{ marginLeft: 10 }}>取消授权</a>
-          </div>
-        )
-      }
     }];
+
+    if(base.allpermissions.includes('service_cancelAuthorization')){
+      cols.push({
+        title: '操作',
+        dataIndex: 'options',
+        key: 'options',
+        width: '15%',
+        render: (text, record) => {
+          return (
+            <div>
+              <a onClick={()=>{this._removeServerApis(record.id)}} style={{ marginLeft: 10 }}>取消授权</a>
+            </div>
+          )
+        }
+      })
+    }
+    
+    return cols;
   }
   getAllApps = (page,row,name)=>{
     let params = {
@@ -124,6 +142,11 @@ export default class PermissionCard extends React.Component {
         modalTotal:data.total,
       });
     });
+  }
+
+  _onCancel=()=>{
+    this.setState({  visibleModal:false,appName:'' })
+
   }
   _onChange(pagination, filters, sorter) {
     this._pullData( pagination.current, pagination.pageSize);
@@ -232,7 +255,6 @@ export default class PermissionCard extends React.Component {
     return obj;
   }
   onSelectChange = (selectedRowKeysModal) => {
-    console.log('aaa',selectedRowKeysModal);
     this.setState({ selectedRowKeysModal });
   }
   handleModalOk = ()=>{
@@ -252,7 +274,8 @@ export default class PermissionCard extends React.Component {
         this._pullData(1,10);
       });
     }
-    this.setState({visibleModal:false});
+    //this.setState({visibleModal:false});
+    this._onCancel();
   }
   render() {
     const columnsModal = [{
@@ -261,6 +284,7 @@ export default class PermissionCard extends React.Component {
     }, {
       title: '集群',
       dataIndex: 'clusterName',
+      render:(value,record) => value ? value:'--'
     }, {
       title: '运行时间',
       dataIndex: 'createtime',
@@ -273,7 +297,7 @@ export default class PermissionCard extends React.Component {
       current:this.state.modalPage,
       pageSize: this.state.modalRow,
       onChange:(current, pageSize) => {
-          this.getAllApps(current, pageSize);
+          this.getAllApps(current, pageSize,this.state.appName);
       },
     };  
     const rowSelectionModal = {
@@ -289,27 +313,34 @@ export default class PermissionCard extends React.Component {
           <Row>
             <Col span={10}>
               <Row type={'flex'} align='middle'>
-                <Col span={4}>应用名称:</Col><Col span={18}><Input onChange={(e) => { this.setState({ searchText: e.target.value }) }} value={this.state.searchText} placeholder="请输入" /></Col>
+                <Col span={4}>应用名称:</Col><Col span={18}>
+                  <Input onChange={(e) => { this.setState({ searchText: e.target.value }) }} 
+                    onPressEnter={() => this._search()}
+                    value={this.state.searchText} placeholder="请输入" />
+                  </Col>
               </Row>
             </Col>
             <Col>
               <Row type={'flex'} justify="end">
-                <Col><Button type="primary" onClick={() => this._search()}>查询</Button></Col>
+                <Col><Button type="primary" htmlType="submit" onClick={() => this._search()}>查询</Button></Col>
                 <Col><Button style={{ marginLeft: 10 }} onClick={() => this._clear()}>重置</Button></Col>
               </Row>
             </Col>
           </Row>
+          
           <Row type={'flex'} style={{ paddingTop: 20, paddingBottom: 20 }}>
+          <Authorized authority='service_authorization' noMatch={null}>
             <Button icon="plus" type="primary" onClick={()=>{
               let selectedRowKeysModal = [];
               this.state.dataSource.forEach(element=>{
                 selectedRowKeysModal.push(element.id);
               });
-              console.log('授权',selectedRowKeysModal);
               this.setState({visibleModal:true,selectedRowKeysModal,addRowKeys:selectedRowKeysModal});
               this.getAllApps(1,10);
             }}>授权</Button>
+             </Authorized>
           </Row>
+         
           <Alert
             style={{ marginBottom: 10 }}
             message={(
@@ -322,7 +353,7 @@ export default class PermissionCard extends React.Component {
             showIcon
           />
           <Table
-            rowKey="id"
+            rowKey="name"
             rowSelection={this.rowSelection()}
             dataSource={this.state.dataSource}
             pagination={this.state.pagination}
@@ -332,24 +363,27 @@ export default class PermissionCard extends React.Component {
             title="应用授权"
             style={{top:20}}
             visible={this.state.visibleModal}
-            onOk={this.handleModalOk} 
-            onCancel={()=>{this.setState({  visibleModal:false });}}>
+            onOk={this.handleModalOk}
+            destroyOnClose={true} 
+            onCancel={this._onCancel}>
             <Row style={{marginBottom:24}} type={'flex'} align='middle'>
               <Col style={{width:70}} span={4}>应用名称:</Col>
               <Col span={12}>
                 <Input 
                   onChange={(e) => { this.setState({ appName: e.target.value }) }} 
                   value={this.state.appName} 
+                  onPressEnter={() => this.getAllApps(1,10,this.state.appName)}
                   placeholder="请输入" />
               </Col>
               <Col span={8}>
               <span style={{float:'right'}}>
-                <Button type="primary" onClick={() => this.getAllApps(1,10,this.state.appName)}>查询</Button>
+                <Button type="primary" htmlType="submit" onClick={() => this.getAllApps(1,10,this.state.appName)}>查询</Button>
                 <Button style={{ marginLeft: 8 }} onClick={() => { this.setState({appName:''});this.getAllApps(1,10) }}>重置</Button>
               </span>
               </Col>
             </Row>
             <Table 
+              rowKey='id'
               dataSource={this.state.modalData} 
               columns={columnsModal} 
               size='small'

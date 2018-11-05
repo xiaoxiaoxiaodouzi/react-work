@@ -12,6 +12,23 @@ export function queryAllEnvs(){
   return C2Fetch.get(url,null,"获取容器基本配置信息出错！");
 }
 
+//获取指定租户下的环境
+export function queryEnvByTenant(code){
+  const url=`amp/v1/envTenant/tenant/${code}`
+  return C2Fetch.get(url,null,"获取环境信息出错！");
+}
+
+//获取指定环境下的租户
+export function queryTenantByEnv(id){
+  const url=`amp/v1/envTenant/env/${id}`
+  return C2Fetch.get(url,null,'获取环境下的租户失败')
+}
+
+//替换环境下的租户
+export function updateEnvTenant(id,bodyParams){
+  const url=`amp/v1/envTenant/env/${id}/envs`
+  return C2Fetch.put(url,bodyParams,null,'替换环境下的租户失败')
+}
 //获取指定环境
 export function queryEnvById(id){
   const url = `amp/v1/envs/${id}`;
@@ -34,24 +51,24 @@ export function updateEnv(id,params){
 }
 //根据租户ID查看许可信息
 export function queryCurrentLicense(){
-  const url = proxy+`v1/tenants/${base.tenant}/currentlicense`;
+  const url = proxy+`cce/v2/tenants/${base.tenant}/currentlicense`;
   return C2Fetch.get(url,null,"获取当前许可信息出错！");
 }
 //查看许可信息
 export function queryLicenses(page,rows){
-  const url = proxy+`v1/tenants/${base.tenant}/licenses`;
+  const url = proxy+`cce/v2/tenants/${base.tenant}/licenses`;
   return C2Fetch.get(url,{ page: page, rows: rows },"获取许可信息列表出错！");
 }
 //修改指定许可信息
 export function updateLicense(params){
-  const url = proxy+`cce/v2/tenant/${base.tenant}/license`;
+  const url = proxy+`cce/v2/tenants/${base.tenant}/license`;
   return C2Fetch.post(url,params,null,"修改许可信息出错！");
 }
 
-//获取全局动态路由配置
+//获取全局系统设置
 export function getConfigs(){
   const url =`amp/v1/configs`;
-  return C2Fetch.get(url,null,'获取动态路由失败')
+  return C2Fetch.get(url,null,'获取系统设置失败')
 }
 
 //修改全局动态路由
@@ -59,6 +76,12 @@ export function updateConfigs(bodyParams){
   const url = `amp/v1/configs`;
   return C2Fetch.post(url, bodyParams,null, '修改设置失败')
 }
+
+/* //上传license
+export function uploadLicense(){
+  const url=`iframefile/dir/upload`
+  return C2Fetch.post()
+} */
 
 export async function APMisOpen(code,callback){
   const env = base.currentEnvironment;

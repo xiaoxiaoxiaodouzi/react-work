@@ -38,7 +38,6 @@ class MenusTableListForm extends Component{
     const appid=this.props.appid;
     getMenuTrees(appid).then(data=>{
       let childArray=TreeHelp.toChildrenStruct(data);
-      console.log("childArray",childArray)
       this.setState({
         treeData:childArray,
         options:data,
@@ -49,7 +48,6 @@ class MenusTableListForm extends Component{
 
   //菜单删除
   handleDelete=(record)=>{
-    console.log("record",record)
     const appid=this.props.appid
     let id='';
     if(record){
@@ -131,34 +129,36 @@ class MenusTableListForm extends Component{
     const form=this.props.form;
     let id=this.state.id;
     form.validateFields((err,values) =>{
-      values.appId=appId;
-      if(!id){
-        addMenus(appId,values).then(data=>{
-          message.success('新增应用菜单成功')
-          getMenuTrees(appId).then(datas=>{
-            let childArray=TreeHelp.toChildrenStruct(datas);
-            this.setState({
-              treeData:childArray,
-              visible:false,
-              options:datas,
+      if(!err){
+        values.appId=appId;
+        if(!id){
+          addMenus(appId,values).then(data=>{
+            message.success('新增应用菜单成功')
+            getMenuTrees(appId).then(datas=>{
+              let childArray=TreeHelp.toChildrenStruct(datas);
+              this.setState({
+                treeData:childArray,
+                visible:false,
+                options:datas,
+              })
+              this.initState();
             })
-            this.initState();
           })
-        })
-      }else{
-        values.id=id;
-        updateMenus(appId,id,values).then(data=>{
-          message.success('修改菜单成功')
-          getMenuTrees(appId).then(datas=>{
-            let childArray=TreeHelp.toChildrenStruct(datas);
-            this.setState({
-              treeData:childArray,
-              visible:false,
-              options:datas,
+        }else{
+          values.id=id;
+          updateMenus(appId,id,values).then(data=>{
+            message.success('修改菜单成功')
+            getMenuTrees(appId).then(datas=>{
+              let childArray=TreeHelp.toChildrenStruct(datas);
+              this.setState({
+                treeData:childArray,
+                visible:false,
+                options:datas,
+              })
+              this.initState();
             })
-            this.initState();
           })
-        })
+        }
       }
       
     })
@@ -260,7 +260,11 @@ class MenusTableListForm extends Component{
               </FormItem>
               <FormItem {...formItemLayout} label="菜单名称"
               >
-                  {getFieldDecorator('name')(
+                  {getFieldDecorator('name',{rules:[{
+                      required: true,
+                      whitespace: true,
+                      message: '请输入菜单名称',
+                    }]})(
                       <Input  />
                   )}
               </FormItem>

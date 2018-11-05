@@ -18,9 +18,9 @@ export function getDetail(tenant,artifact){
   return C2Fetch.get(url,null,'获取镜像失败')
 }
 //获取镜像所有配置信息
-export function getList(tenant,artifact){
+export function getList(tenant,artifact,queryParams){
   const url=proxy+`cce/v1/images/${tenant}/${artifact}/manifests`
-  return C2Fetch.get(url,null,'获取镜像配置失败')
+  return C2Fetch.get(url,queryParams,false)
 }
 
 //更新镜像信息
@@ -55,7 +55,7 @@ export function updateEnvs(tenant,artifact,bodyParams){
 
 //修改镜像详情
 export function updateImages(tenant,artifact,bodyParams){
-  const url=proxy+`/cce/v1/images/${tenant}/${artifact}`
+  const url=proxy+`cce/v1/images/${tenant}/${artifact}`
   return C2Fetch.put(url,bodyParams,null,'修改镜像详情失败')
 }
 
@@ -97,7 +97,7 @@ export function getLogs(taskid,queryParams){
 
 //根据任务ID查询打包任务
 export function getTaskById(taskid){
-  const url=proxy+`/cce/v1/images/pack/task/${taskid}`
+  const url=proxy+`cce/v1/images/pack/task/${taskid}`
   return C2Fetch.get(url,null,'获取镜像任务失败')
 }
 
@@ -113,10 +113,16 @@ export function getCurrentUser(){
   return C2Fetch.get(url,null,'获取当前用户出错');
 }
 
+//获取用户详情
+export function getUserInfos(id){
+  const url=proxy+`uop/v1/users/${id}`;
+  return C2Fetch.get(url,null,'获取用户信息出错');
+}
+
 //根据用户iD去获取用户信息
 export function getUserInfo(id){
   const url=`uop/sso/v1/users/${id}`;
-  return C2Fetch.get(url,null,'获取用户信息s出错');
+  return C2Fetch.get(url,null,'获取用户信息出错');
 }
 
 

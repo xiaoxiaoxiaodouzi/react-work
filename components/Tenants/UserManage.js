@@ -4,6 +4,8 @@ import { getTenantUsers, deleteTenantUser, addTenantUser,getUserDictdata } from 
 import UserSelectModal from '../../common/UserSelectModal';
 import moment from 'moment';
 import constants from '../../services/constants';
+import { base } from '../../services/base';
+import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
 
 const Option = Select.Option;
 
@@ -30,7 +32,6 @@ class Components extends Component {
   loadData = (tenantId) => {
     this.setState({loading:true});
     getTenantUsers(tenantId).then(data => {
-      //console.log('tenantusers', data);
       this.setState({ 
         data,
         loading:false,
@@ -42,11 +43,9 @@ class Components extends Component {
     }).catch(err=> this.setState({ loading:false }));
     getUserDictdata().then(data=>{
       this.setState({dictdata:data});
-      //console.log('dictdata',data,this.props.form.getFieldsValue());
     });
   };
   onManagerChange = (users) => {
-    //console.log('users111', users);
     addTenantUser(this.props.tenantId,users).then(values=>{
       message.success('添加用户到指定租户成功');
       this.loadData(this.props.tenantId);
@@ -80,7 +79,6 @@ class Components extends Component {
             helpCertificateNum:''
           });
         }
-        //console.log('values',values);
         this.setState({visibleModal:false});
         addTenantUser(this.props.tenantId,[values]).then(data=>{
           message.success('添加用户到指定租户成功');
@@ -127,6 +125,7 @@ class Components extends Component {
     });
   }
   render() {
+    const Authorized = RenderAuthorized(base.allpermissions);
     const { getFieldDecorator } = this.props.form;
     const columns = [{
       title: "姓名",
@@ -155,9 +154,11 @@ class Components extends Component {
       title: "操作",
       width: "15%",
       render: (text, record) =>  
+      <Authorized authority={'tenant_deleteUser'} noMatch={<a disabled='true'>删除</a>}>
         <Popconfirm title="是否要将此用户从当前租户移除？" onConfirm={() => this.onDelete(record.id)}>
-          <a>删除</a>
+            <a>删除</a>  
         </Popconfirm> 
+      </Authorized>
     }];
     const pagination = {
       total: this.state.total,
@@ -195,15 +196,17 @@ class Components extends Component {
           <Col span={8}>
           </Col>
           <Col span={8}>
-            <Button type="primary" onClick={() => this.onSearchUser(this.state.searchText)}>查询</Button>
+            <Button type="primary" htmlType="submit" onClick={() => this.onSearchUser(this.state.searchText)}>查询</Button>
             <Button style={{ marginLeft: 8 }} 
               onClick={() => { this.setState({ data:this.tempData,searchText:'' }) }}>重置</Button>
           </Col>
         </Row>
         <Row style={{ marginBottom: 24 }} type='flex'>
-          <Button type="primary" onClick={() => this.onAddUser()}>添加</Button>
+          <Authorized authority={'tenant_addUser'} noMatch={null}>
+            <Button type="primary" onClick={() => this.onAddUser()}>添加</Button>
+          </Authorized>
           <UserSelectModal
-            renderButton={() => { return <Button style={{marginLeft:8}}>导入</Button> }}
+            renderButton={() => { return <Authorized authority={'tenant_importUser'} noMatch={null}><Button style={{marginLeft:8}}>导入</Button></Authorized> }}
             title='导入用户'
             mark='待添加租户用户'
             description=''

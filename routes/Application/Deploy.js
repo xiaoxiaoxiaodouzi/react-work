@@ -19,24 +19,24 @@ import {
   changeProbe 
 } from '../../services/deploy';
 import { getAppInfo } from '../../services/appdetail';
+
 export default class AppDeploy extends React.Component {
   state = {
     //tab页签切换state,也是容器名称container
     operationkey:'',
     appCode:'',
     appId:'',
-    //部署页面个模块所有信息
-    bases:[],
-    networkConfigs:[],
+    bases:[],   //容器信息
+    networkConfigs:[],  //网络配置信息，拼接集群内，集群外地址信息
     loading:true,
     networkLoading:false,
     storageLoading:false,
     settingFileLoading:false,
   }
   componentDidMount() {
-    const appId = this.props.match.params.id;
+    const appId = this.props.appId;
     getAppInfo(appId).then((data)=>{
-      this.setState({appCode:data.code,appId:data.id});
+      this.setState({appCode:data.code,appId:data.id},()=>this.getNetworkInfo());
       this.getBasicInfo(data.code);
     });
   }
@@ -46,6 +46,7 @@ export default class AppDeploy extends React.Component {
       operationkey: key,
     });
   }
+  //获取网络配置信息
   getNetworkInfo = ()=>{
     let queryNetwork1 = queryNetwork(this.state.appCode,{ page: 1, rows: 1000 });
     let queryRoutes1 = queryRoutes(this.state.appCode); 
@@ -71,32 +72,11 @@ export default class AppDeploy extends React.Component {
   }
   //获取应用部署信息
   getBasicInfo = (application) => {
-    let queryBaseConfig1 = queryBaseConfig(application);
-    let queryNetwork1 = queryNetwork(application,{ page: 1, rows: 1000 });
-    let queryRoutes1 = queryRoutes(application); 
-    Promise.all([queryBaseConfig1,queryNetwork1,queryRoutes1]).then(([bases,networks,routes]) =>{
-      let networkConfigs = [],networkConfig ={};
-      networks.contents.forEach((network,index1)=>{
-        networkConfig={
-          key:Math.random(),
-          name: network.containerName,
-          port: network.port,
-          protocol: network.protocol,
-          inneraddress:network.ip+':'+network.targetPort
-        };
-        routes.forEach((route,index2)=>{
-          if(network.containerName === route.containerName && network.port === route.port){
-            networkConfig.outaddress = route.ip;
-          }
-        });
-        networkConfigs.push(networkConfig);
-      });
+    queryBaseConfig(application).then((bases) =>{
       if(bases){
         this.setState({
           bases,
-          networkConfigs,
           loading:false,
-          networkLoading:false
         },()=>{
           this.onOperationTabChange(bases[0].name);
         });
@@ -112,7 +92,7 @@ export default class AppDeploy extends React.Component {
         if(isVersionChange){
           base.version = version;
           putBaseConfig(appCode,operationkey,'image',base).then(()=>{
-            this.setState({bases});
+            this.getBasicInfo(appCode);
             message.success('容器版本修改成功');
           }).catch(()=>{
             message.error('容器版本修改失败');
@@ -125,7 +105,7 @@ export default class AppDeploy extends React.Component {
             memory:{amount:dockerConfig.split('-')[1]}
           }
           putBaseConfig(appCode,operationkey,'resource',base).then(()=>{
-            this.setState({bases});
+            this.getBasicInfo(appCode);
             message.success('容器配置修改成功');
           }).catch(()=>{
             message.error('容器配置修改失败');
@@ -134,9 +114,14 @@ export default class AppDeploy extends React.Component {
         }
       }
     });
-    //修改bases,networks,routes的状态值
   }
-  //添加网络配置
+  /**
+   * 添加网络配置，先判断集群内地址是否开放，在判断集群外地址是否开放,先添加集群内地址再添加集群外地址
+   * 集群内地址开放  @name type = 'CLUSTERIP', 调用 @function addNetworkConfig 方法
+   * 集群内地址关闭  @name type = 'PODPORT', 调用 @function addNetworkConfig 方法
+   * 集群外地址开放  @name type = 'NODEPORT', 调用 @function addNetworkConfig 方法
+   * 集群外地址关闭  
+   */
   onAddNetworkConfig = (networkConfig,innerSelect,outerSelect) =>{
     const { operationkey,appCode } = this.state;
     networkConfig.name = operationkey;
@@ -145,9 +130,7 @@ export default class AppDeploy extends React.Component {
       port:networkConfig.port,
       protocol:networkConfig.protocol,
     };
-    let networkConfigs = this.state.networkConfigs.slice();
-    networkConfigs.push(networkConfig);
-    this.setState({networkLoading:true,networkConfigs});
+    this.setState({networkLoading:true});
     if(innerSelect === 'open'){
       params.type = 'CLUSTERIP';
       params.targetPort=networkConfig.inneraddress.split(':')[1];
@@ -205,7 +188,52 @@ export default class AppDeploy extends React.Component {
       });
     }
   }
-  //删除网络配置
+  onChangeNetworkConfig = (networkConfig,flag)=>{
+    // flag=open 增加，flag=close 删除
+    const { operationkey,appCode } = this.state;
+    networkConfig.name = operationkey;
+    let params = {
+      containerName:operationkey,
+      port:networkConfig.port,
+      protocol:networkConfig.protocol,
+    };
+    this.setState({networkLoading:true}); 
+    if(flag === 'open'){
+      params.type = 'NODEPORT';
+      params.targetPort = networkConfig.port;
+      params.nodePort = networkConfig.outaddress?networkConfig.outaddress.split(':')[1]:'';
+      params.ip = networkConfig.inneraddress.split(':')[0];
+      addNetworkConfig(appCode,operationkey,params).then(()=>{
+        message.success('添加集群外地址成功');
+        this.setState({networkLoading:false})
+        this.getNetworkInfo();
+      }).catch(()=>{
+        message.error('添加集群外地址失败');
+        this.setState({networkLoading:false});
+        this.getNetworkInfo();
+      });
+    }else{
+      params.targetPort=networkConfig.outaddress.split(':')[1];
+      params.type="NODEPORT";
+      let port = networkConfig.outaddress.split(':')[1];
+      deleteNetworkConfig(this.state.appCode,this.state.operationkey,port,params).then(()=>{
+        message.success('删除集群外地址成功');
+        this.setState({networkLoading:false});
+        this.getNetworkInfo();
+      }).catch(()=>{
+        message.error('删除集群外地址失败');
+        this.setState({networkLoading:false});
+        this.getNetworkInfo();
+      });
+    }
+  }
+  /**
+   * 删除网络配置，先删除集群外地址，在删除集群外地址
+   * 集群内地址开放  @name type = 'CLUSTERIP', 调用 @function deleteNetworkConfig 方法
+   * 集群内地址关闭  @name type = 'PODPORT', 调用 @function deleteNetworkConfig 方法
+   * 集群外地址开放  @name type = 'NODEPORT', 调用 @function deleteNetworkConfig 方法
+   * 集群外地址关闭  
+   */
   onDeleteNetWorkConfig = (key) =>{
     let networkConfigs = this.state.networkConfigs.slice();
     networkConfigs.forEach((networkConfig,index)=>{
@@ -278,7 +306,7 @@ export default class AppDeploy extends React.Component {
       }
     });
   }
-  //添加或修改删除配置文件
+  //添加或修改删除配置文件,采用整体替换策略，拼接容器base的volumes和configs字段
   onEditSettingfiles = (configs,configContent,flag)=>{
     let {bases,appCode,operationkey} = this.state;
     bases.forEach(base=>{
@@ -318,7 +346,8 @@ export default class AppDeploy extends React.Component {
         this.setState({settingFileLoading:true});
         putConfigs(appCode,configContent).then(()=>{
           putBaseConfig(appCode,operationkey,'configmap',tempBase).then(()=>{
-            this.setState({bases,settingFileLoading:false});
+            this.setState({settingFileLoading:false});
+            this.getBasicInfo(appCode);
             if(flag){
               message.success('共享许可修改成功');
             }else{
@@ -337,7 +366,7 @@ export default class AppDeploy extends React.Component {
       }
     }); 
   }
-  //添加存储卷
+  //存储卷修改也采用整体替换策略，凭借好volumes字段后替换
   onEditStorages = (volumes)=>{
     const {bases,operationkey,appCode} = this.state;
     bases.forEach(base=>{
@@ -345,7 +374,8 @@ export default class AppDeploy extends React.Component {
         base.volumes=volumes; 
         this.setState({storageLoading:true});
         putBaseConfig(appCode,operationkey,'volume',base).then(()=>{
-          this.setState({bases,storageLoading:false});
+          this.getBasicInfo(appCode);
+          this.setState({storageLoading:false});
           message.success('存储卷修改成功');
         }).catch(()=>{
           message.error('存储卷修改失败');
@@ -355,6 +385,7 @@ export default class AppDeploy extends React.Component {
       }
     });
   }
+  //修改启动命令，第一个空格前的命令拼接到base的cmd字段，后面的拼接到args中，cmd和args是数组
   onSaveStartCMD = (startCmd) =>{
     const {bases,operationkey,appCode} = this.state;
     bases.forEach(base=>{
@@ -364,7 +395,7 @@ export default class AppDeploy extends React.Component {
           let tempArgs = startCmd.slice(startCmd.indexOf(' ')+1);
           base.args = tempArgs.split(' '); 
           putBaseConfig(appCode,operationkey,'cmd',base).then(()=>{
-            this.setState({bases});
+            this.getBasicInfo(appCode);
             message.success('启动命令修改成功');
           }).catch(()=>{
             message.error('启动命令修改失败');
@@ -374,7 +405,7 @@ export default class AppDeploy extends React.Component {
           base.cmd = [];
           base.args = [];
           putBaseConfig(appCode,operationkey,'cmd',base).then(()=>{
-            this.setState({bases});
+            this.getBasicInfo(appCode);
             message.success('启动命令修改成功');
           }).catch(()=>{
             message.error('启动命令修改失败');
@@ -384,8 +415,8 @@ export default class AppDeploy extends React.Component {
       }
     });
   }
+  //健康检查修改方法，传入probe参数，flag=true为开放，flag=false为关闭
   onChangeProbe = (probe,flag)=>{
-    console.log('changeprobe',probe);
     const {bases,operationkey,appCode} = this.state;
     bases.forEach(base=>{
       if(base.name === operationkey){
@@ -393,10 +424,9 @@ export default class AppDeploy extends React.Component {
           if(flag){
             base.probe=probe; 
             base.readinessProbe = probe;
-            console.log('probe',flag,base);
             //调用probe修改接口
             changeProbe(appCode,operationkey,base).then(()=>{
-              this.setState({bases});
+              this.getBasicInfo(appCode);
               message.success('健康检查开启成功');
             }).catch(err=>{
               message.error('健康检查开启失败');
@@ -406,7 +436,7 @@ export default class AppDeploy extends React.Component {
             base.probe=probe; 
             //调用probe修改接口
             changeProbe(appCode,operationkey,base).then(()=>{
-              this.setState({bases});
+              this.getBasicInfo(appCode);
               message.success('健康检查开启成功');
             }).catch(err=>{
               message.error('健康检查开启失败');
@@ -417,7 +447,7 @@ export default class AppDeploy extends React.Component {
           delete base.probe;
           delete base.readinessProbe;
           changeProbe(appCode,operationkey,base).then(()=>{
-            this.setState({bases});
+            this.getBasicInfo(appCode);
             message.success('健康检查关闭成功');
           }).catch(err=>{
             message.error('健康检查关闭失败');
@@ -427,6 +457,7 @@ export default class AppDeploy extends React.Component {
       }
     });
   }
+  //健康检查修改方法，传入configs参数，flag=true为开放，flag=false为关闭，configs处理后调用修改配置文件方法即可
   onChangeShareLicense = (configs,flag)=>{   
     let configContent = {
       data:{},
@@ -436,7 +467,6 @@ export default class AppDeploy extends React.Component {
         }
       },
     }
-    console.log('changesharelicense',configs,flag);
     if(flag === 'open'){
       configs.forEach(element => {
         let keyName = element.name;
@@ -452,7 +482,6 @@ export default class AppDeploy extends React.Component {
         subPath:'license'
       }
       configs.push(config);
-      console.log('configs',configs,configContent);
       this.onEditSettingfiles(configs,configContent,true);
     }else{
       configs = configs.filter(element => element.name !=='config-license');
@@ -461,13 +490,14 @@ export default class AppDeploy extends React.Component {
         element.key = keyName;
         configContent.data[element.name] = element.additionalProperties.config;
       });
-      console.log('configs',configs,configContent);
       this.onEditSettingfiles(configs,configContent,true);
     }
   }
+  //渲染单个容器tab页的内容
   renderTabContent = (name) => {
     const { bases,networkConfigs,appCode,appId,operationkey,networkLoading,storageLoading,settingFileLoading } = this.state;
-    let base={},networkConfig=[];
+    let base={};
+    let networkConfig=[];
     networkConfigs.forEach(element=>{
       if(element.name === name){
         networkConfig.push(element);
@@ -485,8 +515,9 @@ export default class AppDeploy extends React.Component {
     return (
       <div>
         <BasicSettings
-          artifact={base.image.split('/')[2]}
           tenant={base.image.split('/')[1]}
+          artifact={base.image.split('/')[2]}
+          image={base.image}
           version={base.version} 
           node={base.hostIP} 
           dockerConfig={dockerConfig} 
@@ -505,11 +536,14 @@ export default class AppDeploy extends React.Component {
           appCode={appCode}
           operationkey={operationkey}
           onAddNetworkConfig={this.onAddNetworkConfig}
+          onChangeNetworkConfig={this.onChangeNetworkConfig}
           onDeleteNetWorkConfig={this.onDeleteNetWorkConfig} />
         <Divider style={{ marginBottom: 32,marginTop:32 }} />
         <EnvVariables 
           operationkey={operationkey}
           appCode={appCode}
+          base={base}
+          envChange={e=>this.props.envChange(e)}
         />
         <Divider style={{ marginBottom: 32,marginTop:32 }} />
         <Middleware 
