@@ -1,517 +1,266 @@
-import React, { PureComponent, Fragment } from 'react';
-import { Button, Card, Form, Select, Checkbox, Input, message, Popconfirm, InputNumber, Switch, Modal } from 'antd';
-import { addEnv, deleteEnv, updateEnv, queryTenantByEnv, updateEnvTenant, queryAllEnvs } from '../../services/setting';
-import { getTenant } from "../../services/tenants";
+import React from 'react';
+import { Button, Card, Form, message, Modal, Col, Tooltip,Alert,Popconfirm } from 'antd';
+import { getEnvHealth } from '../../services/aip';
+import { queryAllEnvs, addEnv, deleteEnv, updateEnv } from '../../services/amp';
+import { getTenant } from "../../services/tp";
 import DescriptionList from 'ant-design-pro/lib/DescriptionList';
 import { base } from '../../services/base';
-import RenderAuthorized from 'ant-design-pro/lib/Authorized';
 import AddEnvSetting from './AddEnvSetting'
+import Authorized from '../../common/Authorized';
+import FormEditorModal from '../../common/DynamicForm/FormEditorModal'
+import EnvStatus from './EnvStatus'
+import EnviromentForm from './EnviromentForm';
+import constants from '../../services/constants'
 
 const { Description } = DescriptionList;
-const { Option } = Select;
 
-const urlReg = /(http|https):\/\/[\w\-_]+(.[\w\-_]+)+([\w\-.,@?^=%&:/~+#]*[\w\-@?^=%&/~+#])$/;
-const ipReg = /^(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$/;
-//const innerUrlReg=
-class EnvSetting extends PureComponent {
+class EnvSetting extends React.Component {
   state = {
     data: [],
-    submitting: false,
-    tenantVisible: false,
-    visible: false,
-    key: '',       //当前编辑的key
-    addVisible: false    // 新增环境模态框visible
+    envLoding:true,
+    updateEnvModalVisible: false, //手动新增环境模态框
+    addVisible: false,    // 部署新环境模态框visible
+    createEnvItems:[], //接入已有环境Modal属性
+    createEnvVisible:false, //接入已有环境Modal显示
+    code: '',//查看环境的code
+    id: '',//新增环境ID 或者查看环境的ID
+    env: {},   //当前环境所有属性
+    record:{},
+    tenants:[], //所有PASS租户
+    tenanteMap:{} //租户Map
   };
-  loadData = () => {
-    let tenants = [];
-    //base.getUserTenants(base.currentUser.id).then(datas => {
-    console.log(base.configs)
-    if (base.configs.initialize === '1') {
-      this.setState({
-        tenantVisible: true
-      })
-      getTenant().then(datas => {
-        datas.forEach(t => {
-          if (t.tenant_type && t.tenant_type.indexOf('PAAS') !== -1 && t.tenant_code) {
-            //tenants.push({ name: t.name, code: t.tenant_code, id: t.id });
-            t.label = t.name;
-            t.value = t.tenant_code;
 
-            tenants.push(t);
-          }
+  //是否具有环境编辑权限
+  envEditAuth = base.allpermissions.includes('systemset_editEnviromentConfig');
 
-        });
-        this.queryAllEnvs(tenants);
-        this.setState({ tenants: tenants });
-      })
-    } else {
-      this.queryAllEnvs(tenants);
-      this.setState({ tenants: tenants });
-    }
-
+  componentWillMount(){
+    this.queryAllEnvs();
+    getTenant().then(data=>{
+      const tenants = base.filterTenantData(data);
+      //数组转对象
+      let tenanteMap = tenants.reduce((acc,obj)=>{
+        acc[obj.code] = obj.name;
+        return acc;
+      },{});
+      this.setState({tenanteMap,tenants});
+    });
   }
 
-
-  componentDidMount() {
-    this.loadData();
-  }
-  componentWillReceiveProps(nextProps) {
-    if (nextProps.path && nextProps.path !== this.props.path) {
-      this.loadData();
-    }
-  }
-
-  queryAllEnvs = (tenants) => {
+  queryAllEnvs = () => {
     queryAllEnvs().then((data) => {
-      let queryTenents = [];
-      data.forEach(element => {
-        element.key = element.id;
-        if (base.configs.initialize === '1') {
-          queryTenents.push(queryTenantByEnv(element.id));
-        }
 
-      });
-
-      if (queryTenents && queryTenents.length > 0) {
-        Promise.all(queryTenents).then(responses => {
-          responses.forEach((e, i) => {
-            //data[i].tenants = e;
-            //根据租户code查租户？
-            let names = [];
-            let choiceValues = [];
-            if (tenants && tenants.length > 0) {
-              e.forEach(sub => {
-                tenants.forEach(tt => {
-                  if (sub === tt.tenant_code) {
-                    names.push(tt.name);
-                    choiceValues.push(sub);
-                  }
-                })
-              });
-            }
-
-            data[i].tenants = names;
-            data[i].tenant = choiceValues;
+      this.setState({ data,envLoding:false });
+      data.forEach(env => {
+        //检查环境健康状态，禁用环境不查询
+        if(!env.disabled){
+          getEnvHealth(env.id).then(health=>{
+            //健康检查通过，暂时表示一切正常，不做处理。
+          }).catch(error=>{
+            env.errorMessage = '环境健康检查未通过！';
+            this.setState({data:this.state.data});
           })
-          this.setState({ data });
-        });
-      } else {
-        this.setState({ data });
-      }
-
+        }
+      });
     });
   }
 
 
   addEnv = () => {
-    const newData = this.state.data.map(item => ({ ...item }));
-    this.setState({ visible: true, key: newData.length })
-    /* const newData = this.state.data.map(item => ({ ...item }));
-    const { setFieldsValue } = this.props.form;
-    setFieldsValue({
-      key: newData.length,
-      name: '',
-      apiGatewaySchema: 'https',
-      apiGatewayHost: '',
-      apiGatewayPort: 8080,
-      apiGatewayManagePort: 8081,
-      authServerAddress: '',
-      authServerInnerAddress: '',
-      subDomain: '',
+    const createEnvItems = [
+      {label:'名称',name:'name',required:true},
+      {label:'编码',name:'code',required:true},
+      {label:'授权服务器地址',name:'authServerAddress',required:true,regExp:constants.reg.host},
+      {label:'授权服务器内网地址',name:'authServerInnerAddress',required:true,regExp:constants.reg.host},
+      {label:'网关协议',name:'apiGatewaySchema',required:true,type:'select',options:[{label:'http',value:'http'},{label:'https',value:'https'}]},
+      {label:'网关地址',name:'apiGatewayHost',required:true},
+      {label:'网关端口',name:'apiGatewayPort',required:true,type:'number'},
+      {label:'网关管理端口',name:'apiGatewayManagePort',required:true,type:'number'},
+    ];
+    this.setState({ createEnvVisible: true, createEnvItems});
+  }
+
+  disabledEvn = (id,disabled)=>{
+    updateEnv(id,{disabled:disabled}).then(data=>{
+      message.success('操作成功');
+      this.queryAllEnvs();
     })
-    this.setState({ visible: true, key: newData.length }) */
   }
-  getRowByKey(key, newData) {
-    return (newData || this.state.data).filter(item => item.key === key)[0];
-  }
-  onEdit = (key) => {
-    const { setFieldsValue } = this.props.form;
-    let newData = this.state.data.slice();
-    if (newData.filter(item => (item.isEdit || item.isNew) === true).length > 0) {
-      message.error('存在未保存环境，请先保存再编辑');
-      return;
-    }
-    newData.forEach((element, index, arr) => {
-      if (element.key === key) {
-        arr[index].isEdit = true;
-        this.setState({ data: arr, visible: true, key }, () => {
-          setFieldsValue({
-            ...element
-          });
-        });
-      }
-    });
-    //this.setState({data:newData});
-  }
-  onDelete = (key) => {
-    const newData = this.state.data.filter(item => item.key !== key);
-    deleteEnv(key).then(() => {
+
+  onDelete = (id) => {
+    deleteEnv(id).then(() => {
       message.success('删除指定环境成功');
-      this.setState({ data: newData });
-      let currentEnviroments = [];
-      base.environments.forEach(env => {
-        if (env.id !== key) {
-          currentEnviroments.push(env);
-        }
-      });
-      base.environments = currentEnviroments;
-    })
-  }
-  //校验数据
-  validateParams = (rule, value, callback) => {
-    if (rule.field === 'apiGatewayHost' && !ipReg.test(value)) {
-      callback('请输入正确的ip地址，格式：xxx.xxx.xxx.xxx');
-      return;
-    } else if (rule.field === 'authServerAddress' && !urlReg.test(value)) {
-      callback('请输入正确的授权服务器地址');
-      return;
-    } else if (rule.field === 'authServerInnerAddress' && !urlReg.test(value)) {
-      callback('请输入正确的授权服务器内网地址');
-      return;
-    } else if (rule.field === 'serviceMonitorAddress' && !urlReg.test(value)) {
-      callback('请输入正确的服务监控地址');
-      return;
-    }
-    callback();
-  }
-
-  onSubmit = () => {
-    let key = this.state.key
-    let newData = this.state.data.slice();
-    const { validateFieldsAndScroll } = this.props.form;
-    validateFieldsAndScroll((error, values) => {
-      if (!error) {
-        // submit the values
-        if (key === newData.length) {
-          addEnv(values).then(newElement => {
-            message.success('添加环境成功');
-            this.setState({ visible: false, key: '' });
-            this.queryAllEnvs();
-            //环境下的租户
-            if (values.tenant) {
-              if (base.configs.initialize === "1") {
-                this.updateEnvTenant(newElement, values.tenant, newData);
-              }
-            }
-          })
-        } else {
-          newData.forEach(element => {
-            if (element.key === key) {
-              element.isEdit = false;
-              Object.assign(element, values);
-              updateEnv(key, element).then(() => {
-                message.success('修改环境成功');
-                this.setState({ data: newData, key: '', visible: false });
-                //修改环境下的租户
-                if (base.configs.initialize === "1") {
-                  this.updateEnvTenant(element, values.tenant, newData);
-                }
-              });
-            }
-          });
-        }
-      }
-    });
-  }
-
-  updateEnvTenant = (element, newtenants, newData) => {
-    let id = element.id;
-    updateEnvTenant(id, newtenants).then(data => {
-      if (data && data.length>0) {
-        let tenantsName = [];
-        let choice = [];
-        let tenants = [...this.state.tenants];
-        let flag = false;
-        data.forEach(dt => {
-          tenants.forEach(tt => {
-            if (dt === tt.tenant_code) {
-              tenantsName.push(tt.name);
-              choice.push(dt);
-            }
-          })
-          //返回的租户包含了当前租户
-          if (dt === base.tenant) {
-            flag = true;
-          }
-        });
-        let currentEnviroments = [];
-        base.environments.forEach(ce => {
-          if (flag) {
-            //返回的租户不包含当前租户，当前租户不能使用该环境
-            if (id !== ce.id) {
-              currentEnviroments.push(ce);
-            }
-          } 
-        });
-        // this.props.environmentsChange(currentEnviroments);
-        if (flag) {
-          currentEnviroments.push(element);
-        }
-        base.environments = currentEnviroments;
-        let enviroments = [];
-        newData.forEach(nd => {
-          if (nd.id === id) {
-            nd.tenants = tenantsName;
-            nd.tenant = choice;
-          }
-          enviroments.push(nd);
-        })
-        // newData.tenants = tenantsName;
-        this.setState({ data: enviroments });
-      } else {
-        let enviroments = [];
-        newData.forEach(nd => {
-          if (nd.id === id) {
-            nd.tenants = [];
-          }
-          enviroments.push(nd);
-        })
-        this.setState({ data: enviroments });
-        let currentEnviroments = [];
-        base.environments.forEach(ce => {
-          if (id !== ce.id) {
-            currentEnviroments.push(ce);
-          }
-        });
-        base.environments = currentEnviroments;
-      }
+      this.queryAllEnvs();
     })
   }
 
-  onCancel = () => {
-    let key = this.state.key
-    let newData = this.state.data.slice();
-    newData.forEach((element, index, arr) => {
-      if (element.key === key) {
-        element.isEdit = false;
-        if (element.isNew) {
-          arr.splice(index, 1);
-        }
-      }
-    });
-    this.setState({ data: newData, key: '', visible: false });
+  updateEnvHandle = (values) => {
+    updateEnv(values.id,values).then(newElement => {
+      message.success('更新环境成功');
+      this.setState({ updateEnvModalVisible: false});
+      this.queryAllEnvs();
+    })
   }
 
-  //添加新环境确认返回参数
-  addNewEnv = (values) => {
-    this.setState({ addVisible: false })
+  //接入新环境确认处理
+  createEnvHandle = (values) =>{
+    addEnv(values).then(env => {
+      message.success('添加环境成功');
+      this.setState({ createEnvVisible: false});
+      this.queryAllEnvs();
+    })
   }
 
-  //服务监控状态改变事件
-  serviceMonitorSwitch = (checked) => {
-    let serviceMonitorAddress = this.props.form.getFieldValue('serviceMonitorAddress');
-    if (!checked) {//未开启时服务监控地址不需填写
-      this.props.form.setFields({
-        serviceMonitorAddress: { value: serviceMonitorAddress, errors: null }
-      });
-    } else {
-      if (!urlReg.test(this.props.form.getFieldValue('serviceMonitorAddress'))) {
-        this.props.form.setFields({
-          'serviceMonitorAddress': { value: serviceMonitorAddress, errors: [new Error('请输入正确的服务监控地址')] }
-        });
-      } else {
-        this.props.form.setFields({
-          serviceMonitorAddress: { value: serviceMonitorAddress, errors: null }
-        });
-      }
-    }
+  //部署新环境确认处理
+  addNewEnv = (env) => {
+    addEnv(env).then(newElement => {
+      message.success('添加环境成功');
+      this.setState({ updateEnvModalVisible: false, id: newElement.id });
+      this.queryAllEnvs();
+    })
+  }
+
+  autoAddEnv = () => {
+    this.setState({ addVisible: true })
+  }
+
+  openEnvStateModal = (env) => {
+    this.setState({ code: env.code, envStatusVisible: true, id: env.id, env: env })
+  }
+
+  //查询环境监控状态模态框关闭
+  handleCancel = () => {
+    this.setState({ envStatusVisible: false })
+    getEnvHealth(this.state.id).then(data => {
+      this.setState({ env: Object.assign(this.state.env, { success: true }) })
+    }).catch(err => {
+      this.setState({ env: Object.assign(this.state.env, { success: false }) })
+    })
   }
 
   render() {
-    const Authorized = RenderAuthorized(base.allpermissions);
-    const { getFieldDecorator, getFieldValue } = this.props.form;
-    const formItemLayout = {
-      labelCol: {
-        xs: { span: 24 },
-        sm: { span: 7 },
-      },
-      wrapperCol: {
-        xs: { span: 24 },
-        sm: { span: 12 },
-        md: { span: 13 },
-      },
-    };
+    //环境卡片标题
+    const envTitle = env=>{
+      const mainEnvIcon = env.isMain?'【主环境】':'';
+      return (
+        <span>{mainEnvIcon}{env.name}({env.code})</span>
+      )
+    }
+
+    let {data,tenanteMap,editingEvn} = this.state;
+    //环境租户换中文名
+    data.forEach(env=>{
+      let envTenants = [];
+      env.envTenants && env.envTenants.forEach(t=>{
+        if(tenanteMap[t.tenantCode]){
+          t.tenantName = tenanteMap[t.tenantCode];
+          envTenants.push(tenanteMap[t.tenantCode]);
+        }
+      })
+      env.envTenantName = envTenants.length>0?envTenants.join(','):'--';
+    })
+
+    //环境卡片的操作
+    const envCardExtra = (env)=>{
+      const canEdit = base.allpermissions.includes('systemset_editEnviromentConfig');
+      const canDelete = base.allpermissions.includes('systemset_deleteEnviromentConfig');
+      let actions = [];
+      //查看环境状态
+      actions.push(<a onClick={e=>this.openEnvStateModal(env)}>查看状态</a>);
+      if(canEdit)actions.push(<a onClick={e=>this.setState({updateEnvModalVisible:true,editingEvn:env})}>编辑</a>);
+      if(!env.isMain){
+        if(canEdit)env.disabled?actions.push(<a onClick={e=>this.disabledEvn(env.id,false)}>启用</a>):actions.push(<a onClick={e=>this.disabledEvn(env.id,true)}>禁用</a>);
+        if(canDelete){
+          const deleteEle = <Popconfirm title="确定删除该环境?" onConfirm={e=>this.onDelete(env.id)}><a>删除</a></Popconfirm>;
+          actions.push(deleteEle);
+        }
+      }
+      return (
+        actions.map(action=>action)
+      );
+    }
+    
     return (
       <Card
         bordered={false}
         title='环境配置'
+        loading = {this.state.envLoding}
         style={{ margin: '24px 0' }}
         bodyStyle={{ padding: 0 }} >
         {
-          this.state.data.map((element, index) => {
+          this.state.data.map((env, index) => {
             return (
               <Card
                 key={index}
                 type="inner"
                 style={{ margin: 16 }}
-                title={element.isMain ? element.name + ' (主环境)' : element.name}
-                extra={!element.isEdit ?
-                  <Fragment>
-                    <Authorized authority={'systemset_editEnviromentConfig'} noMatch={<a disabled='true' onClick={() => this.onEdit(element.key)}>编辑    </a>}>
-                      <a onClick={() => this.onEdit(element.key)}>编辑</a>&nbsp;&nbsp;
-                    </Authorized>
-                    {element.isMain ? '' :
-                      <Authorized authority={'systemset_deleteEnviromentConfig'} noMatch={<a disabled='true'>删除</a>}>
-                        <Popconfirm title="是否要删除此行？" onConfirm={() => this.onDelete(element.key)}>
-                          <a>删除</a>
-                        </Popconfirm>
-                      </Authorized>}
-                  </Fragment>
-                  : ''} >
-                <DescriptionList size="small">
-                  <Description term="编码">{element.code}</Description>
-                  <Description term="网关协议">{element.apiGatewaySchema}</Description>
-                  <Description term="网关地址">{element.apiGatewayHost}</Description>
-                  <Description term="网关端口">{element.apiGatewayPort}</Description>
-                  <Description term="网关管理端口">{element.apiGatewayManagePort}</Description>
-                  <Description term="子域名">{element.subDomain}</Description>
-                  <Description term="授权服务器地址">{element.authServerAddress}</Description>
-                  <Description term="授权服务器内网地址">{element.authServerInnerAddress}</Description>
-                  <Description term="注册中心地址">{element.eurekaServerUrls}</Description>
-                  <Description term="服务监控地址">{element.serviceMonitorAddress || '--'}</Description>
-                  <Description term="服务监控状态">{element.serviceMonitorSwitch ? '开启' : '关闭'}</Description>
-                  {this.state.tenantVisible ?
-                    <Description term="租户">{(element.tenants && element.tenants.length > 0) ? element.tenants.toString() : "--"}</Description>
-                    : ""
-                  }
-                </DescriptionList>
+                className={env.disabled?'env-card disabled':'env-card'}
+                title={envTitle(env)}
+                extra={envCardExtra(env)}
+                >
+                  {!env.disabled&&env.errorMessage&&<Alert message={env.errorMessage} type="warning" style={{marginBottom:10}} showIcon />}
+                  <DescriptionList size="small" col={3}>
+                    <Description term="服务监控">{env.serviceMonitorSwitch?<Tooltip title={'服务监控地址：'+env.serviceMonitorAddress}>已启用</Tooltip>:'已关闭'}</Description>
+                    <Description term="全局路由">{env.routerSwitch?<Tooltip title={'路由管理地址：'+env.routerUrl}>已启用</Tooltip>:'已关闭'}</Description>
+                    <Description term="SpringCloud支持">{env.springCloudSwitch?<Tooltip title={'注册中心地址：'+env.eurekaServerUrls}>已启用</Tooltip>:'已关闭'}</Description>
+                    <Description term="网关地址">{env.apiGatewaySchema+'://'+env.apiGatewayHost}</Description>
+                    <Description term="网关端口">{env.apiGatewayPort}</Description>
+                    <Description term="网关管理端口">{env.apiGatewayManagePort}</Description>
+                    <Description term="授权服务器地址">{env.authServerAddress}</Description>
+                    <Description term="授权服务器内网地址">{env.authServerInnerAddress}</Description>
+                    <div class="ant-col-xs-24 ant-col-sm-24 ant-col-md-24" style={{paddingLeft: 16, paddingRight: 16}}>
+                      <div class="antd-pro-description-list-term">所属租户</div>
+                      <div class="antd-pro-description-list-detail">{env.envTenantName}</div>
+                    </div>
+                  </DescriptionList>
               </Card>
             )
           })
         }
-        <div style={{ padding: '0 16px 0 16px' }}>
+        <div style={{marginLeft:16}}>
           <Authorized authority={'systemset_addEnviromentConfig'} noMatch={<Button disabled='true' style={{ width: '100%', marginBottom: 24 }} type="dashed" onClick={this.newRecord} icon="plus" >添加环境</Button>}>
-            <Button
-              style={{ width: '100%', marginBottom: 24 }}
-              type="dashed"
-              onClick={this.addEnv}
-              icon="plus" >
-              添加环境
-          </Button>
+            {base.configs.passEnabled?<Col style={{paddingRight:16}} span={12} >
+              <Button
+                style={{ width: '100%', marginBottom: 24 }}
+                type="dashed"
+                onClick={this.addEnv}
+                icon="plus" >
+                接入已有环境
+              </Button>
+            </Col>:<Col style={{paddingRight:16}} span={24} >
+              <Button
+                style={{ width: '100%', marginBottom: 24 }}
+                type="dashed"
+                onClick={this.addEnv}
+                icon="plus" >
+                接入已有环境
+              </Button>
+            </Col>}
+            {base.configs.passEnabled?<Col style={{paddingRight:16}} span={12}>
+              <Button
+                style={{ width: '100%', marginBottom: 24 }}
+                type="dashed"
+                onClick={this.autoAddEnv}
+                icon="plus" >
+                部署新环境
+              </Button>
+            </Col>:""}
           </Authorized>
 
-
+          <AddEnvSetting id={this.state.id} title='部署新环境' history={this.props.history} visible={this.state.addVisible} onChange={(flag) => { this.setState({ addVisible: flag });this.queryAllEnvs(); }} addNewEnv={this.addNewEnv} code={this.state.code} />
+          <EnviromentForm title='环境编辑' data={editingEvn} visible={this.state.updateEnvModalVisible} tenants={this.state.tenants} onOk={this.updateEnvHandle} onCancel={e=>{this.setState({ updateEnvModalVisible: false });this.queryAllEnvs();}}/>
+          <FormEditorModal title='接入已有环境' visible={this.state.createEnvVisible} items={this.state.createEnvItems} onCancel={e=>this.setState({createEnvVisible:false})} onOk={this.createEnvHandle}></FormEditorModal>
           <Modal
-            bodyStyle={{ overflow: 'auto', height: '400px' }}
-            title={this.state.key ? '修改环境' : '新增环境'}
-            visible={this.state.visible}
-            onOk={this.onSubmit}
-            onCancel={this.onCancel}
+            width={800}
+            bodyStyle={{ height: '500px', overflow: 'auto' }}
+            visible={this.state.envStatusVisible}
             destroyOnClose
+            title='环境状态'
+            footer={null}
+            onCancel={() => this.handleCancel()}
           >
-            <Form hideRequiredMark>
-              <Form.Item {...formItemLayout} label="环境名称">
-                {getFieldDecorator('name', {
-                  rules: [{ required: true, message: '请输入环境名称' }],
-                })(
-                  <Input />
-                )}
-              </Form.Item>
-              <Form.Item {...formItemLayout} label="编码">
-                {getFieldDecorator('code', {
-                  rules: [{ required: true, message: '请输入编码' }],
-                })(
-                  <Input />
-                )}
-              </Form.Item>
-              <Form.Item {...formItemLayout} label="网关协议">
-                {getFieldDecorator('apiGatewaySchema', {
-                  rules: [{ required: true, message: '请选择网关协议' }],
-                })(
-                  <Select placeholder="请选择">
-                    <Option value="http">http</Option>
-                    <Option value="https">https</Option>
-                  </Select>
-                )}
-              </Form.Item>
-              <Form.Item
-                {...formItemLayout}
-                label="网关地址"
-              >
-                {getFieldDecorator('apiGatewayHost', {
-                  validateTrigger: ['onChange', 'onBlur'],
-                  rules: [{ validator: this.validateParams }],
-                })(
-                  <Input />
-                )}
-              </Form.Item>
-              <Form.Item {...formItemLayout} label="网关端口">
-                {getFieldDecorator('apiGatewayPort', {
-                  rules: [{ required: true, message: '请输入网关端口' }],
-                })(
-                  <InputNumber style={{ width: '100%' }} min={1} max={65535} placeholder="请输入网关端口:1~65535之间" />
-                )}
-              </Form.Item>
-              <Form.Item {...formItemLayout} label="网关管理端口">
-                {getFieldDecorator('apiGatewayManagePort', {
-                  rules: [{ required: true, message: '请输入网关管理端口' }],
-                })(
-                  <InputNumber style={{ width: '100%' }} min={1} max={65535} placeholder="请输入网关端口:1~65535之间" />
-                )}
-              </Form.Item>
-              <Form.Item
-                {...formItemLayout}
-                label="授权服务器地址"
-              >
-                {getFieldDecorator('authServerAddress', {
-                  validateTrigger: ['onChange', 'onBlur'],
-                  rules: [{ validator: this.validateParams }],
-                })(
-                  <Input />
-                )}
-              </Form.Item>
-              <Form.Item
-                {...formItemLayout}
-                label="授权服务器内网地址"
-              >
-                {getFieldDecorator('authServerInnerAddress', {
-                  validateTrigger: ['onChange', 'onBlur'],
-                  rules: [{ validator: this.validateParams }],
-                })(
-                  <Input />
-                )}
-              </Form.Item>
-              <Form.Item {...formItemLayout} label="子域名">
-                {getFieldDecorator('subDomain')(
-                  <Input />
-                )}
-              </Form.Item>
-              <Form.Item {...formItemLayout} label="服务监控状态">
-                {getFieldDecorator('serviceMonitorSwitch', { valuePropName: 'checked' })(
-                  <Switch onChange={this.serviceMonitorSwitch} />
-                )}
-              </Form.Item>
-              {
-                getFieldValue('serviceMonitorSwitch') ? (<Form.Item {...formItemLayout} label="服务监控地址"
-                >
-                  {getFieldDecorator('serviceMonitorAddress', {
-                    validateTrigger: ['onChange', 'onBlur'],
-                    rules: [{ validator: this.validateParams }],
-                  })(
-                    <Input />
-                  )}
-                </Form.Item>) : ''
-              }
-              <Form.Item {...formItemLayout} label="注册中心地址">
-                {getFieldDecorator('eurekaServerUrls')(
-                  <Input />
-                )}
-              </Form.Item>
-              {this.state.visible && this.state.tenants && this.state.tenants.length ?
-                <Form.Item {...formItemLayout} label="租户">
-                  {getFieldDecorator('tenant', {
-                    rules: [{ required: false, message: '请选择租户' }],
-                  })(
-                    <Checkbox.Group options={this.state.tenants} />
-
-                  )}
-                </Form.Item>
-                : ""
-
-              }
-            </Form>
+            <EnvStatus code={this.state.code} history={this.props.history} id={this.state.id} onCancel={() => this.handleCancel()}/>
           </Modal>
-          <AddEnvSetting title='新增环境' visible={this.state.addVisible} onChange={(flag) => { this.setState({ addVisible: flag }) }} addNewEnv={this.addNewEnv} />
+
         </div>
 
       </Card >

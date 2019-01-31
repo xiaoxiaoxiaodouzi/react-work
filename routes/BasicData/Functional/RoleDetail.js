@@ -6,10 +6,11 @@ import AuthorizedUserUnion from '../../../components/BasicData/Functional/Author
 //import OperationRecord from '../../../components/BasicData/Functional/OperationRecord'
 import Functions from '../../../components/BasicData/Functional/Functions'
 import DescriptionList from 'ant-design-pro/lib/DescriptionList';
-import { getRoles, updateRole, deleteRole } from '../../../services/running'
-import { getAppInfo } from '../../../services/appdetail'
+import {getRoles, updateRole,deleteRole, getAppInfo } from '../../../services/aip'
 import constants from '../../../services/constants'
 import InputInline from '../../../common/Input'
+import { base } from '../../../services/base';
+import Authorized from '../../../common/Authorized';
 
 const { Description } = DescriptionList;
 const confirm = Modal.confirm;
@@ -25,6 +26,7 @@ class FunctionalDetail extends React.Component {
   }
 
   componentDidMount() {
+    if(this.props.permissions)base.allpermissions = this.props.permissions;
     this.loadRoles();
     getAppInfo(this.props.match.params.appid).then(data => {
       this.setState({ appName: data.name })
@@ -124,19 +126,28 @@ class FunctionalDetail extends React.Component {
           <Description term="编码">
             {code}
           </Description>
+          <Authorized noMatch={<Description><InputInline title='描述' value={desc || '/'} editing={false} dataType={'TextArea'} mode={'inline'} /></Description>}>
+            <Description>
+              <InputInline title='描述' value={desc || '/'} onChange={(value) => this.handleDescChange(value, 'desc')} dataType={'TextArea'} mode={'inline'} width={600} />
+            </Description>
+          </Authorized>
         </DescriptionList>
-        <InputInline title='描述' value={desc || '/'} onChange={(value) => this.handleDescChange(value, 'desc')} dataType={'TextArea'} mode={'inline'} />
+        
       </div>
     )
 
     const action = (
       <div>
-        <Button onClick={this.showDeleteConfirm} type='danger'>删除</Button>
+        <Authorized authority="app_deleteRole" noMatch={null}> 
+          <Button onClick={this.showDeleteConfirm} type='danger'>删除</Button>
+        </Authorized>
+        
       </div>
     );
 
     const title = this.state.name==='平台管理员' || this.state.name==='功能管理员' || this.state.name==='角色管理员'?this.state.name:<InputInline title={'角色名称 '} value={name} onCommit={(value) => this.handleDescChange(value, 'name')} dataType={'Input'} mode={'inline'} />
 
+    // const breadcrumbList = [{title:'应用列表',href:'#/applications'},{title:appName},{title:'角色详情'}];
     return (
       <div style={{ margin: '-24px -24px 0' }}>
         <PageHeader

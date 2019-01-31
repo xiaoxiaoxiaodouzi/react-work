@@ -1,0 +1,70 @@
+@import "~antd/lib/style/themes/default.less";
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+}
+
+/* card内标题样式 */
+.card-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  color: rgba(0, 0, 0, 0.85);
+}
+/* 服务添加tag样式 */
+.tags .ant-form-item-control{
+  margin-top: 8px;
+}
+
+.ant-progress.danger .ant-progress-bg{
+  background-color:#f5222d;
+}
+.ant-progress.warning .ant-progress-bg{
+  background-color: #faad14;
+}
+.ant-progress.normal .ant-progress-bg{
+  background-color: #52c41a;
+}
+.ant-dropdown-menu-submenu-popup{
+  height: 240px;
+  overflow-y: auto;
+}
+.tableList .ant-form-item> .ant-form-item-label{
+    width: auto;
+    line-height: 32px;
+    padding-right: 8px;
+    margin-top: 5px;
+}
+
+.hover-editor {
+  .anticon-edit {
+    display: none;
+  }
+  &:hover .anticon-edit{
+    display: inline;
+  }
+}
+
+.env-card {
+  a {
+    margin-left: 5px;
+  }
+  &.disabled .ant-card-body{
+    display: none;
+  }
+}
+
+.sub-title-text {
+  color: @heading-color;
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.nowrap-ellipsis{
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  overflow:hidden;
+}

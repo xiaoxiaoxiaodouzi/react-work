@@ -3,12 +3,11 @@ import { Form, Card,List,Input,Button,Icon,Tooltip,Row,Col } from 'antd';
 import moment from 'moment';
 import '../../../routes/setting/index.less'
 import StandardFormRow from '../../../routes/setting/StandardFormRow'
-import {getImages,getImageCategorys} from '../../../services/images'
+import { getImages, getImageCategorys } from '../../../services/cce'
 import dockerImg from '../../../assets/images/docker.png'
 import TagSelect from 'ant-design-pro/lib/TagSelect';
 import ImagesUpload from '../../../common/ImagesUpload'
-import { base } from '../../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../../common/Authorized';
 
 const FormItem = Form.Item;
 class ImagesFormTabMine extends Component{
@@ -177,7 +176,6 @@ class ImagesFormTabMine extends Component{
   }
 
   render(){
-    const Authorized = RenderAuthorized(base.allpermissions);
     const {getFieldDecorator} =this.props.form;
     const {myList,platformList}=this.state;
     const formItemLayout = {

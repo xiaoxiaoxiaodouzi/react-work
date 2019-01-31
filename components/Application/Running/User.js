@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { Table, Row, Col, Form, Input, Select, Button} from 'antd';
 import './User.css'
-import { getUsers } from '../../../services/running'
+import { getUsers } from '../../../services/aip'
 import Link from 'react-router-dom/Link';
 import PropTypes from 'prop-types'
 
@@ -24,10 +24,9 @@ class UserForm extends Component {
     users: [],      //用户集合
     data1: [],       //功能集合
     userCollectionId: [],
-    totalData: [],
   }
   componentDidMount() {
-    this.loadDatas();
+    this.loadDatas({page:1,rows:10});
   }
   componentWillReceiveProps(nextProps) {
 
@@ -39,7 +38,7 @@ class UserForm extends Component {
 
   loadDatas = (queryParam) => {
     getUsers(this.props.appId, queryParam).then(data => {
-      this.setState({ totalData: data, total: data.length, data: data })
+      this.setState({ total: data.total, data: data.contents ,current:data.pageIndex,pageSize:data.pageSize})
     })
   }
 
@@ -68,18 +67,28 @@ class UserForm extends Component {
 
   renderSimple = () => {
     const { getFieldDecorator } = this.props.form;
+    const formItemLayout = {
+			labelCol: {
+				xs: { span: 24 },
+				sm: { span: 8 },
+			},
+			wrapperCol: {
+				xs: { span: 24 },
+				sm: { span: 16 },
+			},
+		};
     return (
       <div className='tableList'>
         <Form onSubmit={this.handleSearch} layout="inline">
-          <Row style={{ marginBottom: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
-            <Col md={8} sm={24}>
-              <FormItem label="用户名">
+          <Row style={{ marginBottom: 12 }} gutter={{ md: 4, lg: 12, xl: 18 }}>
+            <Col span={8}>
+              <FormItem {...formItemLayout} label="用户名">
                 {getFieldDecorator('name')(
                   <Input placeholder="请输入" />
                 )}
               </FormItem>
             </Col>
-            <Col md={8} sm={24}>
+            <Col span={16}>
               <span style={{ float: 'right' }}>
                 <Button type="primary" htmlType="submit" onClick={this.handleSearch}>查询</Button>
                 <Button style={{ marginLeft: 8 }} onClick={this.handleFormReset}>重置</Button>
@@ -96,13 +105,23 @@ class UserForm extends Component {
 
   renderAdvancedForm() {
     const { getFieldDecorator } = this.props.form;
+    const formItemLayout = {
+			labelCol: {
+				xs: { span: 24 },
+				sm: { span: 8 },
+			},
+			wrapperCol: {
+				xs: { span: 24 },
+				sm: { span: 16 },
+			},
+		};
     return (
       <div className='tableList'>
 
         <Form onSubmit={this.handleSearch} layout="inline">
-          <Row style={{ marginBottom: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
-            <Col md={8} sm={24}>
-              <FormItem label="用户名">
+          <Row style={{ marginBottom: 12 }} gutter={{ md: 4, lg: 12, xl: 18 }}>
+            <Col span={8}>
+              <FormItem {...formItemLayout} label="用户名">
                 {getFieldDecorator('name')(
                   <Input placeholder="请输入" />
                 )}
@@ -125,8 +144,8 @@ class UserForm extends Component {
                 )}
               </FormItem>
             </Col> */}
-            <Col md={8} sm={24}>
-              <FormItem label="功能角色">
+            <Col span={8}>
+              <FormItem {...formItemLayout} label="功能角色">
                 {getFieldDecorator('roles')(
                   <Select placeholder="请选择"
                   >
@@ -231,11 +250,7 @@ class UserForm extends Component {
         pageSize: pageSize,
         showTotal: total => `共有${total}条数据`,
         onChange: (current, pageSize) => {
-          //this.loadDatas(current, pageSize)
-          this.setState({
-            current:current,
-            pageSize:pageSize
-          })
+          this.loadDatas({page:current,rows:pageSize})
         },
         showQuickJumper: true
       }

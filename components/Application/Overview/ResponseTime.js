@@ -1,12 +1,12 @@
 import React, { PureComponent } from 'react';
-import { getRespHistogram} from '../../../services/dashApi';
+import { getRespHistogram} from '../../../services/apm';
 import moment from 'moment';
-import { message } from 'antd';
 import LoadingComponent from '../../../common/LoadingComponent';
 import { Chart, Axis, Tooltip, Geom, Coord, Guide, Legend} from 'bizcharts';
 import { DataSet } from '@antv/data-set';
 import ResourcesModal from '../../../common/ResourcesModal/ResourcesModal'
 import PropTypes from 'prop-types';
+import { base } from '../../../services/base';
 const Html = Guide.Html;
 export default class ResponseTime extends PureComponent {
   state = {
@@ -31,9 +31,9 @@ export default class ResponseTime extends PureComponent {
       let queryParam = {
         from: startTime,
         to: endTime,
-        nodeName: props.appCode
+        nodeName: base.currentEnvironment.code+'_'+props.appCode
       }
-      getRespHistogram(props.appCode, queryParam).then(data => {
+      getRespHistogram(base.currentEnvironment.code+'_'+props.appCode, queryParam).then(data => {
         this.setState({loading:false})
         if (Object.keys(data).length !== 0) {
           let visitData = [];
@@ -67,8 +67,8 @@ export default class ResponseTime extends PureComponent {
             total: total,
           })
         }
-      }).catch(err=>{
-        message.error('查询node的响应时长失败')
+      }).catch(e=>{
+        base.ampMessage('查询node的响应时长失败' );
         this.setState({loading:false})
       })
   }
@@ -199,8 +199,8 @@ export default class ResponseTime extends PureComponent {
 }
 
 ResponseTime.propTypes = {
- /*  from: PropTypes.string.isRequired,//开始日期
+  from: PropTypes.string.isRequired,//开始日期
   to: PropTypes.string.isRequired,//结束日期
-  visitData: PropTypes.array,//响应数据 */
+  visitData: PropTypes.array,//响应数据
   appCode: PropTypes.string,//目标应用Code
 }

@@ -1,6 +1,6 @@
 import React,{ Fragment } from 'react';
 import { Modal,Table,Badge } from 'antd';
-import { queryEnvs } from '../../../services/deploy';
+import { queryEnvs } from '../../../services/cce';
 const confirm = Modal.confirm;
 
 const sourceList = ['自定义','系统注入','中间件']; //环境变量来源 0:自定义,1:系统注入,2:中间件

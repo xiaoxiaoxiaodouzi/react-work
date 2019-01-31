@@ -1,34 +1,44 @@
 import React, { Fragment, Component } from 'react';
-import { Table, Form, Button, Modal, Input, message, Divider } from 'antd';
+import { Table, Form, Button, Modal, message, Divider,Upload } from 'antd';
 import AuthorizedUserUnion from '../../BasicData/Functional/AuthorizedUserUnion'
-import { getRoles, addRole, getRolesByCode, updateRole } from '../../../services/running'
 import { ObjectDetailContext } from '../../../context/ObjectDetailContext'
-import { updateRoleResource, getRoleResources } from '../../../services/functional'
+import { getRolesByCode,addRole,getRoles,importPreviewRoles,getRoleResources,exportRoles,getRoleUserCollection,updateUserCollection,updateRoleResource, updateRole  } from '../../../services/aip'
 import PropTypes from 'prop-types'
 import BaseTree from '../../../common/BaseTree'
 import Link from 'react-router-dom/Link';
-import { base } from '../../../services/base';
-import RenderAuthorized from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../../common/Authorized';
+import debounce from "throttle-debounce/debounce";
+import ResourcePreviewModal from './ResourcePreviewModal';
+import AuthorizeRoleModal from '../../../common/FunctionalSelectModal/AuthorizeRoleModal'
+import {DynamicFormEditorModal} from 'c2-antd-plus';
+import Ellipsis from 'ant-design-pro/lib/Ellipsis';
 class RoleForm extends Component {
   static propTypes = {
     prop: PropTypes.object,
-
   }
-  state = {
-    data: [],
-    roleName: '',
-    visible: false,
-    visibleModal: false,
-    functionsVisible: false,     //功能授权模态框
-    current: 1,
-    total: '',
-    pageSize: 10,
-    roleId: '',
-    selectedKeys: [],      //角色下的资源
-    treeNode: [],           //所有树节点     
-    loading: false,
-    disabled: false,     //编码禁用
-    record: '',      //选中行数据
+  constructor(props){
+    super(props);
+    this.state = {
+      data: [],
+      roleName: '',
+      visible: false,
+      visibleModal: false,
+      functionsVisible: false,     //功能授权模态框
+      current: 1,
+      total: '',
+      pageSize: 10,
+      roleId: '',
+      selectedKeys: [],      //角色下的资源
+      treeNode: [],           //所有树节点     
+      loading: false,
+      disabled: false,     //编码禁用
+      record: '',      //选中行数据
+      fileList:[],
+      previewData:[],
+      previewVisible:false,
+      confirmLoading:false
+    }
+    this.validateParams = this.validateParams.bind(this)
   }
 
   componentDidMount() {
@@ -108,22 +118,23 @@ class RoleForm extends Component {
     })
   }
 
-  handleModalOk = () => {
-    let form = this.props.form;
-    let value = form.getFieldsValue();
+  handleModalOk = (values) => {
+    // let form = this.props.form;
+    // let value = form.getFieldsValue();
+    this.setState({confirmLoading:true})
     if (this.state.disabled) {
-      updateRole(this.props.appId, this.state.record.id, value).then(data => {
+      updateRole(this.props.appId, this.state.record.id, values).then(data => {
         message.success('修改角色成功');
-        this.setState({ disabled: false, visibleModal: false });
+        this.setState({ disabled: false, visibleModal: false,confirmLoading:false });
         this.loadDatas(1, 10);
       })
     } else {
-      let values = [];
-      values.push(value);
-      addRole(this.props.appId, values).then(data => {
+      let valuesArr = [];
+      valuesArr.push(values);
+      addRole(this.props.appId, valuesArr).then(data => {
         if (data.length > 0) {
           message.success('新增角色成功');
-          this.setState({ visibleModal: false })
+          this.setState({ visibleModal: false,confirmLoading:false })
           this.loadDatas(1, 10);
         }
       })
@@ -154,15 +165,47 @@ class RoleForm extends Component {
     this.setState({ onSelectKeys: selectNodes })
   }
 
+  //导出角色
+  exportRoles = () =>{
+    exportRoles(this.props.appId,this.props.appname + "-资源");
+  }
+
+  importOk = (flag) => {
+    if(flag){
+      this.loadDatas(1, 10);
+      this.setState({previewVisible:false});
+    }
+  }
+
+  authorizedUser = (roleId) =>{
+    this.setState({roleId:roleId});
+    getRoleUserCollection(this.props.appId, roleId,  {}).then(datas=>{
+      this.setState({
+        selectedKeys: datas,
+        authorizeVisible:true
+      });
+    })
+  }
+
+   //处理功能授权modal回调，flag=true为点击确定，返回选择的功能集合数据，flag=false为点击取消，关闭modal
+   handleAuthorizeModal = (flag, selectedValues) => {
+    if (flag) {
+      updateUserCollection(this.props.appId, this.state.roleId, selectedValues).then(data => {
+        message.success('修改授权用户集合成功')
+      })
+    }
+    this.setState({ authorizeVisible: false })
+  }
+
   //校验表单数据
-  validateParams = (rule, value, callback) => {
+  validateParams = debounce(100,function(rule, value, callback){
     if (rule.field === 'name') {
       if (value) {
         let params = {
           name: value,
           mode: 'simple'
         }
-        if (this.state.record && value !== this.state.record.name) {
+        if (value && value !== this.state.record.name) {
           getRoles(this.props.appId, params).then(data => {
             if (data.length > 0) {
               callback('角色名称已存在');
@@ -170,6 +213,8 @@ class RoleForm extends Component {
               callback()
             }
           })
+        }else{
+          callback();
         }
       } else {
         callback('请输入角色名称')
@@ -186,23 +231,66 @@ class RoleForm extends Component {
               callback();
             }
           })
+        }else{
+          callback();
         }
       } else {
         callback('请输入角色编码');
         return;
       }
     }
-  }
+  })
+
+  
 
   render() {
-
+    const props = {
+      onRemove: (file) => {
+          this.setState({ fileList: [] })
+      },
+      beforeUpload: (file) => {
+          this.setState({ fileList: [file] })
+          return false;
+      },
+      onChange:(info) =>{
+          if(info.fileList && info.fileList.length > 0){
+              if(info.file.type !== 'text/plain'){
+                message.warning('上传格式错误，请上传一个txt格式的文件！');
+                this.setState({
+                 fileList:[]
+                });
+                return;
+              }
+              let filedata = new FormData();
+              filedata.append('file', info.fileList[0].originFileObj);
+              this.setState({
+                    previewVisible:true,
+                    previewLoading:true,
+                   fileList:[]
+              });
+              //预览
+              importPreviewRoles(this.props.appId,filedata)
+                  .then(data => {
+                      if(data){
+                          this.setState({
+                              previewData:data,
+                              previewLoading:false
+                          });
+                      }
+              })
+          }
+        
+      },
+      fileList: this.state.fileList,
+      className: 'upload-list-inline',
+  }
     const { current, total, pageSize } = this.state;
 
     const columns = [
       {
         title: '名称',
         dataIndex: 'name',
-        width: '20%',
+        width:'20%',
         render: (record, text) => {
           return (
             <Link to={`/applications/${text.appId}/functionalroles/${text.id}`}>{text.name}</Link>
@@ -211,12 +299,14 @@ class RoleForm extends Component {
       }, {
         title: '编码',
         dataIndex: 'code',
-        width: '30%',
+        width:'15%',
       },
       {
         title: '描述',
         dataIndex: 'desc',
-        width: '30%',
+        render:(text)=>{
+          return <Ellipsis tooltip lines={1}>{text}</Ellipsis>
+        }
       }, /* {
         title: '功能',
         dataIndex: 'functions',
@@ -229,7 +319,7 @@ class RoleForm extends Component {
       }, */
       {
         title: '操作',
-        width: '20%',
+        width: '240px',
         render: (text, record) => {
           return (
             <Fragment>
@@ -240,6 +330,8 @@ class RoleForm extends Component {
               <Authorized authority='app_editRole' noMatch={<a disabled="true" onClick={() => { this.EditRole(record) }}>编辑</a>}>
                 <a onClick={() => { this.EditRole(record) }}>编辑</a>
               </Authorized>
+              <Divider type='vertical' />
+              <a onClick={()=>{this.authorizedUser(record.id)}}>授权用户</a>
             </Fragment>
           )
         }
@@ -258,41 +350,24 @@ class RoleForm extends Component {
         showQuickJumper: true
       }
 
-    // rowSelection object indicates the need for row selection
-    // const rowSelection = {
-    //   onChange: (selectedRowKeys, selectedRows) => {
-    //     console.log(`selectedRowKeys: ${selectedRowKeys}`, 'selectedRows: ', selectedRows);
-    //   },
-    //   getCheckboxProps: record => ({
-    //     disabled: record.name === 'Disabled User', // Column configuration not to be checked
-    //     name: record.name,
-    //   }),
-    // }
-
-    const formItemLayout = {
-      labelCol: {
-        xs: { span: 24 },
-        sm: { span: 7 },
-      },
-      wrapperCol: {
-        xs: { span: 24 },
-        sm: { span: 12 },
-        md: { span: 13 },
-      },
-    };
-
-    const { getFieldDecorator } = this.props.form;
-    //const message = `将功能角色${this.state.roleNmae}授权给用户集合`
-    const Authorized = RenderAuthorized(base.allpermissions);
+    let items = [];
+    items.push({label:'名称',name:'name',type:'input',initialValue:this.state.record?this.state.record.name:'',validator: this.validateParams,required:true});
+    let codeItem = {label:'编码',name:'code',type:'input',initialValue:this.state.record?this.state.record.code:'',required:true,attribute:{disabled:this.state.disabled}};
+    if(!this.state.disabled){
+      codeItem.validator = this.validateParams;
+    }
+    items.push(codeItem);
+    items.push({label:'描述',name:'desc',type:'textarea',initialValue:this.state.record?this.state.record.desc:'',attribute:{rows:4}});
     return (
       <div>
         <div style={{ marginBottom: 12 }}>
           <Authorized authority='app_addRole' noMatch={null}>
-            <Button type='primary' style={{ marginLeft: '12px' }} onClick={this.handleClick}>新建</Button>
+            <Button type='primary' icon='plus' style={{ marginLeft: '12px' }} onClick={this.handleClick}>新建</Button>
           </Authorized>
-          {/* <Button type='primary' style={{ marginLeft: '12px' }}>导入</Button>
-          <Button type='primary' style={{ marginLeft: '12px' }}>导出</Button>
-          <Button type='primary' style={{ marginLeft: '12px' }}>刷新</Button> */}
+          <Button icon="download" style={{ marginLeft: 8 }} onClick={this.exportRoles}>导出</Button>
+					<Authorized authority='app_addRole' noMatch={null}>
+						<Upload {...props}><Button icon="upload" style={{ marginLeft: 8 }}>导入</Button></Upload>
+					</Authorized>	
         </div>
         <Table
           /* rowSelection={rowSelection} */
@@ -312,41 +387,15 @@ class RoleForm extends Component {
           <AuthorizedUserUnion size='middle' appId={this.props.appId} roleId={this.state.roleId} />
         </Modal>
 
-        <Modal
-          title={this.state.disabled ? '修改角色' : '新增角色'}
-          visible={this.state.visibleModal}
-          onOk={this.handleModalOk}
-          destroyOnClose
-          onCancel={() => this.setState({ visibleModal: false })}>
-          <Form>
-            <Form.Item {...formItemLayout} label="名称">
-              {getFieldDecorator('name', {
-                rules: [{
-                  required: true,
-                  //现在校验接口有问题 先暂时不校验了
-                  validator: this.validateParams
-                }],
-              })(
-                <Input />
-              )}
-            </Form.Item>
-            <Form.Item {...formItemLayout} label="编码">
-              {getFieldDecorator('code', {
-                rules: [{
-                  required: true,
-                  validator: this.validateParams
-                }],
-              })(
-                <Input disabled={this.state.disabled} />
-              )}
-            </Form.Item>
-            <Form.Item {...formItemLayout} label="描述">
-              {getFieldDecorator('desc')(
-                <Input.TextArea rows={4} />
-              )}
-            </Form.Item>
-          </Form>
-        </Modal>
+        <DynamicFormEditorModal 
+        title={this.state.disabled ? '修改角色' : '新增角色'}
+        visible={this.state.visibleModal}
+        onOk={this.handleModalOk}
+        items={items}
+        destroyOnClose
+        confirmLoading={this.state.confirmLoading}
+        onCancel={() => this.setState({ visibleModal: false,disabled:false })}
+        />
 
         <Modal
           bodyStyle={{ overflow: 'auto', height: '500px' }}
@@ -359,6 +408,20 @@ class RoleForm extends Component {
         >
           <BaseTree onSelectKeys={(selectKeys, selectNodes) => this.onSelectKeys(selectKeys, selectNodes)} treeNodes={this.state.treeNode} pidName="parentId" selectedNodes={this.state.selectedKeys} />
         </Modal>
+
+        <ResourcePreviewModal visible={this.state.previewVisible} 
+          previewData={this.state.previewData} 
+          loading={this.state.previewLoading}
+          onCancel={()=>{this.setState({previewVisible:false})}}
+          appId = {this.props.appId}
+          importOk={this.importOk} 
+          />
+
+        <AuthorizeRoleModal 
+          visible={this.state.authorizeVisible}
+          title='功能角色授权' isOffset={true}
+          selectedKeys={this.state.selectedKeys}
+          handleModal={(flag, data) => this.handleAuthorizeModal(flag, data)}/>
       </div>
 
 

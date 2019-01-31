@@ -40,7 +40,7 @@ export default class AuthorizeRoleModal extends Component {
         onOk={ () => this.props.handleModal(true,this.state.selectedKeys) }
         onCancel={() => this.props.handleModal(false)} >
           <UserUnionTree 
-            disableSelectedKeys={this.props.selectedKeys}
+            // disableSelectedKeys={this.props.selectedKeys}
             selectedKeys={this.props.selectedKeys}
             onSelectedKeys={(onSelectedKeys)=>{this.setState({selectedKeys:onSelectedKeys})}}
             />

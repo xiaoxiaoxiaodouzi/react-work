@@ -1,6 +1,6 @@
 import React from 'react';
 import { Row, Col, Form, Input, Select, Icon, Button, InputNumber } from 'antd';
-import { queryTags } from '../../../services/apps';
+import { queryTags } from '../../../services/aip';
 
 const FormItem = Form.Item;
 const { Option } = Select;

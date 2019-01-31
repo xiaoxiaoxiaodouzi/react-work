@@ -1,10 +1,8 @@
 import React from 'react';
 import { Col, Row, Radio, Input, Select, message } from 'antd';
 import SetpBar from './SetpBar';
-import { getSwaggerComparison, getRemoteSwagger } from '../../../../services/api'
-import { getAppInfo } from '../../../../services/appdetail'
-import { getupstream } from '../../../../services/domainList'
-import { queryAppAIP } from '../../../../services/apps';
+import { getSwaggerComparison, getRemoteSwagger, getAppInfo, queryAppAIP } from '../../../../services/aip'
+import {getupstream} from '../../../../services/amp'
 
 
 export default class ServerImportStepOne extends React.Component {
@@ -43,11 +41,22 @@ export default class ServerImportStepOne extends React.Component {
 			getAppInfo(this.props.appId)
 				.then((response) => {
 					this.appId = this.props.appId;
-					this.upstream = response.upstream;
-					if (response.springcloud) {
+					if(response.upstream.indexOf("http://") !== -1 ){
+						let upstream = response.upstream.split("http://")[1];
+						this.upstream = upstream;
+					}else if(response.upstream.indexOf("https://") !== -1 ){
+						let upstream = response.upstream.split("https://")[1];
+						this.upstream = upstream;
+					}else{
+						this.upstream = response.upstream;
+      				}
+					// if (response.springcloud) {
 						getupstream(this.upstream).then(res => {
 							if (res && res.targets && res.targets.length > 0) {
-								let ctx=response.ctx?response.ctx:''
+								let ctx=response.ctx?response.ctx:'';
+								if(ctx && "/" !== ctx.substring(0,1)){
+									ctx = "/" + ctx;
+								}
 								this.setState({
 									springcloud: response.springcloud ? response.springcloud : false,
 									radioValue: 2,
@@ -56,7 +65,7 @@ export default class ServerImportStepOne extends React.Component {
 								this.swaggerurl = 'http://'+res.targets[0].ip + ':' + res.targets[0].port + ctx + '/swagger.json';
 							}
 						})
-					}
+					// }
 				})
 		}
 	}

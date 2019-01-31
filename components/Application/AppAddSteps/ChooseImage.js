@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import { Select,Alert, List, Input, Button, Radio, Avatar, Dropdown, Menu, Tooltip ,message,Spin} from "antd";
-import {queryImagePath, queryCategorys,queryImages, queryImageVersions, queryLatestVersion } from '../../../services/apps';
+import { queryImages, queryImageVersions, queryLatestVersion, queryImagePath, queryCategorys } from '../../../services/cce'
 import DataFormate from '../../../utils/DataFormate';
 import {base} from '../../../services/base'
 
@@ -84,11 +84,14 @@ export default class ChooseImage extends Component {
                     return false;
                 });
             }
-            this.getImages("c2cloud", {categoryids:newData[0].id});
-            this.setState({
-                imageCategorys:newData,
-                imageCategoryId:newData[0].id,
-            })
+            if(newData&&newData.length>0){
+                this.getImages("c2cloud", {categoryids:newData[0].id});
+                this.setState({
+                    imageCategorys:newData,
+                    imageCategoryId:newData[0].id,
+                    loading:false
+                })
+            }
         })
     }
     //镜像的大分类改变后，修改 buttonValue 状态,并将搜索框的值设为空
@@ -129,7 +132,7 @@ export default class ChooseImage extends Component {
     getImagePath = () => {
         queryImagePath().then(data => {
             this.setState({
-                imagePath: data.url.split("https://")[1],
+                imagePath: data.url.split("//")[1],
             })
         })
     }
@@ -186,7 +189,7 @@ export default class ChooseImage extends Component {
                 </Menu>
             );
         const searchMargin=(
-            this.state.buttonValue==='c2cloud'?{marginLeft:150}:{marginLeft:460}
+            this.state.buttonValue==='c2cloud'?{marginLeft:150}:{marginLeft:460,display:'inline-flex'}
         )
         return (
             <span style={{ display: this.props.display ? 'block' : 'none' }}>

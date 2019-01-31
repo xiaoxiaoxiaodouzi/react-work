@@ -1,13 +1,15 @@
 import React from 'react'
 import { Card, Row, Col, Tooltip, message, Icon, Form, Modal, Input, Popconfirm } from 'antd';
 import Clipboard from 'copy-to-clipboard';
-import { getApiGatewayInfo, getApiGatewayUrl, resetApiKey } from '../../services/api'
+import { getApiGatewayInfo, getApiGatewayUrl, resetApiKey,getApp } from '../../services/aip'
 import ProvidedServices from '../../components/Application/Api/ProvidedServices';
 import AccessibilityServer from '../../components/Application/Api/AccessibilityServer';
-import { getApp } from '../../services/running'
 import { base } from '../../services/base'
-import { queryEnvById } from '../../services/setting'
-import RenderAuthorized from 'ant-design-pro/lib/Authorized';
+import { queryEnvById } from '../../services/amp'
+import Authorized from '../../common/Authorized';
+
+import { queryBaseConfig, existEnvs, editEnvs } from '../../services/cce'
+import { ErrorComponentCatch } from '../../common/SimpleComponents';
 
 class AppApi extends React.PureComponent {
 
@@ -24,7 +26,7 @@ class AppApi extends React.PureComponent {
       springcloud: false,  //是否是springcloud应用
       eurekaServerUrls: '',      //当前环境注册中心地址
     }
-
+    this.appCode = this.props.appCode;
     this.appid = props.match.params.id;
     this.apiKey = '';
     this.apikeyHide = '******';
@@ -78,6 +80,28 @@ class AppApi extends React.PureComponent {
         this.securityKey = response.secret || '';
         this.securityKeyHide = '******';
         message.success('重置凭证成功');
+
+        if(base.configs.passEnabled){
+          //获取容器信息
+          queryBaseConfig(this.appCode).then((bases) => {
+            if (bases && bases.length > 0) {
+              
+              //查出环境变量c2_sso_proxy_apigateway_apikey
+              existEnvs(this.appCode,bases[0].name,"c2_sso_proxy_apigateway_apikey").then(data =>{
+                if(data ){
+                  let params = data;
+                  params.value = response.key;
+                  editEnvs(this.appCode,bases[0].name,params,params.id).then(env => {//更新環境變量
+                    if(env){
+                      console.log("修改环境变量c2_sso_proxy_apigateway_apikey成功！");
+                    }
+                  })
+                }
+              })
+            }
+          });
+        }
+                
         this.setState({
           apiKey: '******',
           securityKey: '******',
@@ -115,7 +139,6 @@ class AppApi extends React.PureComponent {
     })
   }
   render() {
-    const Authorized = RenderAuthorized(base.allpermissions);
     const { getFieldDecorator } = this.props.form;
     const formItemLayout1 = {
       labelCol: {
@@ -256,5 +279,4 @@ class AppApi extends React.PureComponent {
     )
   }
 }
-const Antdes = Form.create()(AppApi);
-export default Antdes;
+export default ErrorComponentCatch(Form.create()(AppApi));

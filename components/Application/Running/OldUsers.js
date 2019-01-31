@@ -1,6 +1,6 @@
 import React, { Fragment,Component } from 'react';
 import { Table,Row, Col, Form, Input, Select, Icon, Button,  Divider,  message,Modal,Tree} from 'antd';
-import {getUsers,getRoles,deleteUser,addUser,roleTree,updateRoleTree} from '../../../services/running'
+import {roleTree,addUser,deleteUser,getUsers,getRoles,updateRoleTree} from '../../../services/aip'
 import './User.css'
 import TreeHelp from '../../../utils/TreeHelp'
 

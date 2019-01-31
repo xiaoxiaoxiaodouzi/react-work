@@ -1,7 +1,7 @@
 import React,{Fragment,Component} from 'react'
 import TreeHelp from './../../../utils/TreeHelp'
 import { Table, Divider, Select, Input, message, Modal, Form, Button, Icon} from 'antd'
-import {getMenuTrees,updateMenus,deleteMenuById,addMenus} from '../../../services/menus'
+import {getMenuTrees,addMenus,deleteMenuById,updateMenus} from '../../../services/aip'
 import IconSelectModal from '../../../common/IconSelectModal'
 
 const confirm = Modal.confirm;

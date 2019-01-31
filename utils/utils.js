@@ -1,8 +1,5 @@
 import moment from 'moment';
 
-export function fixedZero(val) {
-  return val * 1 < 10 ? `0${val}` : val;
-}
 
 export function formateValue(value){
   return value?value:value===0?0:'--'
@@ -50,51 +47,6 @@ export function getTimeDistance(type,num) {
     return [moment(tempTime.getTime()-n *365*oneDay), moment(tempTime)];
   }
 }
-
-export function getPlainNode(nodeList, parentPath = '') {
-  const arr = [];
-  nodeList.forEach((node) => {
-    const item = node;
-    item.path = `${parentPath}/${item.path || ''}`.replace(/\/+/g, '/');
-    item.exact = true;
-    if (item.children && !item.component) {
-      arr.push(...getPlainNode(item.children, item.path));
-    } else {
-      if (item.children && item.component) {
-        item.exact = false;
-      }
-      arr.push(item);
-    }
-  });
-  return arr;
-}
-
-export function digitUppercase(n) {
-  const fraction = ['角', '分'];
-  const digit = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖'];
-  const unit = [
-    ['元', '万', '亿'],
-    ['', '拾', '佰', '仟'],
-  ];
-  let num = Math.abs(n);
-  let s = '';
-  fraction.forEach((item, index) => {
-    s += (digit[Math.floor(num * 10 * (10 ** index)) % 10] + item).replace(/零./, '');
-  });
-  s = s || '整';
-  num = Math.floor(num);
-  for (let i = 0; i < unit[0].length && num > 0; i += 1) {
-    let p = '';
-    for (let j = 0; j < unit[1].length && num > 0; j += 1) {
-      p = digit[num % 10] + unit[1][j] + p;
-      num = Math.floor(num / 10);
-    }
-    s = p.replace(/(零.)*零$/, '').replace(/^$/, '零') + unit[0][i] + s;
-  }
-
-  return s.replace(/(零.)*零元/, '元').replace(/(零.)+/g, '零').replace(/^整$/, '零元整');
-}
-
 
 function getRelation(str1, str2) {
   if (str1 === str2) {
@@ -167,6 +119,27 @@ export function checkCmd(cmd) {
     return false;
   }
   return true;
+}
+
+/*生成txt文件 */
+export function downloadTxt(content,name){
+  var element = document.createElement('a');
+  element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+  element.setAttribute('download', name);
+  
+  element.style.display = 'none';
+  document.body.appendChild(element);
+  
+  element.click();
+  
+  document.body.removeChild(element);
+}
+
+/*首字母大写*/
+export function upFirstWord(str){
+  var firstW = str.substring(0,1).toUpperCase();
+  var lastW = str.substring(1,str.length);
+  return firstW+lastW;
 }
 
 /*!

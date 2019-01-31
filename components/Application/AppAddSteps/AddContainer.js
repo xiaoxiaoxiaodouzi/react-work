@@ -4,7 +4,7 @@ import ChooseImage from './ChooseImage';
 import DeployConfig from './DeployConfig';
 import AdvanceConfig from './AdvanceConfig';
 import {base} from '../../../services/base'
-import appUtil from '../../../services/appguide'
+import appUtil from '../../../services/cce'
 import ImagesForm from '../../../common/ImagesUpload/ImagesForm'
 
 const Step = Steps.Step;
@@ -90,7 +90,7 @@ class AddContainer extends Component {
             displayAdvance: false,
         })
     }
-    stepOver = (isOk, values, netConfData, envConfData, imagePath, switched) => {
+    stepOver = (isOk, values, netConfData, envConfData, imagePath, switched,limit,request,memory) => {
         // var newContainer = {
         //     id:this.state.container.id,
         //     config: [],//配置文件
@@ -148,23 +148,43 @@ class AddContainer extends Component {
         }
 
         //转换资源配置信息
-        appUtil.getQuota(values.resourcesType).then(quota=>{
-            newContainer.resources.resourcesType = values.resourcesType;
-            newContainer.resources.limits = {memory:{amount:quota.memory+quota.memoryUnit},cpu:{amount:quota.cpu}};
-            this.setState({
-                container: newContainer
-            })
-            if (isOk) {
-                this.handleCancel(newContainer);
-            } else {
+        if(values.resourcesType !== -1 && values.resourcesType !== '-1'){
+            appUtil.getQuota(values.resourcesType).then(quota=>{
+                newContainer.resources.resourcesType = values.resourcesType;
+                newContainer.resources.limits = {memory:{amount:quota.memory+quota.memoryUnit},cpu:{amount:quota.cpu}};
                 this.setState({
-                    current: 2,
-                    displayChoose: false,
-                    displayDeploy: false,
-                    displayAdvance: true,
+                    container: newContainer
                 })
-            }
-        });
+                if (isOk) {
+                    this.handleCancel(newContainer);
+                } else {
+                    this.setState({
+                        current: 2,
+                        displayChoose: false,
+                        displayDeploy: false,
+                        displayAdvance: true,
+                    })
+                }
+            });
+        }else{
+            newContainer.resources.resourcesType = values.resourcesType;
+            newContainer.resources.limits = {memory:{amount:memory+"Gi"},cpu:{amount:limit}};
+            newContainer.resources.requests = {memory:{amount:memory+"Gi"},cpu:{amount:request}};
+                this.setState({
+                    container: newContainer
+                })
+                if (isOk) {
+                    this.handleCancel(newContainer);
+                } else {
+                    this.setState({
+                        current: 2,
+                        displayChoose: false,
+                        displayDeploy: false,
+                        displayAdvance: true,
+                    })
+                }
+        }
+        
 
     }
  

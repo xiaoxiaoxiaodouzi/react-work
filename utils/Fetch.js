@@ -1,5 +1,4 @@
 import isoFetch from "isomorphic-fetch";
-import { message } from "antd";
 import { base } from '../services/base'
 
 
@@ -33,20 +32,10 @@ const getQueryParams = params => {
  */
 const responseHandle = (response, errorMessage) => {
     if (response.ok) {
-        //登录超时，跳转到登录页面(加了XMLHttpRequest头之后不会有redirected状态返回了)
-        // if(response.redirected){
-        //     const backUrl = window.location.hash;
-        //     let loginUrl = response.url;
-        //     const backUrlIndex = loginUrl.indexOf("backUrl=");
-        //     if(backUrlIndex!==-1){
-        //         loginUrl = loginUrl.substring(0,backUrlIndex+8)+backUrl;
-        //     }
-        //     window.location.href= loginUrl;
-        // }else
         //如果返回内容为空，返回一个空的Promise对象，确保能够正确进入then的回调
         if (response.status === 204) return new Promise((resolve, reject) => { resolve() });
         else {
-            if (response.headers.get('Content-Type').indexOf('application/json') !== -1) {
+            if (response.headers&&response.headers.get('Content-Type')&&response.headers.get('Content-Type').indexOf('application/json') !== -1) {
                 return response.json();
             }
             return response.text();
@@ -66,20 +55,30 @@ const responseHandle = (response, errorMessage) => {
  */
 const remoteErrorHandle = (errorMessage, response, defaultMessage) => {
     return new Promise((resolve, reject) => {
-        reject();
-        if (response.status === 401) {
-            let loginUrl = response.headers.get('loginurl');
-            window.location.href = loginUrl;
+        reject(response);
+        if (response.status === 401 || response.status === 402) {
+            if(base.safeMode){
+                window.location.href = '#/login';
+            }else{
+                let loginUrl = response.headers.get('loginurl');
+                // if(window.location.href.endsWith('#/')){
+                //     window.location.reload();
+                // }else{
+                    window.location.href = loginUrl
+                // }
+            }
         } else {
             if (errorMessage === undefined) errorMessage = true;
             if (errorMessage) {
-                let info = defaultMessage || "后台错误！";
+                let info = defaultMessage || "后台错误！",description;
                 if (typeof errorMessage === "string") info = errorMessage;
                 response.json().then(jsonRes => {
-                    if (jsonRes.errorMessage && errorMessage === true) info = jsonRes.errorMessage;
-                    message.error(info);
+                    if (jsonRes.errorMessage && errorMessage === true){
+                        info = jsonRes.errorMessage;
+                    }else description = jsonRes.errorMessage;
+                    base.ampMessage(info,description);
                 }).catch(error => {
-                    message.error(info);
+                    base.ampMessage(info);
                 });
             } else {
                 var error = new Error("请求:" + response.url + " 出错！");
@@ -87,37 +86,39 @@ const remoteErrorHandle = (errorMessage, response, defaultMessage) => {
                 throw error;
             }
         }
-
     })
 }
 
 const getAmpEnvId = () => {
-    let evnId = base.currentEnvironment ? base.currentEnvironment.id : '1';
-    return evnId;
+    if(base.environment){
+        return base.environment;
+    }
 }
-
-message.config({
-    top: 24,
-    duration: 2,
-    maxCount: 1
-});
+const getSafeMode = ()=>{
+    return base.safeMode;
+}
+const getHttpHeader = (headers)=>{
+    let baseHttpHeaders = { 'accept': 'application/json','Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': getAmpEnvId()};
+    if(!baseHttpHeaders['Safe-Mode']&&getSafeMode())baseHttpHeaders['Safe-Mode'] = true;
+    let httpHeaders = Object.assign(baseHttpHeaders,headers);
+    // if(!httpHeaders['AMP-ENV-ID'])message.warning('没有选中任何环境！');
+    return httpHeaders;
+}
 
 class C2Fetch {
     static urlBase = "";
     static get(url, params, errorMessage, headers) {
         let queryParams = getQueryParams(params);
         let queryUrl = queryParams.length > 0 ? "?" + queryParams.join("&") : "";
-        let ampEnvId = getAmpEnvId();
-        if (headers && headers['AMP-ENV-ID']) ampEnvId = headers['AMP-ENV-ID'];
-        let httpHeaders = { 'accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': ampEnvId };
+        let httpHeaders = getHttpHeader(headers);
         return fetch(this.urlBase + url + queryUrl, { credentials: "include", headers: httpHeaders }).then(response => responseHandle(response, errorMessage));
     }
-    static post(url, bodyParams, queryParams, errorMessage) {
+    static post(url, bodyParams, queryParams, errorMessage, headers) {
         let parray = getQueryParams(queryParams);
         let queryUrl = parray.length > 0 ? "?" + parray.join("&") : "";
         return fetch(this.urlBase + url + queryUrl, {
             method: "POST", credentials: "include",
-            headers: { 'accept': 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': getAmpEnvId() },
+            headers: getHttpHeader(headers),
             body: typeof bodyParams === 'string' ? bodyParams : JSON.stringify(bodyParams)
         }).then(response => responseHandle(response, errorMessage));
     }
@@ -126,7 +127,7 @@ class C2Fetch {
         let queryUrl = parray.length > 0 ? "?" + parray.join("&") : "";
         return fetch(this.urlBase + url + queryUrl, {
             method: "PUT", credentials: "include",
-            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': getAmpEnvId() },
+            headers: getHttpHeader(),
             body: JSON.stringify(bodyParams)
         }).then(response => responseHandle(response, errorMessage));
     }
@@ -135,7 +136,17 @@ class C2Fetch {
         let queryUrl = queryParams.length > 0 ? "?" + queryParams.join("&") : "";
         return fetch(this.urlBase + url + queryUrl, {
             method: "DELETE", credentials: "include",
-            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': getAmpEnvId() }
+            headers: getHttpHeader()
+        }).then(response => responseHandle(response, errorMessage));
+    }
+
+    static postFile(url, file, queryParams, errorMessage, headers) {
+        let parray = getQueryParams(queryParams);
+        let queryUrl = parray.length > 0 ? "?" + parray.join("&") : "";
+        return fetch(this.urlBase + url + queryUrl, {
+            method: "POST", credentials: "include",
+            headers:{'X-Requested-With': 'XMLHttpRequest','AMP-ENV-ID': getAmpEnvId()},
+            body: file
         }).then(response => responseHandle(response, errorMessage));
     }
 
@@ -144,16 +155,21 @@ class C2Fetch {
      * @param {String} url 下载url,必须返回一个文件流
      * @param {String} fileName 下载的文件名称
      */
-    static download(url,fileName){
-        let httpHeaders = {'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': getAmpEnvId() };
-        fetch(url,{headers:httpHeaders}).then(res=>res.blob().then(blob=>{
-            var link = document.createElement('a');
-            link.href = window.URL.createObjectURL(blob);
-            // var filename = res.headers.get('Content-Disposition');
-            link.download = fileName;
-            link.click();
-            window.URL.revokeObjectURL(link.href);
-        }));
+    static download(url,fileName,errorMessage){
+        fetch(url,{headers:getHttpHeader()}).then(res=>{
+            if(res.ok){
+                res.blob().then(blob=>{
+                    var link = document.createElement('a');
+                    link.href = window.URL.createObjectURL(blob);
+                    // var filename = res.headers.get('Content-Disposition');
+                    link.download = fileName;
+                    link.click();
+                    window.URL.revokeObjectURL(link.href);       
+                })
+            }else{  
+                remoteErrorHandle(errorMessage,res);
+            }
+        });
     }
 }
 

@@ -3,7 +3,7 @@ import PropTypes from 'prop-types'
 import { Row, Col, Form, Input, Button, Table, message } from 'antd';
 import moment from 'moment'
 import AuthorizeRoleModal from '../../../common/FunctionalSelectModal/AuthorizeRoleModal'
-import { getRoleUserCollection, deleteUserCollection, updateUserCollection,roleManagerUsers,deleteRoleManager ,getRoleManagerUsers} from '../../../services/functional'
+import {deleteRoleManager,getRoleUserCollection,updateUserCollection,deleteUserCollection,roleManagerUsers,getRoleManagerUsers} from '../../../services/aip'
 import constants from '../../../services/constants'
 
 const FormItem = Form.Item;
@@ -140,16 +140,26 @@ class AuthorizedUserUnion extends Component {
 
   renderForm() {
     const { getFieldDecorator } = this.props.form;
+    const formItemLayout = {
+			labelCol: {
+				xs: { span: 24 },
+				sm: { span: 8 },
+			},
+			wrapperCol: {
+				xs: { span: 24 },
+				sm: { span: 16 },
+			},
+		};
     return (
       <div className="tableList">
         <Form onSubmit={this.handleSearch} layout="inline">
-          <Row gutter={{ md: 8, lg: 16 }}>
-            <Col md={8} sm={24}>
-              <FormItem label="名称">
+          <Row gutter={{ md: 4, lg: 12, xl: 18}}>
+            <Col span={8}>
+              <FormItem {...formItemLayout} label="名称">
                 {getFieldDecorator('name')(<Input placeholder="请输入" />)}
               </FormItem>
             </Col>
-            <Col md={16} sm={24}>
+            <Col span={16}>
               <span style={{ float: 'right' }}>
                 <Button type="primary" htmlType="submit">
                   查询
@@ -170,28 +180,27 @@ class AuthorizedUserUnion extends Component {
     const columns = [{
       title: '名称',
       dataIndex: 'userCollectionName',
-      width: '20%'
     }, {
       title: '类型',
       dataIndex: 'userCollectionType',
-      width: '15%',
+      width: '100px',
       render: (value, record) => constants.functionResource.userCollectionType[value]
     }, {
       title: '用户数',
       dataIndex: 'userCount',
-      width: '15%'
+      width: '100px',
+      align:'right'
     }, {
       title: '授权者',
       dataIndex: 'creator',
-      width: '15%'
     }, {
       title: '授权时间',
       dataIndex: 'createtime',
-      width: '20%',
+      width: '180px',
       render: (value) => moment(value).format('YYYY-MM-DD HH:mm')
     }, {
       title: '操作',
-      width: '15%',
+      width: '120px',
       key: 'action',
       render: (text, record) => <a onClick={() => this.onDeleteUserCollection(record.userCollectionId)} >取消授权</a>
     }];

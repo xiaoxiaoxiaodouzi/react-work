@@ -4,9 +4,8 @@ import { Modal, Button, Spin, Menu, Badge } from 'antd';
 import moment from 'moment';
 import DescriptionList from 'ant-design-pro/lib/DescriptionList';
 
-import { queryAppAIP } from '../../../services/deploy'
-import { getAppManager } from '../../../services/appdetail'
-import { queryAppCCE } from '../../../services/apps'
+import { getAppManager, queryAppAIP } from '../../../services/aip'
+import { queryAppCCE } from '../../../services/cce'
 import constants from '../../../services/constants'
 import { base } from '../../../services/base';
 
@@ -22,11 +21,11 @@ export default class AppResourceInfoModal extends PureComponent {
     };
   }
 
-  componentDidMount() {
-  }
-
   componentWillReceiveProps(nextProps) {
-    if (nextProps.appCode) this.loadData(nextProps.appCode);
+    if (nextProps.appCode && nextProps.appCode!==this.props.appCode) {
+      let code=nextProps.appCode.indexOf('_')>0?nextProps.appCode.split('_')[1]:nextProps.appCode
+      this.loadData(code);
+    }
   }
 
   loadData = (appCode) => {

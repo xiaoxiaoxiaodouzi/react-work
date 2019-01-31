@@ -38,9 +38,6 @@ class BaseTree extends Component {
 			})
 		}
 		let treeNodes = Array.from(this.props.treeNodes);
-		/* 	treeNodes[0].name=1;
-			this.props.treeNodes[0].name=2;
-			console.log(treeNodes[0].name,this.props.treeNodes[0].name) */
 		this.setState({ dataRef: treeNodes.length > 0 ? treeNodes[0] : {}, treeNodes: TreeHelp.toChildrenStruct(treeNodes), selectedKeys: { checked: this.props.selectedNodes || [] }, loading: false })
 	}
 
@@ -153,6 +150,23 @@ class BaseTree extends Component {
 		}
 		return childNodes
 	}
+
+
+	//刷新整个树将半选状态设置上
+	// formateTreeNode=(nodes)=>{
+		// let TreeNode=this.state.treeNodes;
+
+	// } 
+
+	//判断当前节点下面是否存在未勾选节点
+	// judgeTreeNode=(nodes)=>{
+	// 	nodes.forEach(i=>{
+	// 		if(i.children){
+				
+	// 		}
+	// 	})
+	// }
+
 
 
 	//第一个是子节点集合 第二个参数是返回父节点的集合

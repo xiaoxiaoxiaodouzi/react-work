@@ -10,12 +10,12 @@ export default class EditContainer extends React.PureComponent {
     static defaultProps = {
         mode: 'common',
         editing: false,
-        defaultNullValue: ' '
+        defaultNullValue: ' ',
+        color:'rgba(0, 0, 0, 0.85)',
     }
 
     constructor(props) {
         super(props)
-
         this.state = {
             mode: props.mode,
             editing: props.editing,
@@ -24,7 +24,7 @@ export default class EditContainer extends React.PureComponent {
             dataType: props.dataType,
             options: props.options,
             status: 'normal',//normal,warn,error
-            tipVisible: false
+            tipVisible: false,
         }
 
         this._onChangeProperty = this._onChangeProperty.bind(this);
@@ -128,13 +128,13 @@ export default class EditContainer extends React.PureComponent {
                 dom = (
                     <Col type={'flex'} >
                         <Col span={24}>
-                            <Input.TextArea autosize={{ minRows: 1, maxRows: 3 }} defaultValue={this.state.value} onChange={(event) => { this._onChangeProperty(event.target.value) }} />
+                            <Input.TextArea autosize={{ minRows: 1, maxRows: 3 }} style={{ width: this.props.width || 500 }} defaultValue={this.state.value} onChange={(event) => { this._onChangeProperty(event.target.value) }} />
                         </Col>
-                        <Col span={24} style={{ marginTop: 10 }} >
-                            <Row type={'flex'} justify="end">
+                        <Col span={24} style={{ marginTop: 10 ,paddingLeft:this.props.width?this.props.width-140:360}} >
+                            {/* <Row type={'flex'} justify="end"> */}
                                 <Button type="primary" onClick={() => { this._onCommit() }} >保存</Button>
                                 <Button style={{ marginLeft: 10 }} onClick={() => { this.setState({ editing: false }) }} >取消</Button>
-                            </Row>
+                            {/* </Row> */}
                         </Col>
                     </Col>
                 )
@@ -172,7 +172,7 @@ export default class EditContainer extends React.PureComponent {
         } else {
             dom.push(
                 <Col style={{ height: CONTENT_CONTAINER_HEIGHT }}>
-                    <p style={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+                    <p style={{ color: this.props.color}}>
                         {this.state.value || this.props.defaultNullValue}
                     </p>
                 </Col>
@@ -216,14 +216,14 @@ export default class EditContainer extends React.PureComponent {
                     dom.push(
                         <a key={Math.random()} onClick={() => { this.setState({ editing: true }) }}>
                             <Tooltip placement='topLeft' overlayStyle={{ maxWidth: 650 }} title={this.state.value || this.props.defaultNullValue}>
-                                <Ellipsis lines={3} style={{ color: 'rgba(0, 0, 0, 0.85)' }}>{this.state.value || this.props.defaultNullValue}</Ellipsis>
+                                <Ellipsis lines={3} style={{ color: this.props.color }}>{this.state.value || this.props.defaultNullValue}</Ellipsis>
                             </Tooltip>
                         </a>
                     )
                 } else {
                     dom.push(
                         <span key={Math.random()}>
-                            <div style={{ margin: 0, height: 'auto', color: 'rgba(0, 0, 0, 0.85)' }}>
+                            <div style={{ margin: 0, height: 'auto', color: this.props.color }}>
                                 <Tooltip placement='topLeft' title={'点击编辑'} >
                                     <a onClick={() => { this.setState({ editing: true }) }} style={{ margin: 0, marginRight: 10, color: 'rgba(0, 0, 0, 0.85)' }}>{this.state.value || this.props.defaultNullValue}</a>
                                 </Tooltip>
@@ -271,7 +271,7 @@ export default class EditContainer extends React.PureComponent {
                 })
             } else {
                 dom.push(
-                    <Col style={{ height: CONTENT_CONTAINER_HEIGHT }}>
+                    <Col key={Math.random()} style={{ height: CONTENT_CONTAINER_HEIGHT }}>
                         {this.state.value || this.props.defaultNullValue}
                     </Col>
                 )
@@ -290,7 +290,7 @@ export default class EditContainer extends React.PureComponent {
         if (this.state.title) {
             return (
                 <div style={{ height: 'auto', marginRight: 10 }}>
-                    <p style={{ margin: 0, color: 'rgba(0, 0, 0, 0.85)' }}>{this.state.title}:</p>
+                    <p style={{ margin: 0, color: this.props.color }}>{this.state.title}:</p>
                 </div>
             )
         }

@@ -12,8 +12,8 @@ import {base} from '../../../services/base';
 import Link from 'react-router-dom/Link';
 import constants from '../../../services/constants';
 import Exception from 'ant-design-pro/lib/Exception';
+import Authorized from '../../../common/Authorized';
 
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
 
@@ -34,34 +34,20 @@ class RunningResource extends React.PureComponent {
       type:history.location.pathname.indexOf('apps')>0?'apps':'middlewares'
     })
     if(this.props.appCode){
-      this.setState({ deployMode:this.props.deployMode,appCode: this.props.appCode, APMChecked: this.props.APMChecked, appId: this.props.appId,currentTabKey:this.props.APMChecked?'performance':'resource'});
-      if(this.props.deployMode === "k8s"){
-        this.setState({
-          visible:true
-        })
-      }else{
-        this.setState({
-          visible:false,
-          currentTabKey:'performance'
-        })
-      }
+      this.setState({ deployMode:this.props.deployMode,appCode: this.props.appCode, 
+        APMChecked: this.props.APMChecked, appId: this.props.appId,
+        visible:this.props.deployMode === "k8s" && base.configs.passEnabled,
+        currentTabKey:this.props.APMChecked&&base.configs.APMEnabled?'performance':'resource'});
     }
   }
   componentWillReceiveProps(nextProps){
     if(nextProps !== this.props){
-      this.setState({ deployMode:nextProps.deployMode,appCode: nextProps.appCode, APMChecked: nextProps.APMChecked, appId: nextProps.appId,currentTabKey:nextProps.APMChecked?'performance':'resource'});
-      if(nextProps.deployMode === "k8s"){
-        this.setState({
-          visible:true
-        })
-      }else{
-        this.setState({
-          visible:false,
-          currentTabKey:'performance'
-        })
-      }
+      this.setState({ deployMode:nextProps.deployMode,
+        appCode: nextProps.appCode, APMChecked: nextProps.APMChecked, 
+        visible:this.props.deployMode === "k8s" && base.configs.passEnabled,
+        appId: nextProps.appId,
+        currentTabKey:nextProps.APMChecked&&base.configs.APMEnabled?'performance':'resource'});
     }
-
   }
   handleRangePickerChange = (rangePickerValue) => {
     this.setState({
@@ -104,7 +90,6 @@ class RunningResource extends React.PureComponent {
   }
   
   render(){
-    const Authorized = RenderAuthorized(base.allpermissions);
     const { rangePickerValue } = this.state;
     const salesExtra = (
       <div className='salesExtraWrap'>
@@ -144,12 +129,12 @@ class RunningResource extends React.PureComponent {
     }
     let fromTime = moment(rangePickerValue[0]).format('x');
     let toTime = moment(rangePickerValue[1]).format('x');
-    const url = `${base.configs[constants.CONFIG_KEY.GLOBAL_RESOURCE_MONIT_URL]}/dashboard/db/application?var-tenant=${base.tenant}&var-application=${this.state.appCode}&from=${fromTime}&to=${toTime}&theme=light`
     return (
       <Fragment>
         <Card style={{margin:"0px 24px 24px 24px"}} bordered={false} bodyStyle={{ padding: 0 }}>
           <div className='salesCard'>
             <Tabs onChange={e=>this.setState({currentTabKey:e})} tabBarExtraContent={salesExtra} size="large" tabBarStyle={{ marginBottom: 24 }} activeKey={this.state.currentTabKey}>
+              {base.configs.APMEnabled?
               <TabPane tab="性能监控" key="performance" disabled={this.props.APM_URL?false:true}>
                 {this.state.APMChecked?
                   <div style={{ padding: '0px 24px 0px 24px' }}>
@@ -193,15 +178,15 @@ class RunningResource extends React.PureComponent {
                   </div>
                 }
                 
-              </TabPane>
-              {this.state.visible?
-                 <TabPane tab="资源监控" key="resource" disable={this.state.visible}>
-                 <div style={{ padding: '0px 24px 0px 24px' }}>
-                   <iframe  title='resource' src={url} frameBorder="0" style={{ width: '100%',height:'1300px' }}></iframe>
-                 </div>
-               </TabPane>:""
-            }
-             
+              </TabPane>:""}
+                {this.state.visible && base.allpermissions.indexOf('app_resource_monitor') !== -1  && base.configs.monitEnabled? 
+                  <TabPane tab="资源监控" key="resource">
+                    <div style={{marginTop:-24}}>
+                      <iframe title='资源监控' style={{border:0,height:'1300px',width:'100%'}} src={base.configs.globalResourceMonitUrl+constants.GRAFANA_URL.app+`&var-pod=${this.state.appCode}&from=${fromTime}&to=${toTime}`}></iframe>
+                    </div>
+                  </TabPane>:""
+                }
+
               {/* <TabPane tab="事务" key="transaction">
                 <Transaction 
                   appCode={this.props.appCode} 

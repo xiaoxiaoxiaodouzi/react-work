@@ -1,6 +1,6 @@
 import React, { Component,Fragment } from 'react';
 import { Table, Row, Col, Form, Input, Select, Button} from 'antd';
-import { getResourceUser,getResourceUserCollections} from '../../../services/functional'
+import { getResourceUserCollections,getResourceUser } from '../../../services/aip'
 import PropTypes from 'prop-types'
 import Link from 'react-router-dom/Link';
 import constants from '../../../services/constants'
@@ -37,7 +37,7 @@ class ResourceUserForm extends Component {
     this.setState({ loading: true })
     getResourceUser(this.props.appId, this.props.id, Object.assign({},params,{page:current,rows:pageSize})).then(datas => {
       FastJson.format(datas);
-      this.setState({ loading: false, total: datas.total, data: datas.contents})
+      this.setState({ loading: false, total: datas.total, data: datas.contents,current:datas.pageIndex})
     }).catch(err => {
       this.setState({ loading: false })
     })
@@ -97,19 +97,29 @@ class ResourceUserForm extends Component {
 
   renderSimple = () => {
     const { getFieldDecorator } = this.props.form;
+    const formItemLayout = {
+			labelCol: {
+				xs: { span: 24 },
+				sm: { span: 8 },
+			},
+			wrapperCol: {
+				xs: { span: 24 },
+				sm: { span: 16 },
+			},
+		};
     return (
       <div className='tableList'>
-        <Form onSubmit={this.handleSearch} layout="inline">
-          <Row style={{ marginBottom: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
-            <Col md={6} sm={24}>
-              <FormItem label="用户名">
+        <Form onSubmit={this.handleSearch} >
+          <Row style={{ marginBottom: 12 }} gutter={{ md: 4, lg: 12, xl: 18 }}>
+            <Col span={6}>
+              <FormItem {...formItemLayout} label="用户名">
                 {getFieldDecorator('name')(
                   <Input placeholder="请输入" />
                 )}
               </FormItem>
             </Col>
-            <Col md={6} sm={24}>
-              <FormItem label="用户集合">
+            <Col span={6}>
+              <FormItem {...formItemLayout} label="用户集合">
                 {getFieldDecorator('userCollectionId')(
                   <Select placeholder="请选择" notFoundContent='无数据' onSelect={this.onSelect}>
                     {this.state.jobs.length > 0 ?
@@ -152,8 +162,8 @@ class ResourceUserForm extends Component {
                 )}
               </FormItem>
             </Col>
-            <Col md={6} sm={24}>
-              <FormItem label="功能角色">
+            <Col span={6}>
+              <FormItem {...formItemLayout} label="功能角色">
                 {getFieldDecorator('roleId')(
                   <Select placeholder="请选择" onSelect={this.onRoleSelect}>
                     {this.props.roleList.length > 0 ?
@@ -167,7 +177,7 @@ class ResourceUserForm extends Component {
                 )}
               </FormItem>
             </Col>
-            <Col md={6} sm={24}>
+            <Col span={6}>
               <span style={{ float: 'right' }}>
                 <Button type="primary" htmlType="submit" onClick={this.handleSearch}>查询</Button>
                 <Button style={{ marginLeft: 8 }} onClick={this.handleFormReset}>重置</Button>
@@ -182,7 +192,6 @@ class ResourceUserForm extends Component {
   render() {
 
     const { current, total, pageSize, loading, data } = this.state;
-
     const columns = [
       {
         title: '用户名',
@@ -195,9 +204,9 @@ class ResourceUserForm extends Component {
         width:'30%',
         render: (text, record) => {
           if (record.roleList) {
-            return record.roleList.map(element => {
+            return record.roleList.map((element,index) => {
               if(element){
-                return <Link style={{ marginLeft: 6 }} to={`/applications/${element.appId}/functionalroles/${element.id}`}>{element.name}</Link>
+                return <Link key={index} style={{ marginLeft: 6 }} to={`/applications/${element.appId}/functionalroles/${element.id}`}>{element.name}</Link>
               }else{
                 return ''
               }
@@ -212,8 +221,8 @@ class ResourceUserForm extends Component {
         dataIndex: 'userCollections',
         width:'50%',
         render: (value, record) => {
-          return value.length>0?value.map(u=>{
-            return <Fragment><span style={{marginRight:5,whiteSpace:'nowrap'}}>[{constants.functionResource.userCollectionType[u.userCollectionType]}]{u.userCollectionName}</span> </Fragment>;
+          return value.length>0?value.map((u,index)=>{
+            return <Fragment key={index}><span style={{marginRight:5,whiteSpace:'nowrap'}}>[{constants.functionResource.userCollectionType[u.userCollectionType]}]{u.userCollectionName}</span> </Fragment>;
           }):'--';
         }
       },
@@ -229,7 +238,7 @@ class ResourceUserForm extends Component {
           this.props.form.validateFields((err, values) => {
             if (!err) {
               this.loadDatas(current,pageSize,values)
-            };
+            }
           });
         },
         showQuickJumper: true
@@ -240,7 +249,7 @@ class ResourceUserForm extends Component {
         <Table
           dataSource={data}
           columns={columns}
-          rowKey={record => record.code}
+          rowKey='userId'
           pagination={pagination}
           loading={loading}
         />

@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
 import { Table, Checkbox, Input, Button, Row, Col, message, Form } from 'antd'
-import { getManagertables, orgPermissions, deleteOrgPermissions } from '../../../services/running'
-
+import { orgPermissions, deleteOrgPermissions } from '../../../services/uop';
+import {getManagertables} from '../../../services/aip'
+import Ellipsis from 'ant-design-pro/lib/Ellipsis';
 
 class OrgModalForm extends Component {
   state = {
@@ -77,25 +78,30 @@ class OrgModalForm extends Component {
       {
         title: '名称',
         dataIndex: 'name',
-        width: '55%',
+        render:(text)=>{
+          return <Ellipsis tooltip lines={1}>{text}</Ellipsis>
+        }
       },
       {
         title: '拒绝',
-        width: '15%',
+        width: '48px',
+        align:'center',
         render: (text, record) => {
           return <Checkbox checked={record.data === '' ? true : false} onClick={e => { this.CheckChange(record.id, '') }} />
         }
       },
       {
         title: '只读',
-        width: '15%',
+        width: '48px',
+        align:'center',
         render: (text, record) => {
           return <Checkbox checked={record.data === 'r' ? true : false} onClick={e => { this.CheckChange(record.id, 'r') }} />
         }
       },
       {
         title: '读写',
-        width: '15%',
+        width: '48px',
+        align:'center',
         render: (text, record) => {
           return <Checkbox checked={record.data === 'rw' ? true : false} onClick={e => { this.CheckChange(record.id, 'rw') }} />
         }
@@ -130,6 +136,7 @@ class OrgModalForm extends Component {
           rowKey={record => record.id}
           columns={columns}
           pagination={paginationProps}
+          size={"small"}
         >
 
         </Table>

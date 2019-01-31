@@ -1,8 +1,9 @@
 import React,{Component} from 'react';
-import { Card,List,Avatar,Row,Col,Progress,Tooltip,message } from 'antd';
+import { Card,List,Avatar,Row,Col,Progress,Tooltip } from 'antd';
 
-import { getApplicationRes,getTenantManager,getUserTenants} from '../../services/tenants'
-import { getUserCount,queryAppCount,queryServiceCount } from '../../services/monitor';
+import { getApplicationRes } from '../../services/cce'
+import {queryAppCount,queryServiceCount } from '../../services/aip';
+import { getUserCount, getUserTenants, getTenantManager } from '../../services/tp'
 import { base } from '../../services/base';
 import constants from '../../services/constants';
 import './Overview.less';
@@ -47,7 +48,7 @@ export default class TenantList extends Component {
           tempData.push(element);
         }
       });
-      this.props.onGetTenantData({tenantCount:tempData.length},'tenant');
+      this.props.onGetTenantData({tenantCount:tempData.length},'tenant',true);
       this.setState({ data:tempData,total:tempData.length,loading:false });
       Promise.all(requestUserManage).then(values=>{
         values.forEach((element,index)=>{
@@ -69,9 +70,10 @@ export default class TenantList extends Component {
           tempUserCount += element;
         });
         this.setState({data:tempData});
-        this.props.onGetTenantData({userCount:tempUserCount},'user');
-      }).catch(err=>{
-        message.error('获取租户下的用户数目出错');
+        this.props.onGetTenantData({userCount:tempUserCount},'user',true);
+      }).catch(e=>{
+        base.ampMessage('获取租户下的用户数目出错' );
+        this.props.onGetTenantData({userCount:0},'user',false,'获取租户下的用户数目出错!');
       });
       Promise.all(requestRes).then(values=>{
         values.forEach((element,index)=>{
@@ -81,31 +83,36 @@ export default class TenantList extends Component {
         this.setState({data:tempData});
       });
       environments.forEach(item=>{
-        queryAppCount({format:'tenantAndType'},{'AMP-ENV-ID':item.id}).then(data=>{
-          if(data){
-            tempData.forEach(element=>{
-              if(data[element.tenant_code]){
-                if(data[element.tenant_code].web){
-                  element.appCount += data[element.tenant_code].web;
-                  tempAppCount += data[element.tenant_code].web;
+        if(!item.disabled){
+          queryAppCount({format:'tenantAndType'},{'AMP-ENV-ID':item.id}).then(data=>{
+            if(data){
+              tempData.forEach(element=>{
+                if(data[element.tenant_code]){
+                  if(data[element.tenant_code].web){
+                    element.appCount += data[element.tenant_code].web;
+                    tempAppCount += data[element.tenant_code].web;
+                  }
+                  
+                  if(data[element.tenant_code].app){
+                    element.appCount += data[element.tenant_code].app;
+                    tempAppCount += data[element.tenant_code].app;
+                  }
+                  
+                  if(data[element.tenant_code].middleware){
+                    element.middlewareCount += data[element.tenant_code].middleware; 
+                    tempMiddlewareCount += data[element.tenant_code].middleware;
+                  }
+                  
                 }
-                
-                if(data[element.tenant_code].app){
-                  element.appCount += data[element.tenant_code].app;
-                  tempAppCount += data[element.tenant_code].app;
-                }
-                
-                if(data[element.tenant_code].app){
-                  element.middlewareCount += data[element.tenant_code].middleware; 
-                  tempMiddlewareCount += data[element.tenant_code].middleware;
-                }
-                
-              }
-            });
-            this.props.onGetTenantData({ appCount:tempAppCount,middlewareCount:tempMiddlewareCount } , 'app');
-            this.setState({ data:tempData });
-          }
-        });
+              });
+              this.props.onGetTenantData({ appCount:tempAppCount,middlewareCount:tempMiddlewareCount } , 'app',true);
+              this.setState({ data:tempData });
+            }
+          }).catch(err => {
+            this.props.onGetTenantData({ appCount:0,middlewareCount:0 } , 'app',false,'获取应用数目统计出错');
+
+          });
+        }
         queryServiceCount({format:'tenant'},{'AMP-ENV-ID':item.id}).then(data=>{
           if(data){
             tempData.forEach(element=>{
@@ -114,12 +121,16 @@ export default class TenantList extends Component {
                 tempServiceCount += data[element.tenant_code];
               }
             })
-            this.props.onGetTenantData({serviceCount:tempServiceCount},'service');
+            this.props.onGetTenantData({serviceCount:tempServiceCount},'service',true);
             this.setState({ data:tempData });
           }
           
+        }).catch(err=>{
+          this.props.onGetTenantData({serviceCount:0},'service',false,'获取服务数目统计');
         }) 
       })
+    }).catch(err=>{
+      this.props.onGetTenantData({tenantCount:0},'tenant',true,'获取租户数据出错！');
     });
   }
   renderProgress = (percent)=>{

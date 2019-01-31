@@ -1,11 +1,11 @@
 import React, { Component } from "react";
 import { Table, Card, Popconfirm, message, Row, Col, Button, Input,Modal,Form,Select } from "antd";
-import { getTenantUsers, deleteTenantUser, addTenantUser,getUserDictdata } from "../../services/tenants";
+import { getUserDictdata } from "../../services/uop";
+import { getTenantUsers, deleteTenantUser, addTenantUser } from '../../services/tp';
 import UserSelectModal from '../../common/UserSelectModal';
 import moment from 'moment';
 import constants from '../../services/constants';
-import { base } from '../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import Authorized from "../../common/Authorized";
 
 const Option = Select.Option;
 
@@ -30,20 +30,23 @@ class Components extends Component {
     }
   }
   loadData = (tenantId) => {
-    this.setState({loading:true});
-    getTenantUsers(tenantId).then(data => {
-      this.setState({ 
-        data,
-        loading:false,
-        page:1,
-        row:10,
-        total:data.length
+    if(tenantId && tenantId !== ''){
+      this.setState({loading:true});
+      getTenantUsers(tenantId).then(data => {
+        this.setState({ 
+          data,
+          loading:false,
+          page:1,
+          row:10,
+          total:data.length
+        });
+        this.tempData = data;
+      }).catch(err=> this.setState({ loading:false }));
+      getUserDictdata().then(data=>{
+        this.setState({dictdata:data});
       });
-      this.tempData = data;
-    }).catch(err=> this.setState({ loading:false }));
-    getUserDictdata().then(data=>{
-      this.setState({dictdata:data});
-    });
+    }
+    
   };
   onManagerChange = (users) => {
     addTenantUser(this.props.tenantId,users).then(values=>{
@@ -125,12 +128,14 @@ class Components extends Component {
     });
   }
   render() {
-    const Authorized = RenderAuthorized(base.allpermissions);
     const { getFieldDecorator } = this.props.form;
     const columns = [{
       title: "姓名",
       dataIndex: "name",
-      width: "15%"
+      width: "15%",
+      render:(text,record)=>{
+        return record.name?record.name:record.userName;
+      }
     }, {
       title: "工号",
       dataIndex: "workno",
@@ -210,8 +215,10 @@ class Components extends Component {
             title='导入用户'
             mark='待添加租户用户'
             description=''
-            dataIndex={{ dataIdIndex: 'USERID', dataNameIndex: 'userName' }}
-            onOk={(users) => { this.onManagerChange(users) }} />
+            dataIndex={{ dataIdIndex: 'id', dataNameIndex: 'name' }}
+            onOk={(users) => { this.onManagerChange(users) }} 
+            disableUsers={ this.state.data}
+            />
         </Row>
         <Modal width={800}
           title="添加用户"

@@ -2,11 +2,10 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import BaseTree from '../../../common/BaseTree'
 import { Modal,message } from 'antd'
-import { updateRoleResource,getResourceTree,getRoleResources } from '../../../services/functional'
-
+import { getResourceTree,getRoleResources,updateRoleResource } from '../../../services/aip'
 class FunctionRoleModal extends Component {
 	static propTypes = {
-		role: PropTypes.object,
+		role: PropTypes.string,
 		onCancel: PropTypes.func,				//模态框取消回调方法
 		visible: PropTypes.bool  		//模态框的开启状态
 	}

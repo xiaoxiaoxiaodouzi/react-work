@@ -200,7 +200,24 @@ class ClusterForm extends Component {
         </FormItem>
 
         <FormItem {...formItemLayout} label='上下文'>
-          {getFieldDecorator('ctx', { initialValue: '/' })(
+          {getFieldDecorator('ctx', { initialValue: '/',
+                    rules: [{
+                      validator: (rule, value, callback)=>{
+                        if(value){
+                          if("/" !== value.substring(0,1)){
+                            callback('格式错误，可以为空或者以‘/’开头');
+                          }else{
+                            callback()
+                          }
+                          
+                          return;
+                        }else{
+                          callback()
+                        }
+                        
+                       }
+                    }],
+        })(
             <Input style={{ width: '60%', marginRight: 8 }} />
           )}
         </FormItem>

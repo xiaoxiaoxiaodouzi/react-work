@@ -13,6 +13,7 @@ export default class SiderMenu extends React.PureComponent {
     menuSelectedKeys: [],
     menuOpenKeys: []
   }
+  
   componentWillReceiveProps(nextProps) {
     if (this.state.menus !== nextProps.menus) {
       this.menuInit(nextProps.menus);
@@ -24,16 +25,17 @@ export default class SiderMenu extends React.PureComponent {
     const path = window.location.hash.substring(1);
     this.setState({ menus: menus })
     menus.forEach(m => {
-      if (path.startsWith(m.code ? m.code : m.link)) {
-        if (m.children) {
-          this.setState({ menuOpenKeys: [m.id] });
-          m.children.forEach(sm => {
-            if (path.startsWith(sm.link)) {
-              this.setState({ menuSelectedKeys: [sm.id] });
-            }
-          })
-        } else {
-          this.setState({ menuSelectedKeys: [m.id] });
+      //如果是父菜单没有link的话
+      if(!m.link){
+        m.children.forEach(sm=>{
+          if (path.includes(sm.link)) {
+            this.setState({ menuOpenKeys: [m.id] });
+            this.setState({ menuSelectedKeys: [sm.id] });
+          }
+        })
+      }else{
+        if(path.includes(m.link)){
+          this.setState({menuSelectedKeys:[m.id]})
         }
       }
     })
@@ -76,8 +78,7 @@ export default class SiderMenu extends React.PureComponent {
           {menus.map(menu => menu.children ?
             <SubMenu key={menu.id} title={<span><Icon type={menu.icon} /><span>{menu.name}</span></span>}>
               {menu.children.map(submenu =>
-                   (!this.props.globalRouterEnable && submenu.id === '61') ? '' :
-                   <Menu.Item title={submenu.disabled ? '到系统设置中开启全局动态路由之后启用' : ''} disabled={submenu.disabled} key={submenu.id}><Link to={submenu.link}>{submenu.name}</Link></Menu.Item>
+                   <Menu.Item disabled={submenu.disabled} key={submenu.id}><Link to={submenu.link}>{submenu.name}</Link></Menu.Item>
               )}
             </SubMenu> :
             <Menu.Item key={menu.id} disabled={menu.disabled}>

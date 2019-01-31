@@ -1,23 +1,41 @@
 import C2Fetch from '../utils/Fetch';
-import {base} from './base'
 let proxy = 'proxy/';
 
-export function getApplications(applications){
-  const url=proxy+`cce/v1/tenants/${base.tenant}/applications/${applications}`;
-  return C2Fetch.get(url,null,'获取应用基本信息出错')
-}
 
-export function getApplicationBase(applications){
-  const url=proxy+`cce/v1/tenants/${base.tenant}/applications/${applications}/base`
-  return C2Fetch.get(url,null,'获取应用容器出错')
-}
-
-export function getApplicationLog(pod,container,queryParams){
-  const url=proxy+`cce/v1/tenants/${base.tenant}/pods/${pod}/containers/${container}/logs`
-  return C2Fetch.get(url,queryParams,'获取日志失败')
-}
-
-export function getLogs(params){
+export function getLogs(params,header){
   const url=proxy+`log/v1/resource/logsearch`
-  return C2Fetch.get(url,params,'查询日志出错')
+  return C2Fetch.get(url,params,'查询日志出错',header)
+}
+
+//查询操作对象类型
+export function getOTY(queryParams,header){
+  const url =proxy+`log/v1/resource/objtypes`
+  return C2Fetch.get(url,queryParams,'查询操作对象类型出错',header )
+}
+
+//查询操作类型
+export function getTY(header){
+  const url=proxy+`log/v1/resource/optypes`
+  return C2Fetch.get(url,{},'查询操作类型出错',header)
+}
+export function routerLog(uri){
+  const url = 'sso/v1/accesslog';
+  return C2Fetch.get(url,{uri},false);
+}
+
+//获取安全策略元数据
+export function getDataSource(){
+  const url = proxy + 'sso/v1/oauth2securitypolicy/securitypolicymetadata';
+  return C2Fetch.get(url,false);
+}
+
+//新增或修改安全策略
+export function updateSafeStrategy(safeCode,bodyParams){
+  return C2Fetch.post(proxy +`sso/v1/oauth2securitypolicy/securitypolicy/${safeCode}`, bodyParams, {}, "新增或修改安全策略出错！");
+}
+
+//获取当前系统安全策略
+export function getSafeStrategy(){
+  const url = proxy + 'sso/v1/oauth2securitypolicy/securitypolicy';
+  return C2Fetch.get(url,false);
 }

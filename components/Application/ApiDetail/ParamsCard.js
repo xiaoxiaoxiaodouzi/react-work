@@ -1,8 +1,7 @@
 import React from 'react'
 import DescriptionList from 'ant-design-pro/lib/DescriptionList';
 import { Table, Card, Modal, Form, Input, message, Select, Row, Col } from 'antd';
-import { getApiParameters } from '../../../services/api'
-import {  changeApiProperty } from '../../../services/api'
+import { getApiParameters, changeApiProperty } from '../../../services/aip'
 import { base } from '../../../services/base';
 
 const grade = ['私有', '普通', '公开']
@@ -182,7 +181,7 @@ class PermissionCardForm extends React.Component {
 		return (
 			<div style={{ margin: 24 }}>
 				<Card bordered={false} title={'基本信息'} style={{ marginBottom: 24 }}>
-					<DescriptionList size="small" col="2" title={base.allpermissions.includes('service_edit')?action:''}>
+					<DescriptionList size="small" col="2" title={base.allpermissions.includes('service_edit') && this.state.owned?action:''}>
 						{/* <Description term="HTTP Method">{this.state.httpMethod}</Description>
 									<Description term="请求路径">{this.state.uri}</Description> */}
 						<Description term="开放等级">{grade[this.state.visibility]}</Description>

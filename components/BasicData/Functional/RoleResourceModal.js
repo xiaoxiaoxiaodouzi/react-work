@@ -4,11 +4,10 @@ import AuthorizeRoleModal from '../../../common/FunctionalSelectModal/AuthorizeR
 import CollectionUsersModal from '../../../common/FunctionalSelectModal/CollectionUsersModal'
 import FunctionRoleModal from './FunctionRoleModal'
 import { Modal, Radio, message, Button, Table } from 'antd'
-import { updateUserCollection, roleManagerUsers, deleteRoleManager, deleteUserCollection, getRoleManagerUsers, getRoleListResources, getRoleUserCollection } from '../../../services/functional'
+import {getRoleListResources,getRoleUserCollection,deleteRoleManager,updateUserCollection, deleteUserCollection,roleManagerUsers,getRoleManagerUsers} from '../../../services/aip'
 import constants from '../../../services/constants'
 import moment from 'moment'
-import { base } from '../../../services/base';
-import RenderAuthorized from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../../common/Authorized';
 
 
 const RadioGroup = Radio.Group
@@ -33,7 +32,7 @@ export class RoleResourceModal extends Component {
 	}
 
 	componentWillReceiveProps(nextProps) {
-		if (nextProps.record.roleList !== this.props.record.roleList) {
+		if (nextProps.visible) {
 			//如果有角色
 			if (nextProps.record.roleList && nextProps.record.roleList.length > 0) {
 				this.setState({ loading: true })
@@ -58,7 +57,7 @@ export class RoleResourceModal extends Component {
 	}
 
 
-	//checkbox选择
+	//下拉选择
 	onChange = (e) => {
 		this.setState({ loading: true })
 		let checkedValues = this.props.record.roleList.filter(i => i.id === e.target.value)[0];
@@ -119,36 +118,33 @@ export class RoleResourceModal extends Component {
 	}
 
 	render() {
-		const Authorized = RenderAuthorized(base.allpermissions);
 		const columns = [{
 			title: '名称',
-			dataIndex: 'userCollectionName',
-			width: '20%'
+			dataIndex: 'userCollectionName'
 		}, {
 			title: '类型',
 			dataIndex: 'userCollectionType',
-			width: '15%',
+			width: 75,
 			render: (value, record) => constants.functionResource.userCollectionType[value]
 		}, {
 			title: '用户数',
 			dataIndex: 'userCount',
-			width: '15%'
+			width: 75
 		}, {
 			title: '授权者',
-			dataIndex: 'creator',
-			width: '15%'
+			dataIndex: 'creator'
 		}, {
 			title: '授权时间',
 			dataIndex: 'createtime',
-			width: '20%',
+			width: 140,
 			render: (value) => moment(value).format('YYYY-MM-DD HH:mm')
 		}, {
 			title: '操作',
-			width: '15%',
+			width: 100,
 			key: 'action',
 			render: (text, record) => {
 				return (
-					<Authorized authority={this.props.type === 'addUsers' ? 'functional_roleUser_delAuthorization' : 'functional_setManager_delAuthorization'} noMatch={<a disabled='true' onClick={(record) => { this.onDeleteUserCollection(text.userCollectionId) }} >取消授权</a>}>
+					<Authorized authority={this.props.type === 'addUsers' ? 'functional_roleUser_delAuthorization' : 'functional_setManager_delAuthorization'} noMatch={<a disabled='true'  >取消授权</a>}>
 						<a onClick={(record) => { this.onDeleteUserCollection(text.userCollectionId) }} >取消授权</a>
 					</Authorized>
 				)
@@ -167,9 +163,9 @@ export class RoleResourceModal extends Component {
 				<div>
 					<strong>以下角色都可以使用功能[{this.props.record.name}]，请问{this.props.type === 'addUsers' ? '将哪一个授权给用户' : '为哪一个指定管理员'}？</strong>
 					<p style={{ marginTop: '12px' }}><RadioGroup defaultValue={(this.props.record.roleList && this.props.record.roleList.length > 0) ? this.props.record.roleList[0].id : ''} options={this.props.record.roleList} onChange={this.onChange} />
-						<strong><a onClick={() => { this.setState({ functionVisible: true }) }}>查看功能角色权限详情</a></strong>
+						<strong><a onClick={() => { this.setState({ functionVisible: true }) }}>查看角色权限详情</a></strong>
 					</p>
-					<p><strong>功能角色[{this.state.checkedValues ? this.state.checkedValues.name : ''}]已授权的{this.props.type === 'addUsers' ? '用户集合' : '管理员'}  <a onClick={() => { this.setState({ userVisible: true }) }}>查看{this.props.type === 'addUsers' ? '影响的用户' : '管理员用户详情'}</a></strong></p>
+					<p><strong>角色[{this.state.checkedValues ? this.state.checkedValues.name : ''}]已授权的{this.props.type === 'addUsers' ? '用户集合' : '管理员'}  <a onClick={() => { this.setState({ userVisible: true }) }}>查看{this.props.type === 'addUsers' ? '影响的用户' : '管理员用户详情'}</a></strong></p>
 					<Authorized authority={this.props.type === 'addUsers' ? 'functional_roleUser_addAuthorization' : 'functional_setManager_addAuthorization'} noMatch={null}>
 						<Button type='primary' style={{ marginButton: '8px', marginTop: '8px' }} onClick={this.handleClick}>添加授权</Button>
 					</Authorized>

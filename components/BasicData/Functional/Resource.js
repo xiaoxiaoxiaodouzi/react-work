@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import { Table} from 'antd';
-import { getResource } from '../../../services/functional';
+import { getResource } from '../../../services/aip';
 import TreeHelp from '../../../utils/TreeHelp'
 import constants from '../../../services/constants'
 import { ObjectDetailContext } from '../../../context/ObjectDetailContext'
@@ -78,7 +78,7 @@ class Resource extends Component {
     //   showTotal: (total => { return `共有${total}条数据` })
     // }
     return (
-      <Table columns={columns} dataSource={this.state.dataSource} loading={this.state.loading}/>
+      <Table columns={columns} dataSource={this.state.dataSource} loading={this.state.loading} rowKey='id'/>
     )
   }
 }

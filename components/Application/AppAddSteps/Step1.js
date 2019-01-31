@@ -1,7 +1,8 @@
 import React from 'react';
 import { Form, Input, Button, Select, Alert, Row, Col } from 'antd';
 import TagManager from '../../../common/TagManager';
-import { queryTags, checkIdName, checkCodeName } from '../../../services/apps';
+import { queryTags, checkIdName,  } from '../../../services/aip';
+import { checkCodeName } from '../../../services/cce';
 import { base } from '../../../services/base'
 
 const FormItem = Form.Item;
@@ -11,8 +12,10 @@ class Step1 extends React.Component {
 	state = {
 		selectedTags: [],
 		allTags: [],
-		addbefore: '',       //租户code+环境
+		addbefore: '',       //租户code+环境		
 	}
+
+	enviroment=base.environment;
 
 	componentDidMount() {
 		/*  let tenant = base.tenant;
@@ -22,22 +25,28 @@ class Step1 extends React.Component {
 		 }) */
 	}
 	getTags = () => {
-		if (this.state.allTags.length === 0) {
-			queryTags().then(data => {
+		//if (this.state.allTags.length === 0) {
+			queryTags({},{'AMP-ENV-ID':this.enviroment}).then(data => {
 				this.setState({
 					allTags: data
 				})
 			})
-		}
+		//}
 	}
 	handleSubmit = (e) => {
 		e.preventDefault();
 		this.props.form.validateFields((err, values) => {
 			if (!err) {
-				let checkIdName1 = checkIdName({ attr: values.name }, { attr: "name", tenant: base.tenant });
-				let checkIdName2 = checkIdName({ attr: values.id }, { attr: "code", tenant: base.tenant });
-				let checkCode = checkCodeName(values.id)
-				Promise.all([checkIdName1, checkIdName2, checkCode]).then(([flag1, flag2, flag3]) => {
+				let arr = [];
+				let checkIdName1 = checkIdName({ attr: values.name }, { attr: "name", tenant: base.tenant },{'AMP-ENV-ID':values.enviroment});
+				arr.push(checkIdName1);
+				let checkIdName2 = checkIdName({ attr: values.id }, { attr: "code", tenant: base.tenant },{'AMP-ENV-ID':values.enviroment});
+				arr.push(checkIdName2);
+				
+				if(base.configs.passEnabled){
+					arr.push(checkCodeName(values.id));
+				}
+				Promise.all(arr).then(([flag1, flag2, flag3]) => {
 					let checked = true;
 					if (flag1) {
 						checked = false;
@@ -89,6 +98,10 @@ class Step1 extends React.Component {
 			})
 		}
 	}
+	envChange = (e) => {
+		this.enviroment = e;
+		this.getTags();
+	}
 	render() {
 		const { getFieldDecorator } = this.props.form;
 		const formItemLayout = {
@@ -126,7 +139,7 @@ class Step1 extends React.Component {
 							</FormItem>
 							<FormItem {...formItemLayout} label={labelName + 'CODE:'}>
 								{getFieldDecorator('id', {
-									rules: [{ required: true, message: `请输入${labelName}CODE！` }, { message: '只支持小写英文、数字、下划线！', pattern: '^[a-z0-9-]+$' }],
+									rules: [{ required: true, message: `请输入${labelName}CODE！` }, { message: '只支持小写英文、数字、中划线！', pattern: '^[a-z0-9-]+$' }],
 								})(
 									<Input placeholder="只支持小写英文、数字、中划线" />
 								)}
@@ -151,8 +164,13 @@ class Step1 extends React.Component {
 								</FormItem> : ''
 							}
 							<FormItem {...formItemLayout} label="运行环境：">
-								{(
-									<font>{base.currentEnvironment.name}</font>
+								{getFieldDecorator('enviroment', { initialValue: base.currentEnvironment.id })(
+									// <font>{base.currentEnvironment.name}</font>
+									<Select onChange={this.envChange}>
+										{base.environments.map(env => {
+											return <Option key={env.id} value={env.id}>{env.name}</Option>
+										})}
+									</Select>
 								)}
 							</FormItem>
 							<FormItem {...formTailLayout}>

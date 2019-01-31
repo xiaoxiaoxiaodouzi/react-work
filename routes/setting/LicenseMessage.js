@@ -1,26 +1,15 @@
 import React,{PureComponent,Fragment} from 'react';
 import PageHeaderLayout from './layouts/PageHeaderLayout';
 import Result from 'ant-design-pro/lib/Result';
-import { Button,message,Card,Table,Icon,Form,Input,Modal,Upload ,Breadcrumb,Divider} from 'antd';
+import { Button,message,Card,Table,Icon,Form,Input,Modal,Upload} from 'antd';
 import moment from 'moment';
-import { queryCurrentLicense,queryLicenses } from '../../services/setting';
+import { queryCurrentLicense, queryLicenses } from '../../services/cce';
 import {base} from '../../services/base'
 import {GlobalHeaderContext} from '../../context/GlobalHeaderContext'
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../common/Authorized';
+import {BreadcrumbTitle} from '../../common/SimpleComponents'
 
 const FormItem = Form.Item;
-
-// const breadcrumbList = [{
-//   title: '高级设置',
-//   href: '/#/setting',
-// }, {
-//   title: '许可信息'
-// }];
-
-const title = <Breadcrumb style={{marginTop:6}}>
-<Breadcrumb.Item><Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a","verticalAlign":"text-bottom"}}/> 高级设置</Breadcrumb.Item>
-<Breadcrumb.Item>许可信息</Breadcrumb.Item>
-</Breadcrumb>;
 
 class LicenseMessage extends PureComponent {
   state = {
@@ -112,8 +101,8 @@ class LicenseMessage extends PureComponent {
               this.getCurrentLicense();
               this.getAllLicenses(this.state.page,this.state.row);
               this.setState({visibleModal:false});
-          }).catch(err=>{
-            message.error('许可信息文件上传失败，请重试');
+          }).catch(e=>{
+            base.ampMessage('许可信息文件上传失败，请重试' )
             this.setState({
               uploading:false
             });
@@ -128,7 +117,6 @@ class LicenseMessage extends PureComponent {
     });
   }
   render() {
-    const Authorized = RenderAuthorized(base.allpermissions);
     const {data,page,row,total,currentLicense,visibleModal,uploading} = this.state;
     const { getFieldDecorator } = this.props.form;
     const formItemLayout = {
@@ -214,6 +202,7 @@ class LicenseMessage extends PureComponent {
       },
       fileList:this.state.fileList,
     }
+    const title = BreadcrumbTitle([{name:'高级设置'},{name:'许可信息'}]);
     return (
       <PageHeaderLayout
         title={title}

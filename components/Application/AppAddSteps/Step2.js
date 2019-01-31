@@ -10,10 +10,10 @@ import {Table,Divider,message,
 	Modal
 } from 'antd';
 import AddContainer from './AddContainer';
-import {queryClusters} from '../../../services/apps';
+import {queryClusters, getTaskById} from '../../../services/cce';
 import Cluster from './Cluster'
-import {getTaskById} from '../../../services/images'
 import LogModal from '../../../components/Setting/Images/LogModal'
+import { base } from '../../../services/base';
 const FormItem = Form.Item;
 const Option = Select.Option;
 const formItemLayout = {
@@ -35,7 +35,7 @@ class Step2 extends React.Component {
 			check: false, //弹框是否为点击的查看
 			loading: false,
 			selectedRowKeys: null,
-			buttonValue: "1",
+			buttonValue: base.configs.passEnabled ?"1":"3",
 			addConVisible: false,
 			clusters: null,
 			containers: [],
@@ -45,7 +45,10 @@ class Step2 extends React.Component {
 			visible:false,			//模态框可见属性
 		}
 		componentDidMount() {
-			this.getClusters();
+			if(base.configs.passEnabled){
+				this.getClusters();
+			}
+			
 		}
 		getClusters() {
 			queryClusters().then(data => {
@@ -338,16 +341,18 @@ class Step2 extends React.Component {
 					selectedRowKeys: this.state.selectedRowKeys,
 					onChange: this.onSelectChange,
 				};
+				console.log(this.state.buttonValue);
 				return ( 
 					<div style = {{display: this.props.display ? 'block' : 'none'}}>
 						<Row>
 							<Col span = {24} offset = {1}>
 								<Form layout = "horizontal" onSubmit = {this.handleSubmit} style = {{marginTop: 24}} hideRequiredMark >
 									<FormItem { ...formItemLayout} label = "部署方式：" > {
+										
 										( 
 									<Radio.Group value = {this.state.buttonValue} onChange = {this.handleButtonChange} >
-										<Radio.Button size='large' value = "1" > 镜像 </Radio.Button>  
-										<Radio.Button size='large' value = "2" > 程序包 </Radio.Button> 
+										{base.configs.passEnabled?<Radio.Button size='large' value = "1" > 镜像 </Radio.Button> :""} 
+										{base.configs.passEnabled?<Radio.Button size='large' value = "2" > 程序包 </Radio.Button> :""}
 										<Radio.Button size='large' value = "3" > 外部应用接入 </Radio.Button> 
 									</Radio.Group> )
 									} 

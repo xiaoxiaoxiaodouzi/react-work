@@ -1,8 +1,12 @@
 import React, { PureComponent } from 'react';
-import { Layout, Menu, Icon, Spin, Dropdown, Avatar, message } from 'antd';
+import { Layout, Menu, Icon, Spin, Dropdown, Avatar, message,Tooltip } from 'antd';
+import NoticeIcon from 'ant-design-pro/lib/NoticeIcon';
 // import userIcon from '../../assets/defaultUser.png';
 import { base } from '../../services/base'
-import './index.less'
+import loginServer from '../../services/login'
+import constants from '../../services/constants'
+import './index.less';
+import {Link} from 'react-router-dom';
 
 const { Header } = Layout;
 const { SubMenu } = Menu;
@@ -12,6 +16,7 @@ export default class GlobalHeader extends PureComponent {
     currentUser: {},
     currentTenant: {},
     tenants: [],
+    errorMessages:[],
     loading:false
   }
 
@@ -24,6 +29,12 @@ export default class GlobalHeader extends PureComponent {
       });
       this.setState({currentUser:nextProps.user,tenants:nextProps.tenants,currentTenant,loading:false});
     }
+    if(nextProps.messages !== this.props.messages){
+      // nextProps.messages.forEach(meg=>{
+      //   meg.title = <span><Icon type="close-circle" style={{color:'red',marginRight:10}}/>{meg.title}</span>
+      // })
+      this.setState({errorMessages:nextProps.messages});
+    }
   }
 
   toggle = () => {
@@ -34,9 +45,21 @@ export default class GlobalHeader extends PureComponent {
 
   menuClick = ({ item, key, keyPath }) => {
     if (key === 'logout') {//登出，跳转到登录页面
-      base.loginOut().then(data => {
-        window.location.href = data.result;
-      })
+      if(base.safeMode){
+        loginServer.safeLogout().then(()=>{
+          base.safeMode = false;
+          window.localStorage.removeItem(constants.WINDOW_LOCAL_STORAGE.SAFEMODEL);
+          base.loginOut().then(data => {
+            window.location.href = data.result;
+          }).catch(()=>{
+            window.location.href = '/';
+          })
+        });
+      }else{
+        base.loginOut().then(data => {
+          window.location.href = data.result;
+        })
+      }
     } else if (key.startsWith('tenant_')) {//切换租户
       let tenantId = key.substring(7);
       let ct;
@@ -94,7 +117,25 @@ export default class GlobalHeader extends PureComponent {
               className="action search"
               placeholder="站内搜索"  
             /> */}
-          {/* <NoticeIcon count={5} className="action" /> */}
+          <Tooltip title='查看文档'>
+            <Link to='/doc' className='action' target='_blank'>
+              <Icon type="question-circle-o" />
+            </Link>
+          </Tooltip>
+          {base.configs.messageBell && 
+          <NoticeIcon count={this.state.errorMessages.length} className="action" onClear={this.props.cleanMessage} clearClose={true}>
+            <NoticeIcon.Tab
+              title='错误信息'
+              emptyText="页面运行良好"
+              list={this.state.errorMessages}
+            />
+            <NoticeIcon.Tab
+              title='监控告警'
+              emptyText="系统运行良好"
+              list={[]}
+            />
+          </NoticeIcon>
+          }
           {loading ? 
             <Spin size="small" style={{ marginLeft: 8, marginRight: 200 }} /> :
             (<Dropdown overlay={menu} trigger={['hover']} placement="bottomRight">

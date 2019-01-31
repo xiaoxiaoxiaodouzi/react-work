@@ -1,23 +1,12 @@
 import React, { Component } from "react";
-import { Table, Card, Popconfirm,message,Divider,Breadcrumb} from "antd";
+import { Table, Card, Popconfirm, message, Divider,Tooltip } from "antd";
 import PageHeaderLayout from "./layouts/PageHeaderLayout";
 import {GlobalHeaderContext} from '../../context/GlobalHeaderContext'
-import { base } from '../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
-
-import { 
-  queryAllVolumes,
-  deleteVolumes,
-  recoverVolumes,
-  deleteVolumesImmediately,
-  queryAppAIP 
-} from "../../services/deploy";
 import moment from "moment";
+import Authorized from "../../common/Authorized";
+import {BreadcrumbTitle} from '../../common/SimpleComponents'
+import { queryAppCCE, deleteVolumes, queryAllVolumes, recoverVolumes, deleteVolumesImmediately } from "../../services/cce";
 
-let title = <Breadcrumb style={{marginTop:6}}>
-<Breadcrumb.Item><Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a","verticalAlign":"text-bottom"}}/> 高级设置</Breadcrumb.Item>
-<Breadcrumb.Item>存储卷管理</Breadcrumb.Item>
-</Breadcrumb>;
 class Storage extends Component {
   state = {
     loading: false,
@@ -56,20 +45,23 @@ class Storage extends Component {
       });
 
       appIds.forEach(element=>{
-        requests.push(queryAppAIP(element))
+        requests.push(queryAppCCE({appIds:element}))
       });
       Promise.all(requests).then(values=>{
-        let apps = [];
-        values.forEach(value=>{
-          apps = [...apps,...value];
-        })
+
         volumeData.forEach((item, index) => {
-          apps.forEach(app=>{
-            if(item.boundApp && item.boundApp.appName === app.code){
-              item.appName = app.name;
-              item.appId = app.id;
-            }
-          })
+          if(item.boundApp ){
+            values.forEach((key)=>{
+              let value = key[item.boundApp.appName];
+              if(value){
+                item.appName = value.name;
+                item.appId = value.id;
+              }
+              
+            })
+                        
+          }
+          
         });
         this.setState({
           data: volumeData,
@@ -104,27 +96,35 @@ class Storage extends Component {
     });
   }
   renderOpen = () => {
-    const Authorized = RenderAuthorized(base.allpermissions);
     const columns = [
       {
         title: "名称",
         dataIndex: "name",
-        width: "10%"
+        render:(text)=>{
+          return <Tooltip title={text}><div style={{width: 150, 'word-break':'keep-all',overflow: 'hidden',whiteSpace: 'nowrap',
+          textOverflow: 'ellipsis'}}>{text}</div></Tooltip>
+        }
       },
       {
         title: "路径",
         dataIndex: "path",
-        width: "20%"
+        render:(text)=>{
+          return <Tooltip title={text}><div style={{width: 150, 'word-break':'keep-all',overflow: 'hidden',whiteSpace: 'nowrap',
+          textOverflow: 'ellipsis'}}>{text}</div></Tooltip>
+        }
       },
       {
         title: "挂载应用名称",
         dataIndex: "appName",
-        width: "20%"
+        render:(text)=>{
+          return <Tooltip title={text}><div style={{width: 150, 'word-break':'keep-all',overflow: 'hidden',whiteSpace: 'nowrap',
+          textOverflow: 'ellipsis'}}>{text}</div></Tooltip>
+        }
       },
       {
         title: "状态",
         dataIndex: "status",
-        width: "10%",
+        width: 75,
         render: (text, record) => {
           if(text ==='删除中'){
             const current=new Date().getTime();
@@ -138,19 +138,19 @@ class Storage extends Component {
       {
         title: "容量",
         dataIndex: "storage",
-        width: "10%"
+        width: 75
       },
       {
         title: "创建时间",
         dataIndex: "createTime",
-        width: "15%",
+        width: 120,
         render: (text, record) => {
-          return moment(text).format("YYYY-MM-DD HH:mm");
+          return moment(text).format("YYYY-MM-DD");
         }
       },
       {
         title: "操作",
-        width: "15%",
+        width: 60,
         render: (text, record) => {
           if(record.status === '未挂载'){
             return (
@@ -161,9 +161,9 @@ class Storage extends Component {
               </Authorized>
             );
           }else if(record.status === '已挂载' && record.appId){
-            return (
-              <a onClick={()=> window.location.href = `/#/apps/${record.appId}`}>查看{/* <Link to={`apps/${record.appId}/deploy`}>查看</Link> */}</a>
-            );
+            return <Popconfirm title='确认删除' onConfirm={e => {this.handleDelete(record.name)}}><a disabled='true'>删除</a></Popconfirm>
+              // <a onClick={()=> window.location.href = `/#/apps/${record.appId}`}>查看</a>
+              
           }else if(record.status === '删除中'){
             return (
               <span>
@@ -203,6 +203,7 @@ class Storage extends Component {
   };
 
   render() {
+    const title = BreadcrumbTitle([{name:'高级设置'},{name:'存储卷管理'}]);
     return (
       <PageHeaderLayout
       title={title}

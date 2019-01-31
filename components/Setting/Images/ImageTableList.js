@@ -1,8 +1,8 @@
 import React, { Fragment,Component } from 'react';
 import {Table, Form, Input, Select,  Button, Divider, message ,Modal,Radio,Popconfirm} from 'antd';
-import {getEnvs,updateEnvs,addEnvs,deleteEnvs,getKeys} from '../../../services/images'
-import { base } from '../../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import { addEnvs,deleteEnvs} from '../../../services/cce'
+import { getEnvs, updateEnvs, getKeys } from '../../../services/cce'
+import Authorized from '../../../common/Authorized';
 
 const RadioGroup = Radio.Group;
 const FormItem = Form.Item;
@@ -178,7 +178,6 @@ class ImageTableListForm extends Component{
   }
   
   render(){
-    const Authorized = RenderAuthorized(base.allpermissions);
     const columns = [
       {
         title:"Key",

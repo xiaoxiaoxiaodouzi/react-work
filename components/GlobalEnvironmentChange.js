@@ -1,5 +1,5 @@
 import React from 'react'
-import { Button } from 'antd';
+import { Button, message } from 'antd';
 import { base } from '../services/base';
 
 import { GlobalHeaderContext } from '../context/GlobalHeaderContext'
@@ -20,25 +20,31 @@ class GlobalEnvironmentChange extends React.Component {
     componentWillReceiveProps(nextProps){
         if(nextProps.tenant!==this.props.tenant){
             this.setState({
-                environments:base.environments
+                environments:base.environments,
+                currentEnvironmentId:base.currentEnvironment?base.currentEnvironment.id:null
             })
-            if (base.currentEnvironment && base.currentEnvironment.id) {
-                this.setState({currentEnvironmentId:base.currentEnvironment.id});
-            }
         }
    
     }
     onChange = (env) => {
         this.setState({ currentEnvironmentId: env.id });
+        message.success('切换到环境：' + env.name);
         this.props.environmentChange(env);
     }
     render() {
         return (
             <div>
-                环境：
-                {this.state.environments.map((env) => {
-                    return <Button key={env.id} onClick={e => { this.onChange(env) }} type={env.id === this.state.currentEnvironmentId ? 'primary' : ''} style={{ marginRight: 16 }}>{env.name}</Button>
-                })}
+                
+                {this.state.environments.length===0?
+                <span style={{color:'red'}}>当前租户没有所属环境！</span>
+                :<span>环境：
+                    {
+                        this.state.environments.map((env) => {
+                            return <Button key={env.id} onClick={e => { this.onChange(env) }} type={env.id === this.state.currentEnvironmentId ? 'primary' : ''} style={{ marginRight: 16 }}>{env.name}</Button>
+                        })
+                    }
+
+                </span>}
             </div>
         )
     }

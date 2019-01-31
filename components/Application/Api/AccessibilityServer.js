@@ -2,9 +2,10 @@ import React, { Fragment } from 'react';
 import { Row, Col, Input, Button, Alert, Table, Select, Modal ,Form} from 'antd';
 import Ellipsis from 'ant-design-pro/lib/Ellipsis'
 import ServerManager from './ServerManager';
-import { getAccessibilityServicesApis, addAuthorizedServicesApis, removeAuthorizedServicesApis, removeServicesApis } from '../../../services/api'
+import { getAccessibilityServicesApis, addAuthorizedServicesApis, removeAuthorizedServicesApis, removeServicesApis } from '../../../services/aip'
 import { base } from '../../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+
+import Authorized  from '../../../common/Authorized';
 const confirm = Modal.confirm;
 // const RadioGroup = Radio.Group;
 const OPTIONS = [
@@ -33,6 +34,8 @@ const METHOD_COLORS = {
 //   },{
 //     key:'2',name:'公开服务'
 //   }];
+
+// const Authorized = RenderAuthorized(['app_deleteExternalService']);
 export default class ProvidedServices extends React.Component {
 
 	constructor(props) {
@@ -96,7 +99,7 @@ export default class ProvidedServices extends React.Component {
 	}
 
 	_getColumn() {
-		const Authorized = RenderAuthorized(base.allpermissions);
+		
 		return [{
 			title: '名称',
 			dataIndex: 'name',
@@ -165,9 +168,7 @@ export default class ProvidedServices extends React.Component {
 			width: '147px',
 			render: (text, record) => {
 				return ( 
-					<Authorized authority='app_serviceDebug' noMatch={<a disabled="true" href={`${base.currentEnvironment.authServerAddress}/ext/swagger/index.html?group=${record.groupId}&id=${record.id}`} target="_blank">文档调试</a>}>
-						<a href={`${base.currentEnvironment.authServerAddress}/ext/swagger/index.html?group=${record.groupId}&id=${record.id}`} target="_blank">文档调试</a>
-					</Authorized>
+					<a href={`${base.currentEnvironment.authServerAddress}/ext/swagger/index.html?group=${record.groupId}&id=${record.id}`} target="_blank">文档调试</a>
 				)
 			}
 		}];
@@ -327,13 +328,10 @@ export default class ProvidedServices extends React.Component {
 		});
 	}
 	render() {
-		const Authorized = RenderAuthorized(base.allpermissions);
 		return (
 			<div>
 				<Form>
-
-
-					<Row>
+					<Row >
 						<Col span={10}>
 							<Row type={'flex'} align='middle'>
 								<Col span={4}>名称/路径:</Col><Col span={18}><Input onChange={(e) => { this.setState({ searchText: e.target.value }) }} value={this.state.searchText} placeholder="请输入" /></Col>

@@ -1,7 +1,7 @@
 import React, { PureComponent,Fragment } from 'react'
 import PropTypes from 'prop-types'
 import { Modal,Select, Button, Input, Col, Row, Table,Form } from "antd";
-import { getCollectionUsers } from '../../services/functional'
+import { getCollectionUsers } from '../../services/uop'
 import constants from '../../services/constants'
 
 const Option = Select.Option;

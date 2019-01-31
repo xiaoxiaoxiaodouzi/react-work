@@ -1,6 +1,6 @@
 import React, { Fragment } from 'react';
 import { Drawer, Input, Table } from 'antd';
-import { getResourceUser } from '../../services/functional'
+import { getResourceUser } from '../../services/aip'
 import constants from '../../services/constants';
 const Search = Input.Search;
 

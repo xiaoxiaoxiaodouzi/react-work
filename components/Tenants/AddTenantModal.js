@@ -1,8 +1,10 @@
 import React, { Component } from "react";
 import { Modal,Button,Form,Input,Row,Col,Message} from "antd";
 import OrgSelectModal from '../../common/OrgSelectModal';
-import {AddTenant,AddCCETenant,DeleteTenant} from '../../services/tenants';
+import { AddTenant, DeleteTenant } from '../../services/tp';
+import { AddCCETenant } from '../../services/cce'
 import constants from '../../services/constants';
+import { base } from '../../services/base'
 
 const FormItem = Form.Item;
 class AddTenantModal extends Component{
@@ -13,7 +15,8 @@ class AddTenantModal extends Component{
           loading:false,
           org:{},
           validateStatus:'success',
-          errorMessage:''
+          errorMessage:'',
+          tenantIds:[]
         }
         this.name = '';
         this.value = '';
@@ -26,6 +29,14 @@ class AddTenantModal extends Component{
             name:'',
             code:''
           });
+    }
+
+    componentWillReceiveProps(nextProps){
+        if(nextProps.tenantIds && nextProps.tenantIds !== this.props.tenantIds){
+            this.setState({
+                tenantIds:nextProps.tenantIds
+            })
+        }
     }
 
     addTenants=(org)=>{
@@ -96,26 +107,33 @@ class AddTenantModal extends Component{
                       AddTenant(bodyParams).then(data=>{
                         if(data){
                             bodyParams.name = this.code;
-                            AddCCETenant(bodyParams).then(response=>{
-                                if(response){
-                                    Message.success('新增租户成功！');
+                            //cce权限
+                            if(base.configs.passEnabled){
+                                AddCCETenant(bodyParams).then(response=>{
+                                    if(response){
+                                        Message.success('新增租户成功！');
+                                        this.setState({
+                                            loading: false
+                                        })
+                                        this.handleCancel(data);
+                                        
+                                    }
+                                }).catch(e=>{
+                                    base.ampMessage('新增租户出错' );
                                     this.setState({
-                                        loading: false
+                                    loading: false
                                     })
-                                    this.handleCancel(data);
-                                    
-                                }
-                            }).catch(err=>{
-                                Message.error('新增租户出错')
+                                    DeleteTenant(data.id,data.code).then();
+                                });
+                            }else{
                                 this.setState({
-                                  loading: false
-                                })
-                                DeleteTenant(data.id,data.code).then();
-                            });
-                            
+                                    loading: false
+                                });
+                                this.handleCancel(data);
+                            }
                         }
-                      }).catch(err=>{
-                        Message.error('新增租户出错')
+                      }).catch(e=>{
+                        base.ampMessage('新增租户出错' )
                         this.setState({
                           loading: false
                         })
@@ -195,7 +213,7 @@ class AddTenantModal extends Component{
                         </Col>
                         <Col md={6} sm={24}>
                             <FormItem {...formItemLayout}>
-                                <OrgSelectModal isOffset={true} renderButton={() => { return <Button type='primary'>选择机构</Button> }} onOk={org => this.addTenants(org)} checkableTopOrg={false} checkableCategoryOrg={false}/>
+                                <OrgSelectModal isOffset={true} renderButton={() => { return <Button type='primary'>选择机构</Button> }} onOk={org => this.addTenants(org)} checkableTopOrg={false} checkableCategoryOrg={false} disabledOrg={this.state.tenantIds}/>
                              </FormItem>
                         </Col>
                     </Row>

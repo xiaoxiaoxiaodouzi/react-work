@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import {Modal,Table,Alert,message} from 'antd';
-import {getSynServices,synServices} from '../../../services/api'
+import {getSynServices,synServices} from '../../../services/aip'
 
 
 export class SynService extends Component {

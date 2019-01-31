@@ -3,10 +3,8 @@ import { Modal, Form, Input, Alert, Radio, message, Select } from 'antd';
 import QueryParamsTable from './QueryParamsTable';
 import TagManager from '../../../common/TagManager';
 
-import { queryTags, createTags, addService, addTag, queryAllServices } from '../../../services/api';
-import { getAppInfo } from '../../../services/appdetail'
+import { getApp,queryAppTags, createTags, addService, addTag, queryAllServices, getAppInfo } from '../../../services/aip';
 
-import { getApp } from '../../../services/running';
 
 const Option = Select.Option;
 const FormItem = Form.Item;
@@ -134,7 +132,7 @@ class ServerAddModal extends PureComponent {
   }
   getAllTags = () => {
     if (this.state.groupId) {
-      queryTags(this.state.groupId)
+      queryAppTags(this.state.groupId)
         .then((response) => {
           this.setState({
             allTags: response

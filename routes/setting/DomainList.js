@@ -1,24 +1,16 @@
 import React, { Fragment,Component } from 'react';
-import {Table,Row, Col, Form, Input,  Button, Divider ,Card,Popconfirm, Checkbox,Modal,Select,message,Breadcrumb} from 'antd';
-import PageHeaderLayout from './layouts/PageHeaderLayout';
-import { getRoutersList,deleteRouters,getRouter,updateRouters } from '../../services/domainList'
+import {Table,Row, Col, Form, Input,  Button, Divider ,Card,Popconfirm, Checkbox,Modal,Select,message} from 'antd';
+import {getRoutersList,updateRouters,deleteRouters} from '../../services/amp'
+import { getRouter } from '../../services/aip'
 import moment from 'moment'
+import PageHeaderBreadcrumb from '../../common/PageHeaderBreadcrumb';
 import GlobalEnvironmentChange from '../../components/GlobalEnvironmentChange';
 import { GlobalHeaderContext } from '../../context/GlobalHeaderContext';
-import { base } from '../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../common/Authorized';
+import Link from 'react-router-dom/Link';
 
 const Option = Select.Option;
 const FormItem = Form.Item;
-const breadcrumbList = <Breadcrumb>
-  <Breadcrumb.Item>
-    <Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a","verticalAlign":"text-bottom"}}/>
-    高级设置
-  </Breadcrumb.Item>
-  <Breadcrumb.Item>
-    域名管理
-  </Breadcrumb.Item>
-</Breadcrumb>;
 class DomainListForm extends Component{
 
   constructor(props){
@@ -27,6 +19,7 @@ class DomainListForm extends Component{
       loading:false,
       data:[],
       visibleModal:false,
+      appMap:{}
     }
     this.tempId = '';
     this.name = "";
@@ -55,18 +48,19 @@ class DomainListForm extends Component{
   handleDelete=(id)=>{
     deleteRouters(id).then(()=>{
       message.success('域名删除成功');
-      this.loadData();
+      this.loadData(this.state.name);
     })
   }
   handleEdit=(record)=>{
     const { setFieldsValue } = this.props.form;
-    this.tempId = record.name;
+    this.tempId = record.id;
     setFieldsValue({
       httpsOnly:record.httpsOnly,
       host:record.host,
-      stripUri:record.stripUri
+      stripPath:record.stripPath,
+      protocols:record.protocols[0]
     })
-    this.setState({ visibleModal:true });
+    this.setState({ visibleModal:true,record:record });
   }
 
   loadData=(name)=>{
@@ -75,48 +69,39 @@ class DomainListForm extends Component{
       params.host = name;
     }
     getRoutersList(params).then(data=>{
-      let array = [];
 
-      let appIds = [];
-      let map = {};
+     let appCodes = []
       data.forEach(items=>{
         let tr = {};
-        tr.createdAt = items.createdAt;
+        tr.updataAt = items.updataAt;
         if(items.hosts&&items.hosts.length>0){
-          tr.id = items.id;
-          tr.host = items.hosts[0];
-          tr.stripUri = items.stripUri;
-          tr.httpsOnly = items.httpsOnly;
-          let appId = items.name.split("_")[0];
-          appIds.push(appId);
-
-          let targets = [];
-          if(items.targets){
-            items.targets.forEach(tar => {
-              targets.push(tar.target);
-            });
+        
+          let appCode = items.appCode;
+          if(appCodes.indexOf(appCode) === -1){
+            appCodes.push(appCode);
           }
-
-          tr.targets = targets.toString();
+          items.host = items.hosts[0];        
         }
-        array.push(tr);
-        let host = items.hosts[0];
-        map[host] = tr;
+       
       })
-      getRouter({"appId":appIds}).then(datas=>{
-        let routes = [];
-        if(datas && datas.contents.length > 0){
-          datas.contents.forEach(de=>{
-            let route = map[de.host];
-            if(route){
-              route.appName = de.name;
-              routes.push(route);
-            }            
+      //查询应用名称
+      getRouter({"code":appCodes}).then(apps=>{
+      
+        let map = {};
+        if(apps &&  apps.length > 0){
+          
+          apps.forEach(app=>{
+                map[app.code] = app;
           })
+ 
         }
-
         this.setState({
-          data: routes
+          appMap:map,
+          data: data
+        })
+      }).catch(err =>{
+        this.setState({
+          data: data
         })
       })
      
@@ -126,22 +111,30 @@ class DomainListForm extends Component{
   addHost=()=>{
     const { getFieldsValue } = this.props.form;
     const values = getFieldsValue();
-    let params = {
-      hosts:[ values.host ],
-      https_only:values.httpsOnly,
-      name:this.tempId, //appid
-      stripUri:values.stripUri,
-      upstreamUrl:'http://'+values.host,
-      uris:['/']
-    }
-    updateRouters(this.tempId,params).then(()=>{   // 第一个参数是域名 name
+    let record = this.state.record;
+    // let params = {
+    //   hosts:[ values.host ],
+    //   https_only:values.httpsOnly,
+    //   name:this.tempId, //appid
+    //   stripUri:values.stripUri,
+    //   upstreamUrl:'http://'+values.host,
+    //   uris:['/']
+    // }
+    record.hosts=[ values.host ];
+    record.https_only=values.httpsOnly;
+    record.name=this.tempId; //appid
+    record.stripPath=values.stripPath;
+    record.upstreamUrl='http://'+values.host;
+    record.uris=['/'];
+    record.protocols=[values.protocols];
+    updateRouters(this.tempId,record).then(()=>{   // 第一个参数是域名 name
       message.success('修改域名成功')
+      this.loadData(this.state.name);
     })  
     this.setState({visibleModal:false});
   }
 
   renderOpen=()=>{
-    const Authorized = RenderAuthorized(base.allpermissions);
     const { getFieldDecorator } = this.props.form;
     const columns = [
       {
@@ -151,27 +144,32 @@ class DomainListForm extends Component{
       },
       {
         title: '裁剪上下文',
-        dataIndex: 'stripUri',
+        dataIndex: 'stripPath',
         width: '15%',
         render:(value) => value ? '是' : '否'
       },
       {
         title: '应用',
-        dataIndex: 'appName',
+        dataIndex: 'appCode',
         width: '15%',
+        render:(text,record) =>{
+          let appMap = this.state.appMap;
+          return <Link to={`/apps/${appMap && appMap[record.appCode]?appMap[record.appCode].id:''}`}>{appMap && appMap[record.appCode]?appMap[record.appCode].name:'--'}</Link>
+        }
       },
+      // {
+      //   title: '应用地址',
+      //   dataIndex: 'targets',
+      //   width: '15%',
+      // },
       {
-        title: '应用地址',
-        dataIndex: 'targets',
-        width: '15%',
-      },
-      {
-        title:'创建时间',
-        dataIndex:'createdAt',
+        title:'更新时间',
+        dataIndex:'updatedAt',
         width:'20%',
         render:(text,record)=>{
           if(text){
-            return moment(text).format('YYYY-MM-DD HH:mm')
+            // eslint-disable-next-line
+            return moment(parseInt(text+'000')).format('YYYY-MM-DD HH:mm')
           }
         }
       },
@@ -249,10 +247,10 @@ class DomainListForm extends Component{
           <Form>
             <FormItem {...formItemLayout} 
               label="协议">
-              {getFieldDecorator('httpsOnly')(
+              {getFieldDecorator('protocols')(
                 <Select>
-                  <Option value={false}>http</Option>
-                  <Option value={true}>https</Option>
+                  <Option value='http'>http</Option>
+                  <Option value='https'>https</Option>
                 </Select>
               )}
             </FormItem>
@@ -264,7 +262,7 @@ class DomainListForm extends Component{
             </FormItem>
             <FormItem {...formItemLayout} 
               label="裁剪上下文"> 
-              {getFieldDecorator('stripUri', { valuePropName: 'checked' })(
+              {getFieldDecorator('stripPath', { valuePropName: 'checked' })(
                 <Checkbox />
               )}
             </FormItem>
@@ -279,13 +277,12 @@ class DomainListForm extends Component{
 
   render(){
     return(
-      <PageHeaderLayout
-        content=""
-        title={breadcrumbList}
-        action={<GlobalEnvironmentChange/>}
-        >
+      <div style={{ margin: '-24px -24px 0 -24px' }}>
+        <PageHeaderBreadcrumb breadcrumbList={[{name:'高级设置'},{name:'域名管理'}]} action={<GlobalEnvironmentChange/>}/>
+        <div style={{ margin: '24px 24px 0' }}>
           {this.renderOpen()}
-      </PageHeaderLayout>
+        </div>
+      </div>
     )
   }
 }

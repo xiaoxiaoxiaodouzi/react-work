@@ -4,9 +4,10 @@ import PropTypes from 'prop-types';
 import Graph from 'react-graph-vis';
 import Exception from 'ant-design-pro/lib/Exception';
 
+
 import './vis.min.css';
 
-import { getApplicationTopo,getTransactionLink } from '../../../services/dashApi';
+import { getApplicationTopo, getTransactionLink } from '../../../services/apm'
 
 export default class ApplicationTopo extends PureComponent {
     constructor(props) {

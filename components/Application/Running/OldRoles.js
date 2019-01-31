@@ -1,6 +1,7 @@
 import React, { Fragment,Component } from 'react';
 import {Table, Form, Input, Button, Modal, message,Tree,Divider } from 'antd';
-import {getRoles,addRole,getRolesByCode,deleteRole,updateRole,getResources,getRoleAllResources,updateRoleResources} from '../../../services/running'
+import {getAppResources} from '../../../services/aip'
+import {getRoleAllResources,getRolesByCode,updateRole,addRole,getRoles,deleteRole,updateRoleResources} from '../../../services/aip'
 import TreeHelp from '../../../utils/TreeHelp'
 const FormItem = Form.Item;
 const TreeNode = Tree.TreeNode;
@@ -42,7 +43,7 @@ class RoleForm extends Component{
       type: '2'
     }
     //查询表单数据 默认type=2
-    getResources(appid, queryParams).then(data => {
+    getAppResources(appid, queryParams).then(data => {
       let ary=TreeHelp.toChildrenStruct(data);
       this.setState({
         formData: ary
@@ -51,7 +52,7 @@ class RoleForm extends Component{
 
     //查询菜单数据 默认type=4
     let params={type:'4'};
-    getResources(appid, params).then(data => {
+    getAppResources(appid, params).then(data => {
       let ary=TreeHelp.toChildrenStruct(data);
       this.setState({
         menuTree: ary

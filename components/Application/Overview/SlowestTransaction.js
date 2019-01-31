@@ -1,10 +1,10 @@
 import React, { PureComponent,Fragment } from 'react';
 import { Chart, Axis, Tooltip, Geom, Coord } from 'bizcharts';
-import { message } from 'antd';
 import LoadingComponent from '../../../common/LoadingComponent';
-import { getTransactionInfoSlow } from '../../../services/dashApi';
+import { getTransactionInfoSlow } from '../../../services/apm';
 import { DataSet } from '@antv/data-set';
 import ResourcesModal from '../../../common/ResourcesModal/ResourcesModal'
+import { base } from '../../../services/base';
 export default class Component extends PureComponent {
   state = {
     data:[],      //柱状图数据
@@ -31,9 +31,7 @@ export default class Component extends PureComponent {
         from:nextProps.from,
         to:nextProps.to
       }
-
       this.getTransactionInfoSlow(appCode,queryParam);
-   
   }
 
   getTransactionInfoSlow=(appCode,queryParam)=>{
@@ -41,7 +39,7 @@ export default class Component extends PureComponent {
       loading:true,
     })
     let datas = [];
-    getTransactionInfoSlow(appCode, queryParam).then(data=>{
+    getTransactionInfoSlow(base.currentEnvironment.code+'_'+appCode, queryParam).then(data=>{
       this.setState({
         loading:false,
       })
@@ -66,8 +64,8 @@ export default class Component extends PureComponent {
           dv:data,
         })
       }
-    }).catch(err=>{
-      message.error('获取最慢响应事务失败')
+    }).catch(e=>{
+      base.ampMessage('获取最慢响应事务失败' );
       this.setState({loading:false})
     })
   }

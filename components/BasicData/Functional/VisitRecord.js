@@ -24,7 +24,7 @@ class VisitRecord extends Component {
     const { getFieldDecorator } = this.props.form;
     return (
       <div className="tableList">
-      <Form onSubmit={this.handleSearch} layout="inline">
+      <Form onSubmit={this.handleSearch} >
         <Row gutter={{ md: 8, lg: 16}}>
           <Col md={6} sm={24}>
             <FormItem label="用户名">
@@ -95,7 +95,7 @@ class VisitRecord extends Component {
     }];
 
     return (
-      <Card bordered={false} title='访问记录' style={{margin:'24px 24px 0'}}>
+      <Card bordered={false} title='访问日志' style={{margin:'24px 24px 0'}}>
         {this.renderSimpleForm()}
         <Table style={{ marginTop:24 }} 
           dataSource={dataSource} 

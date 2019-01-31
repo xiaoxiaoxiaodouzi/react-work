@@ -1,12 +1,15 @@
 import React, { Component } from 'react'
-import { Card, List, Button, Icon, Modal, Input, message, Table, Popconfirm, Row, Col, Checkbox, Breadcrumb, Divider } from 'antd'
+import { Card, List, Button, Icon, Modal, Input, message, Table, Popconfirm, Row, Col, Checkbox } from 'antd'
 import './index.less'
-import { getClusters, addCluster, deleteCluster, getNodes, deleteNodes, addHosts, getClusterInfo } from '../../services/cluster'
+import { getClusters, addCluster, deleteCluster, getClusterInfo, getNodes, deleteNodes, addHosts } from '../../services/cce';
 import { base } from '../../services/base';
+import constants from '../../services/constants'
 import PageHeaderLayout from './layouts/PageHeaderLayout'
 import { GlobalHeaderContext } from '../../context/GlobalHeaderContext'
+import {BreadcrumbTitle} from '../../common/SimpleComponents'
 import './Cluster.css'
-import RenderAuthorized from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../common/Authorized';
+import {GrafanaModal} from '../../common/SimpleComponents'
 
 
 class Cluster extends Component {
@@ -26,6 +29,7 @@ class Cluster extends Component {
     token: '',       //cluster_token
     showPublicCluster: false,
     isPublicCluster: false,
+    grafanaVisible:false,//集群监控模态框显示
   }
 
   componentDidMount() {
@@ -110,8 +114,8 @@ class Cluster extends Component {
   }
   //点击删除集群
   handleDelete = (e, item) => {
-    if (item.nodes > 0) {
-      message.info('集群【' + item.name + '】下存在主机，不能被删除！');
+    if (item.containers > 0) {
+      message.info('集群【' + item.name + '】下存在容器，不能被删除！');
     } else {
       this.setState({
         id: item.id,
@@ -163,7 +167,7 @@ class Cluster extends Component {
     this.setState({
       id: item.id
     })
-    getNodes(item.id).then(data => {
+    getNodes(item.id,item.tenant).then(data => {
       this.setState({
         listDatas: data,
         visibleList: true,
@@ -238,7 +242,6 @@ class Cluster extends Component {
 
   }
   render() {
-    const Authorized = RenderAuthorized(base.allpermissions);
     const columns = [
       {
         title: 'IP',
@@ -313,10 +316,13 @@ class Cluster extends Component {
       </div>
     )
 
-    let breadcrumTitle = <Breadcrumb style={{ marginTop: 6 }}>
-      <Breadcrumb.Item><Divider type="vertical" style={{ width: "2px", height: "15px", backgroundColor: "#15469a", "verticalAlign": "text-bottom" }} /> 高级设置</Breadcrumb.Item>
-      <Breadcrumb.Item>集群管理</Breadcrumb.Item>
-    </Breadcrumb>;
+    let breadcrumTitle = BreadcrumbTitle([{name:'高级设置'},{name:'集群管理'}]);
+    // <Breadcrumb style={{marginTop:6}}>
+    //   <Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a",verticalAlign:"text-bottom"}}/>
+    //   <Breadcrumb.Item >高级设置</Breadcrumb.Item>
+    //   <Breadcrumb.Item >集群管理</Breadcrumb.Item>
+    // </Breadcrumb>;
+
     return (
       <PageHeaderLayout
         title={breadcrumTitle}
@@ -330,11 +336,10 @@ class Cluster extends Component {
             dataSource={this.state.datas}
             renderItem={(item, i) => (!item.new ?
               <List.Item key={item.id}>
-                <Card hoverable className='card' actions={item.public ? (this.state.showPublicCluster ? [<Authorized authority={'cluster_addHost'} noMatch={<a disabled='true' onClick={e => this.handleAddClick(e, item)}>新增主机</a>}><a onClick={e => this.handleAddClick(e, item)}>新增主机</a></Authorized>, <Authorized authority={'cluster_delete'} noMatch={<a disabled='true' onClick={e => this.handleDelete(e, item)}>删除集群</a>}><a onClick={e => this.handleDelete(e, item)}>删除集群</a></Authorized>] : ['']) : [<Authorized authority={'cluster_addHost'} noMatch={<a disabled='true' onClick={e => this.handleAddClick(e, item)}>新增主机</a>}><a onClick={e => this.handleAddClick(e, item)}>新增主机</a></Authorized>, <Authorized authority={'cluster_delete'} noMatch={<a disabled='true' onClick={e => this.handleDelete(e, item)}>删除集群</a>}> <a onClick={e => this.handleDelete(e, item)}>删除集群</a></Authorized>]}>
+                <Card className='card' actions={item.public ? (this.state.showPublicCluster ? [<Authorized authority={'cluster_addHost'} noMatch={<a disabled='true' onClick={e => this.handleAddClick(e, item)}>新增主机</a>}><a onClick={e => this.handleAddClick(e, item)}>新增主机</a></Authorized>, <Authorized authority={'cluster_delete'} noMatch={<a disabled='true' onClick={e => this.handleDelete(e, item)}>删除集群</a>}><a onClick={e => this.handleDelete(e, item)}>删除集群</a></Authorized>] : ['']) : [<Authorized authority={'cluster_addHost'} noMatch={<a disabled='true' onClick={e => this.handleAddClick(e, item)}>新增主机</a>}><a onClick={e => this.handleAddClick(e, item)}>新增主机</a></Authorized>, <Authorized authority={'cluster_delete'} noMatch={<a disabled='true' onClick={e => this.handleDelete(e, item)}>删除集群</a>}> <a onClick={e => this.handleDelete(e, item)}>删除集群</a></Authorized>]}>
                   <Card.Meta
-                    onClick={e => this.handleClick(e, item)}
                     //avatar={<img alt="" className='cardAvatar' src={item.avatar} />}
-                    title={<a >{item.public ? '公共集群-' + item.name : '私有集群-' + item.name}</a>}
+                    title={base.configs.monitEnabled?<a onClick={e=>{this.setState({grafanaVisible:true,clusterId:item.id})}}>{item.public ? '公共集群-' + item.name : '私有集群-' + item.name}</a>:<span>{item.public ? '公共集群-' + item.name : '私有集群-' + item.name}</span>}
                     description={
                       <div>
                         <Row gutter={{ md: 8, lg: 24, xl: 48 }} style={{ marginBottom: 5 }}>
@@ -347,7 +352,7 @@ class Cluster extends Component {
                         </Row>
                         <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
                           <Col md={8} sm={24} style={{ marginLeft: 10 }}>
-                            <h2>{item.nodes}</h2>
+                            <h2 onClick={e => this.handleClick(e, item)}>{item.nodes}</h2>
                           </Col>
                           <Col md={8} sm={24}>
                             <h2>{item.containers}</h2>
@@ -372,6 +377,9 @@ class Cluster extends Component {
 
             )}
           />
+
+          <GrafanaModal visible={this.state.grafanaVisible} title='集群监控' onCancel={e=>{this.setState({grafanaVisible:false})}} 
+            url={base.configs.globalResourceMonitUrl+constants.GRAFANA_URL.cluster+'&var-cluster='+this.state.clusterId} />
           <Modal
             title='新建集群'
             visible={this.state.visibleAdd}

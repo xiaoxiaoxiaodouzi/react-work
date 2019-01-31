@@ -1,7 +1,9 @@
 import React, { Component } from 'react';
 import { Modal, Form, Input, Button, message, Select, Icon} from 'antd';
-import { deleteApp, deleteAppDeploy, updateApp, getSso, eidtSso } from '../../../services/running';
+import {  deleteAppDeploy } from '../../../services/cce';
+import {deleteApp,getSso, eidtSso, updateApp} from '../../../services/aip'
 import './Setting.css'
+import { base } from '../../../services/base';
 const FormItem = Form.Item;
 const Option = Select.Option
 
@@ -147,8 +149,8 @@ class SettingForm extends Component {
 		if (appCode) {
 			deleteAppDeploy(appCode).then(data => {
 				this.deleteApp(appid);
-			}).catch(error => {
-				message.error("删除应用部署失败");
+			}).catch(e => {
+				base.ampMessage("删除应用部署失败" );
 			});
 		} else {
 			this.deleteApp(appid);
@@ -160,8 +162,8 @@ class SettingForm extends Component {
 			this.setState({ deleteLoading: false });
 			message.success('删除应用成功')
 			window.location.href = '/#/apps';
-		}).catch(error => {
-			message.error("删除应用失败");
+		}).catch(e => {
+			base.ampMessage("删除应用失败" );
 			this.setState({ deleteLoading: false });
 		});
 	}

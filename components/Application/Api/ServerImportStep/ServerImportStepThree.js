@@ -1,6 +1,6 @@
 import React from 'react';
-import { Row, Col, Radio, Button, message } from 'antd';
-import { addServers, updateServers } from '../../../../services/api'
+import { Row, Col, Radio, message } from 'antd';
+import { addServers, updateServers } from '../../../../services/aip'
 import SetpBar from './SetpBar';
 
 export default class ServerImportStepTwo extends React.Component {
@@ -14,7 +14,8 @@ export default class ServerImportStepTwo extends React.Component {
             importServer: [],
             grade: 1,
             updateLoading:false,
-            importLoading:false
+            importLoading:false,
+            importDisabled:false
         }
 
         this._onUpdate = this._onUpdate.bind(this);
@@ -57,13 +58,28 @@ export default class ServerImportStepTwo extends React.Component {
     }
 
     _onImport() {
-        this.setState({importLoading:false})
+        this.setState({importLoading:true})
         addServers(this.props.appId, this.props.upstream, this.state.importServer, this.props.swaggertext, this.state.grade)
             .then((response) => {
-                this.setState({importLoading:true})
+                this.setState({importLoading:false,importDisabled:true})
                 this.props.hasChange && this.props.hasChange()
                 message.success('导入成功');
-            }).catch(err=>{this.setState({importLoading:false})})
+            }).catch(err=>{this.setState({importLoading:false,importDisabled:false})})
+    }
+
+    onNextStep=()=>{
+        let requests = [];
+        this.setState({importLoading:true})
+        requests.push(updateServers(this.props.appId, this.state.updateServer, this.props.swaggertext));
+        requests.push(addServers(this.props.appId, this.props.upstream, this.state.importServer, this.props.swaggertext, this.state.grade));
+        Promise.all(requests).then(responses =>{
+           
+            this.setState({importLoading:false,importDisabled:true})
+            this.props.onNextSetp && this.props.onNextSetp(this.state.updateServer.length,this.state.importServer.length);
+           // message.success('导入成功');
+        }).catch(err =>{
+            this.setState({importLoading:false,importDisabled:false});
+        })
     }
 
     //**************************************************************************** */
@@ -80,12 +96,12 @@ export default class ServerImportStepTwo extends React.Component {
                     <Row type={'flex'} align="middle" style={{ marginBottom: 20 }}>
                         <Col span={4}>可更新服务数:</Col>
                         <Col span={15}>{this.state.updateServer.length}</Col>
-                        <Col span={5}><Button type="primary" onClick={() => { this._onUpdate() }}>更新</Button></Col>
+                        {/* <Col span={5}><Button loading={this.state.updateLoading} disabled={this.state.updateServer.length>0?this.state.importDisabled:true} type="primary" onClick={() => { this._onUpdate() }}>更新</Button></Col> */}
                     </Row>
                     <Row type={'flex'} align="middle" style={{ marginBottom: 20 }}>
                         <Col span={4}>可导入服务:</Col>
                         <Col span={15}>{this.state.importServer.length}</Col>
-                        <Col span={5}><Button type="primary" onClick={() => { this._onImport() }}>导入</Button></Col>
+                        {/* <Col span={5}><Button type="primary" loading={this.state.importLoading} disabled={this.state.importServer.length>0?this.state.importDisabled:true} onClick={() => { this._onImport() }}>导入</Button></Col> */}
                     </Row>
                     <Row type={'flex'}>
                         <Col span={4}> 开放等级:</Col>
@@ -99,7 +115,7 @@ export default class ServerImportStepTwo extends React.Component {
                     </Row>
                 </Col>
                 <Col span={24}>
-                    <SetpBar onPreviousStep={() => { this.props.onPreviousStep() }} style={{ marginTop: 20 }} />
+                    <SetpBar importStep={()=>{this.onNextStep()}} importLoading={this.state.importLoading} onPreviousStep={() => { this.props.onPreviousStep() }} style={{ marginTop: 20 }} />
                 </Col>
             </Col>
 

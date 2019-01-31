@@ -2,21 +2,19 @@ import React, { Fragment } from 'react';
 import { ChartCard,Field,MiniArea,MiniBar } from 'ant-design-pro/lib/Charts';
 import { Row,Col,Icon,Tooltip } from 'antd';
 import RunningResource from '../../components/Application/Overview/RunningResource';
-import numeral from 'numeral';
+// import numeral from 'numeral';
 import moment from 'moment';
-import { getAppmonit, getAvgTime, getApppvoruv} from '../../services/dashApi'
-import { getApp} from '../../services/running'
+import { serviceavgtime, serviceerrornum, resourceusage, visitnum, onlinenum, highestonlinenum } from '../../services/monit';
+import { getApp} from '../../services/aip'
 import './Overview.less';
 import {base} from '../../services/base'
 import constants from '../../services/constants'
-import {  getupstream } from '../../services/domainList'
 import {formateValue} from '../../utils/utils'
 import DataFormate from '../../utils/DataFormate'
+import { ErrorComponentCatch } from '../../common/SimpleComponents';
 
-const currentTime = moment(new Date()).format('x');
-const lastWeek = moment(new Date(new Date() - 7*24 * 60 * 60 * 1000)).format('x')
 /* 应用概览页面，使用图表组件显示应用相关信息*/
-export default class AppOverview extends React.PureComponent {
+class AppOverview extends React.PureComponent {
   state = {
     errCount:'--',
     avgTime:'--',
@@ -32,108 +30,56 @@ export default class AppOverview extends React.PureComponent {
       const appid = this.props.appId;
       getApp(appid).then(data=>{
         if(data){
-          let ups = data.upstream ? data.upstream.split('//') : '';
-          let upstream='';
-          if (ups.length > 1) {
-            upstream = ups[1]
-          } else {
-            upstream = ups[0]
-          }
-          //判断有没有配置域名 没有的 话 则不显示PV UV数据
-          getupstream(upstream).then(datas=>{
-            if(datas){
-              //获取应用资源使用情况
-              this.loadData(appid);
-            }
-          })
-          //existEnvs()
           this.setState({
             APM_URL: base.configs[constants.CONFIG_KEY.APM_URL],
             APMChecked:base.configs[constants.CONFIG_KEY.APM_URL]?data.apm:false,
             updateTime: moment(data.updatetime).format('YYYY-MM-DD'),
             runningTime:DataFormate.periodFormate(data.updatetime)
           })
+          this.loadData(data);
         }
       })
   }
 
-  loadData=(appid)=>{
-    let quePV={
-      startTime: lastWeek,
-      endTime: currentTime,
-      apikeyId: appid,
-      type:'PV',
-      interval:'1h'
-    }
-    let queUV={
-      startTime: lastWeek,
-      endTime: currentTime,
-      apikeyId: appid,
-      type: 'UV',
-      interval:'1d'
-    }
-    getAppmonit(appid).then(data=>{
-      if(data.cpu > 75 || data.memory > 75 || data.filesystem > 75){
-        this.setState({resourceStatus:'lack'})
-      }else{
-        this.setState({resourceStatus:'health'})
-      }
-    })
-    getAvgTime(appid).then(data=>{
-      if (data.avgTime){
-        this.setState({
-          avgTime: formateValue(data.avgTime)
-        })
-      }
-    })
-    getApppvoruv(quePV).then(data=>{
-      if(data && data.result && data.result.list){
-        const pvData = [];
-        data.result.list.forEach(item=>{
-          pvData.push({
-            x: moment(item.time).format('YYYY-MM-DD: HH'),
-            y: parseInt(item.count,10),
-          })
-        })
-        this.setState({
-          pvData:formateValue(pvData) ,
-          totalPV: numeral(data.total).format('0,0')
-        })
-      }
-    })
-    getApppvoruv(queUV).then(data=>{
-      if (data && data.result && data.result.list) {
-        const uvData = [];
-        data.result.list.forEach(item => {
-          uvData.push({
-            x: moment(item.time).format('YYYY-MM-DD'),
-            y: parseInt(item.count,10),
-          })
-        })
-        this.setState({
-          uvData: formateValue(uvData),
-          totalUV: numeral(data.total).format('0,0')
-        })
-      }
-    })
-    //然后分别查单天的数据
-    const today = new Date();
-    today.setHours(0);
-    today.setMinutes(0);
-    today.setSeconds(0);
-    today.setMilliseconds(0);
-    quePV.startTime = moment(today).format('x') ;
-    queUV.startTime = moment(today).format('x');
-    getApppvoruv(quePV).then(data => {
-      this.setState({
-        todayPVTotal: formateValue(numeral(data.total).format('0,0'))
+  loadData=(appData)=>{
+    const appid = appData.id;
+    if(base.currentEnvironment.serviceMonitorSwitch && base.configs.passEnabled){
+      //健康状态
+      resourceusage(appid).then(data=>{
+        if(data.cpu > 75 || data.memory > 75 || data.filesystem > 75){
+          this.setState({resourceStatus:'lack'})
+        }else{
+          this.setState({resourceStatus:'health'})
+        }
       })
-    })
-    getApppvoruv(queUV).then(data => {
-      this.setState({
-        todayUVTotal:formateValue(numeral(data.total).format('0,0'))
+      //服务平均响应
+      serviceavgtime(appid).then(data=>{
+        this.setState({avgTime: parseInt(data,10)})
       })
-    })
+      //服务报错次数
+      serviceerrornum(appid).then(data=>{
+        this.setState({errCount: parseInt(data,10)})
+      })
+      //访问量
+      visitnum(appid,{st:moment(appData.createtime).format('x'),et:moment().format('x')}).then(data=>{
+        this.setState({totalPV: parseInt(data,10)})
+      })
+      //单天的访问量数据
+      const st = moment().set({hour: 0, minute:0, second: 0}).format('x');
+      const et = moment().format('x');
+      visitnum(appid,{st,et}).then(data=>{
+        this.setState({todayPVTotal: parseInt(data,10)})
+      })
+      //在线人数
+      onlinenum(appid).then(data=>{
+        this.setState({totalUV: parseInt(data,10)})
+      })
+      //当日在线人数
+      highestonlinenum(appid).then(data=>{
+        this.setState({todayUVTotal: parseInt(data,10)})
+      })
+    }
+    
   }
   render(){
     const { errCount, resourceStatus, avgTime, pvData, uvData, todayPVTotal, todayUVTotal} = this.state;
@@ -157,7 +103,7 @@ export default class AppOverview extends React.PureComponent {
                     <span style={{marginLeft:0,color:'green'}}>正常</span> :
                     <span style={{marginLeft:0,color:'orange'}}>资源紧张</span>
                   }/>
-                  <Field label="服务平均响应" value={formateValue(avgTime)}/>
+                  <Field label="服务平均响应" value={formateValue(avgTime)+'ms'}/>
                   <Field label="服务报错次数" value={formateValue(errCount)}/>
                 </div>} >
             </ChartCard>
@@ -178,12 +124,12 @@ export default class AppOverview extends React.PureComponent {
               title="在线人数"
               action={<Tooltip title="域名访问方式下的应用凭证创建总数"><Icon type="info-circle-o" /></Tooltip>}
               total={formateValue(this.state.totalUV)}
-              footer={<Field label="当日在线人数" value={formateValue(todayUVTotal)} />}
+              footer={<Field label="当日在线人数" value={todayUVTotal} />}
               contentHeight={52}
             >
               <MiniBar
                 height={52}
-                data={formateValue(uvData)}
+                data={uvData}
               />
             </ChartCard>
           </Col>
@@ -203,8 +149,10 @@ export default class AppOverview extends React.PureComponent {
             </ChartCard>
           </Col>
         </Row>
-        <RunningResource appId={this.props.appId} appCode={this.props.appCode} history={this.props.history} APM_URL={this.state.APM_URL} APMChecked={this.state.APMChecked} deployMode={this.props.deployMode}/>
+        {base.configs.monitEnabled || base.configs.APMEnabled ?<RunningResource appId={this.props.appId} appCode={this.props.appCode} history={this.props.history} APM_URL={this.state.APM_URL} APMChecked={this.state.APMChecked} deployMode={this.props.deployMode}/> :""}
       </Fragment>
     )
   }
 }
+
+export default ErrorComponentCatch(AppOverview);

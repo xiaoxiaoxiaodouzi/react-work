@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import { Table, Tooltip } from "antd";
 import Ellipsis from 'ant-design-pro/lib/Ellipsis';
-import { getTransactionStack } from '../../../services/dashApi';
+import { getTransactionStack } from '../../../services/apm';
 import TreeHelp from '../../../utils/TreeHelp'
 
 export default class CallStack extends Component {

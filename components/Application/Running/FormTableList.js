@@ -1,7 +1,7 @@
 import React,{Component,Fragment} from 'react';
 import {Table,Input,Divider,Modal,Popconfirm,Button,Form,message} from 'antd'
-import {getResources,addResources,updateResources,deleteResources} from '../../../services/running'
-
+import {getAppResources} from '../../../services/aip'
+import {addResources,updateResources,deleteResources} from '../../../services/aip'
 
 const FormItem=Form.Item
 class FormTable extends Component{
@@ -24,7 +24,7 @@ class FormTable extends Component{
     }
     //查询表单数据 默认type=2
     queryParams.type='2';
-    getResources(appid,queryParams).then(data=>{
+    getAppResources(appid,queryParams).then(data=>{
       this.setState({
         formData:data
       })

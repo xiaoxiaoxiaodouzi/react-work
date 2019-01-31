@@ -1,21 +1,24 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import IconSelectModal from '../../../common/IconSelectModal'
-import { getResources } from '../../../services/functional'
-import { Modal, Form, Input, Button, Select, TreeSelect } from 'antd'
+import { getAllFunctionTags,getFunctionTags, getResources } from '../../../services/aip';
+import TagManager from '../../../common/TagManager';
+import { Modal, Form, Input, Button, Select, TreeSelect, Checkbox, Icon } from 'antd'
 import IconUpload from './IconUpload'
-
+import { TwitterPicker } from 'react-color'
+import { base } from '../../../services/base';
 const FormItem = Form.Item;
 const TextArea = Input.TextArea;
 const Option = Select.Option;
 const TreeNode = TreeSelect.TreeNode;
+const CheckboxGroup = Checkbox.Group
 class FunctionModalForm extends Component {
 	static propTypes = {
 		prop: PropTypes.object,
 		onOk: PropTypes.func,			//模态框确认回调方法
 		onCancel: PropTypes.func,				//模态框取消回调方法
 		visible: PropTypes.bool, 		//模态框的开启状态
-		data: PropTypes.array.isRequired,	//当前数据
+		data: PropTypes.object.isRequired,	//当前数据
 		datas: PropTypes.array.isRequired,			//所有数据 树结构，
 		oriData: PropTypes.array.isRequired,				//所有数据list结构 用来找到父节点
 	}
@@ -26,7 +29,7 @@ class FunctionModalForm extends Component {
 			tags: [],
 			inputVisible: false,
 			inputValue: '',
-			fontIcon: this.props.data.fontIcon,
+			fontIcon: '',
 			previewVisible: false,
 			previewImage: '',
 			urlFormVisible: '',
@@ -38,7 +41,17 @@ class FunctionModalForm extends Component {
 			type: '',
 			pname: '',
 			TreeNodeData: [],			//过滤当前数据的树结构数据
+			displaynameColor:false,
+			displayiconColor:false,
+			isShowFType:true,
+			funcTags:[],
+			allTags:[],
+			visible:false,
+			newTags:[],
+			deleteTags:[],
+			appId:''
 		}
+
 		this.ftype = '';
 		//绑定this对象
 		this.handelSelect = this.handelSelect.bind(this);
@@ -46,61 +59,154 @@ class FunctionModalForm extends Component {
 
 
 	initState = () => {
+
 		this.setState({
-			urlFormVisible: this.ftype === 'innerservice' || this.ftype === 'outerservice' || this.ftype === 'page' || this.ftype === 'function',
-			picFormVisible: this.ftype === 'function',
+			urlFormVisible: this.ftype === 'innerservice' || this.ftype === 'outerservice' || this.ftype === 'page' || this.ftype === 'function' || this.appType === 'app' || this.appType === 'all',
+			picFormVisible: this.ftype === 'function' || this.appType === 'app' || this.appType === 'all',
 			codeFormVisible: true,
 			methodFormVisible: this.ftype === 'innerservice' || this.ftype === 'outerservice',
+			webFormVisible: (this.appType === 'web' || this.appType === 'all') && this.ftype === 'function',
+			appFormVisible: this.appType === 'app' || this.appType === 'all',
 		})
 	}
 
 	componentWillReceiveProps(nextProps) {
 		if (nextProps.visible !== this.props.visible && nextProps.visible) {
+			if(nextProps.appId && nextProps.appId !== ''){
+				getAllFunctionTags({appId:nextProps.appId}).then(res => {
+					if(res && res.length > 0){
+						this.setState({allTags:res});
+					}
+				})
+			}
+			
 			let data = {};
 			//如果是添加资源则展示父资源
 			if (nextProps.type === 'addResource') {
 				//如果传了数据在给表单设置初始值
 				this.ftype = 'page';
 				data = nextProps.data;
-				this.setState({ resource: nextProps.data, type: nextProps.type })
+				this.setState({ resource: nextProps.data, type: nextProps.type ,isShowFType:false})
 				//如果是添加资源
 			} else if (nextProps.type === 'addFunction') {
 				this.ftype = 'function';
-				this.setState({ resource: nextProps.data, type: nextProps.type })
+				this.appType = 'web';
+				this.setState({ resource: nextProps.data, type: nextProps.type,isShowFType:true,
+					funcTags:[],
+					newTags:[],
+					deleteTags:[]})
 			} else {
-				//this.findSelectNode(this.props.datas,this.props.data)
+				//标记获取功能下的标签
+				if(nextProps.data){
+					getFunctionTags(nextProps.data.appId,nextProps.data.id,{}).then(data=>{
+						if(data && data.length > 0){
+							this.setState({
+								funcTags:data
+							})
+						}
+					})
+				}
 				this.ftype = nextProps.data.type;
+				let isShowFType = true;
+				if(this.ftype !== 'function'){
+					isShowFType = false;
+				}
+			
 				if (nextProps.oriData) {
 					data = nextProps.oriData.filter(item => item.id === nextProps.data.pid)[0];
 				}
 				//复制对象数组，采用转JSON格式复制
 				let js = JSON.stringify(nextProps.datas);
 				let ary = JSON.parse(js);
+			
 				this.findSelectNode(ary, nextProps.data);
-				this.setState({ resource: nextProps.data, type: nextProps.type, TreeNodeData: ary })
+				this.setState({ resource: nextProps.data, type: nextProps.type, TreeNodeData: ary,isShowFType:isShowFType })
 			}
 			this.initState();
-			this.setState({ fontIcon: nextProps.data ? nextProps.data.fontIcon : null, pname: data ? data.id : '0' })
+			this.setState({
+				nameColor: nextProps.data ? nextProps.data.nameColor : 'ABB8C3',
+				iconColor: nextProps.data ? nextProps.data.iconColor : 'ABB8C3',
+				fontIcon: nextProps.data ? nextProps.data.fontIcon : null,
+				pname: data ? data.id : '0',
+				appId:nextProps.appId
+			})
+
 		}
 	}
 
+	// 标签变化回调  create创建新标签 add绑定已创建标签 remove移除标签{event:'add',value:{id:***,name:*****}}
+	onTagsManagerChange=(data) => {
+		var tag = data.value;
+		tag.tenant = base.tenant;
+		tag.appId = this.state.appId;
+		console.log(data)
+		if (data.event === "add" || data.event === 'create') {
+		  //新增标签
+		  let newTags = [...this.state.newTags];
+		  let funcTags = [...this.state.funcTags];
+		  newTags.push(tag);
+		  funcTags.push(tag);
+		  this.setState({newTags:newTags,funcTags:funcTags});
+		} else  {
+			//移除标签
+			let deleteTags =  [...this.state.deleteTags];
+			let newTags = [...this.state.newTags];
+		  	let funcTags = [...this.state.funcTags];
+			if(tag.id && tag.id !== ''){				
+				deleteTags.push(tag.id);
+				funcTags.splice(funcTags.indexOf(tag),1);
+			}else{
+				funcTags.splice(funcTags.indexOf(tag),1);
+				newTags.splice(newTags.indexOf(tag),1);
+			}			
+			this.setState({deleteTags:deleteTags,funcTags:funcTags,newTags:newTags});		  
+		}
+	}
+
+	  //标签弹窗管理可见回调
+	  onVisibleChange=(visible) =>{
+		if (visible) {
+			getAllFunctionTags({})
+			.then((response) => {
+			  this.setState({
+				allTags: response,
+				visible: true
+			  })
+			})
+		} else {
+		  this.setState({ visible: false })
+		}
+	  }
+
 	handleCancle = () => {
+		this.appType = '';
 		this.props.onCancel();
 	}
 
 	handleOk = () => {
+		this.setState({ confirmLoading: true })
 		const { form } = this.props;
 		form.validateFields((err, values) => {
 			if (err) {
-				if (this.state.codeFormVisible && err.code) {
-					return;
-				}
+				/* for(let i in err){
+					if(err[i].errors.length>0){
+						return;
+					}
+				} */
+				if (!err.name) {
+					//根据不同情况 检验规则不一样，
+					if (this.state.codeFormVisible && err.code) {
+						return;
+					}
 
-				if (this.state.urlFormVisible && err.uri) {
-					return;
-				}
-				if (this.state.methodFormVisible && err.method) {
-					return;
+					if (this.state.urlFormVisible && err.uri) {
+						return;
+					}
+					if (this.state.methodFormVisible && err.method) {
+						return;
+					}
+				} else {
+					return
 				}
 			}
 			if (this.state.type === 'addResource' || this.state.type === 'addFunction') {
@@ -128,8 +234,20 @@ class FunctionModalForm extends Component {
 					values.icon2 = values.icon.fileList1,
 					values.icon3 = values.icon.fileList2,
 					delete values.icon; */
-			values.desc ? values.desc : values.desc === ''
-			this.props.onOk(values);
+			// values.desc ? values.desc : values.desc === ''
+			this.setState({ visible: false });
+			let newTags = this.state.newTags;
+			let deleteTags = this.state.deleteTags;
+			this.setState({
+				newTags:[],
+				deleteTags:[],
+				funcTags:[],
+				allTags:[]
+			})
+			values.icon1 = this.state.icon1;
+			values.icon2 = this.state.icon2;
+			values.icon3 = this.state.icon3;
+			this.props.onOk(values,newTags,deleteTags);
 		});
 	}
 
@@ -172,7 +290,17 @@ class FunctionModalForm extends Component {
 	}
 
 	handelSelect = (value) => {
-		this.ftype = value;
+		if(this.ftype === 'function'){
+			if(value.length === 1){
+				this.appType = value[0];
+			}else if(value.length === 2){
+				this.appType = "all";
+			}
+			
+		}else{
+			this.ftype = value;
+		}
+		
 		this.initState();
 	}
 
@@ -211,12 +339,24 @@ class FunctionModalForm extends Component {
 
 	validateParams = (rule, value, callback) => {
 		if (rule.field === 'code') {
-			let queryParams = {
-				code: value,
-				uniquenessCheck: true
-			}
-			if (this.props.type === 'update') {
-				if (value !== this.props.data.code) {
+			if (value) {
+				let queryParams = {
+					code: value,
+					uniquenessCheck: true
+				}
+				if (this.props.type === 'update') {
+					if (value !== this.props.data.code) {
+						getResources(queryParams).then(data => {
+							if (!data) {
+								callback();
+							} else {
+								callback('编码已存在，请重新输入')
+							}
+						})
+					} else {
+						callback();
+					}
+				} else {
 					getResources(queryParams).then(data => {
 						if (!data) {
 							callback();
@@ -224,17 +364,9 @@ class FunctionModalForm extends Component {
 							callback('编码已存在，请重新输入')
 						}
 					})
-				} else {
-					callback();
 				}
 			} else {
-				getResources(queryParams).then(data => {
-					if (!data) {
-						callback();
-					} else {
-						callback('编码已存在，请重新输入')
-					}
-				})
+				callback('请填写编码')
 			}
 		} else if (rule.field === 'desc') {
 			if (value && value.length > 100) {
@@ -243,6 +375,13 @@ class FunctionModalForm extends Component {
 				callback();
 			}
 		}
+	}
+	iconOnchange=(values)=>{
+		this.setState({
+			icon1:values.icon1,
+			icon2:values.icon2,
+			icon3:values.icon3		
+		})
 	}
 
 	render() {
@@ -258,7 +397,10 @@ class FunctionModalForm extends Component {
 				md: { span: 13 },
 			},
 		};
-
+		const options = [
+			{ label: 'WEB', value: 'web' },
+			{ label: 'APP', value: 'app' },
+		  ];
 		return (
 			<div>
 				<Modal
@@ -269,6 +411,8 @@ class FunctionModalForm extends Component {
 					okText='提交'
 					onCancel={this.handleCancle}
 					destroyOnClose
+					confirmLoading={this.props.confirmLoading}
+					key='FunctionModalForm'
 				>
 					<Form>
 						{this.state.type === 'update' ?
@@ -294,6 +438,85 @@ class FunctionModalForm extends Component {
 								<Input />
 							)}
 						</FormItem>
+
+						{this.state.isShowFType?<FormItem {...formItemLayout} label='功能类型'>
+							{getFieldDecorator('appType',{ initialValue: ['web'] ,
+							rules: [{ required: true, message: '至少选择一个类型！' }]})(
+								<CheckboxGroup disabled={this.props.type === 'update'?true:false} onChange={this.handelSelect} options={options} >
+								</CheckboxGroup>
+							)}
+						</FormItem>:''}
+						 
+
+						{this.state.webFormVisible &&
+							<FormItem {...formItemLayout} label='打开方式'>
+								{getFieldDecorator('target', { initialValue: '_self' })(
+									<Select>
+										<Option key='_self' value='_self'>本窗口</Option>
+										<Option key='_blank' value='_blank'>新窗口</Option>
+									</Select>
+								)}
+							</FormItem>
+						}
+
+						{this.state.appFormVisible &&
+							<div>
+								<FormItem {...formItemLayout} label='移动类型'>
+									{getFieldDecorator('mobileAppType', { initialValue: 'native' })(
+										<Select >
+											<Option key='native' value='native'>原生应用</Option>
+											<Option key='externalNative' value='externalNative'>小程序</Option>
+											<Option key='web' value='web'>web应用</Option>
+										</Select>
+									)}
+								</FormItem>
+
+								<FormItem {...formItemLayout} label='字体颜色'>
+									<div>
+										<div 
+										style={{cursor: 'pointer',textAlign:'center',color:this.state.nameColor,marginTop:4, height: '30px', width: '30px', borderRadius: 4, backgroundColor: this.state.nameColor, float: 'left', position: 'relative' }} 
+										onClick={()=>{this.setState({displaynameColor:!this.state.displaynameColor})}}>
+										<Icon type='edit'/>
+										</div>
+										{
+											this.state.displaynameColor &&
+										<div style={{ position:'absolute',top:'55px',zIndex:10}}>
+										<div style={{position: 'fixed',top: '0px', right: '0px', bottom: '0px',left: '0px'}} onClick={()=>{this.setState({displaynameColor:false})}}/>
+											<TwitterPicker
+												triangle='top-left'
+												style={{ width: 300 }}
+												color={this.state.nameColor}
+												onChangeComplete={(color, event) => { this.setState({ nameColor: color.hex,displaynameColor:false}) }}
+											/>
+										</div>
+										}
+									</div>
+								</FormItem>
+
+								<FormItem {...formItemLayout} label='图标颜色'>
+									<div>
+										<div 
+										style={{cursor: 'pointer',textAlign:'center',color:this.state.iconColor,marginTop:4, height: '30px', width: '30px', borderRadius: 4, backgroundColor: this.state.iconColor, float: 'left', position: 'relative' }}
+										onClick={()=>{this.setState({displayiconColor:!this.state.displayiconColor})}}
+										>
+										<Icon type='edit'/>
+										</div>
+										{
+											this.state.displayiconColor && 
+											<div style={{ position:'absolute',top:'55px',zIndex:10}}>
+											<div style={{position: 'fixed',top: '0px', right: '0px', bottom: '0px',left: '0px'}} onClick={()=>{this.setState({displayiconColor:false})}}/>
+												<TwitterPicker
+													triangle='ltop-lefteft'
+													color={this.state.iconColor}
+													onChangeComplete={(color, event) => { this.setState({ iconColor: color.hex ,displayiconColor:false}) }}
+												/>
+											</div>
+										}
+									</div>
+								</FormItem>
+							</div>
+						}
+
 						{this.state.type === 'addResource' ?
 							<FormItem {...formItemLayout} label='类型'>
 								{getFieldDecorator('type', { initialValue: 'page' })(
@@ -360,8 +583,6 @@ class FunctionModalForm extends Component {
 								)}
 							</FormItem>}
 
-
-
 						<FormItem {...formItemLayout} label='描述'>
 							{getFieldDecorator('desc', {
 								rules: [{ validator: this.validateParams }]
@@ -369,50 +590,18 @@ class FunctionModalForm extends Component {
 								<TextArea minLength='3' />
 							)}
 						</FormItem>
-						{/* <FormItem {...formItemLayout} label='标签'>
-							{getFieldDecorator('tag')(
-								<div>
-									{this.state.tags.map((tag, index) => {
-										const isLongTag = tag.length > 20;
-										const tagElem = (
-											<Tag closable key={tag} afterClose={() => this.handleClose(tag)}>
-												{isLongTag ? `${tag.slice(0, 20)}...` : tag}
-											</Tag>
-										);
-										return isLongTag ? <Tooltip title={tag} key={tag}>{tagElem}</Tooltip> : tagElem;
-									})}
-									{this.state.inputVisible && (
-										<Input
-											ref={this.saveInputRef}
-											type="text"
-											size="small"
-											style={{ width: 78 }}
-											value={this.state.inputValue}
-											onChange={this.handleInputChange}
-											onBlur={this.handleInputConfirm}
-											onPressEnter={this.handleInputConfirm}
-										/>
-									)}
-									{!this.state.inputVisible && (
-										<Tag
-											onClick={this.showInput}
-											style={{ background: '#fff', borderStyle: 'dashed' }}
-										>
-											<Icon type="plus" />新标签
-											</Tag>
-									)}
-								</div>
-							)}
-						</FormItem> */}
 						{this.state.picFormVisible &&
 							<div>
+								<FormItem {...formItemLayout} label='标签'> 
+									<TagManager style={{ marginLeft: 10 }} visible={this.state.visible} selectedTags={this.state.funcTags} allTags={this.state.allTags} onChange={this.onTagsManagerChange} onVisibleChange={this.onVisibleChange} />
+								</FormItem>
 								<FormItem {...formItemLayout} label='图标'>
 									{getFieldDecorator('fontIcon')(
 										<IconSelectModal renderButton={<Button type="dashed" icon={this.state.fontIcon || 'plus'} />} selectIcon={(icon) => this.setState({ fontIcon: icon })} />
 									)}
 								</FormItem>
 								<FormItem {...formItemLayout} label="icon">
-									{getFieldDecorator('icon')(<IconUpload />)}
+									<IconUpload data={this.props.data} onChange={this.iconOnchange}/>
 								</FormItem>
 							</div>
 						}
@@ -456,6 +645,15 @@ const FunctionModal = Form.create({
 				}),
 				method: Form.createFormField({
 					value: props.data.method || ''
+				}),
+				appType: Form.createFormField({
+					value: props.data.appType?props.data.appType.split(","):[]
+				}),
+				target: Form.createFormField({
+					value: props.data.target
+				}),
+				mobileAppType: Form.createFormField({
+					value: props.data.mobileAppType
 				}),
 			};
 		}

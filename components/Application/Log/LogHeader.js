@@ -1,8 +1,8 @@
 import React, { Component } from 'react'
 import { Form, Select, Checkbox, Row, Col } from 'antd'
 import './LogHeader.css'
-import { getApplications, getApplicationBase, getApplicationLog } from '../../../services/log'
-import { getAppInfo } from '../../../services/appdetail'
+import { getApplicationBase, getApplicationLog, getApplicationsInfo } from '../../../services/cce';
+import { getAppInfo } from '../../../services/aip'
 
 
 const { Option } = Select;
@@ -22,7 +22,7 @@ class LogForm extends Component {
 	componentDidMount() {
 		const appId = this.props.appid;
 		getAppInfo(appId).then((data) => {
-			getApplications(data.code).then(datas => {
+			getApplicationsInfo(data.code).then(datas => {
 				if (datas) {
 					this.setState({
 						replicas: datas.replicas
@@ -143,9 +143,11 @@ class LogForm extends Component {
 		const { getFieldDecorator } = this.props.form;
 		const formItemLayout = {
 			labelCol: {
+				xs: { span: 24 },
 				sm: { span: 8 },
 			},
 			wrapperCol: {
+				xs: { span: 24 },
 				sm: { span: 16 },
 			},
 		};
@@ -153,7 +155,7 @@ class LogForm extends Component {
 			<div>
 				<div >
 					<Form >
-						<Row style={{ paddingTop: 16 }} gutter={{ span: 24 }}>
+						<Row style={{ paddingTop: 16 }} gutter={{ md: 4, lg: 12, xl: 18 }}>
 							<Col span={6}>
 								<FormItem {...formItemLayout} label="容器"
 								>

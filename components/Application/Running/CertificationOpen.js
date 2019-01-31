@@ -2,10 +2,18 @@ import React, { Component } from 'react';
 import { Modal, Card, Switch, Form, Input, Select, InputNumber, message, Icon, Tooltip } from 'antd';
 import DescriptionList from 'ant-design-pro/lib/DescriptionList';
 import User from './User'
-import { updateOrgs, getApp, updateApp, getSso, openSso, closeSso, eidtSso, getOrgs, getCategoryorgs, getOrg, getManagerOrgs } from '../../../services/running'
+import {updateApp,closeSso,eidtSso,openSso,getApp,getSso,getManagerOrgs} from '../../../services/aip'
 import "./running.less";
+import { addAppEnvs, deleteAppEnvs } from '../../../services/cce';
+import { queryBaseConfig, existEnvs, editEnvs } from '../../../services/cce';
+import { queryEnvById} from '../../../services/amp'
 import { base } from '../../../services/base';
-import RenderAuthorized from 'ant-design-pro/lib/Authorized';
+import OrgModal from './OrgModal'
+import Authorized from '../../../common/Authorized';
+import constants from '../../../services/constants';
+import SettingTable from '../../../components/Application/Setting/SettingTable';
+import SettingClusterList from '../../../components/Application/Setting/SettingClusterList'
+
 const { Description } = DescriptionList;
 const Option = Select.Option;
 const FormItem = Form.Item;
@@ -22,8 +30,6 @@ class CertificationOpenForm extends Component {
 		securityLevel: "普通",
 		clinetUrl: "",
 		loginUrl: "",
-		orgs: [],    //所有的机构详情
-		org: [],     //应用可访问的机构
 		orgName: "",		//应用可使用的机构名
 		editable: false, 		//应用可管理的机构是否可以修改
 		isOpen: false,				//判断SSO是否开启
@@ -31,18 +37,44 @@ class CertificationOpenForm extends Component {
 		status: '',
 		help: '',
 		doSee: false,			//是否可见
+		appUpstream:'',
+		appDatas:{},		//应用数据
+		appId:'',
+		checked:false			//是否支持https
 	}
 
-	componentDidMount() {
-		const appid = this.props.appid;
-		//查询应用访问地址
-		getApp(appid).then(data => {
+
+	loadData = () => {
+		const appId = this.props.appid;
+		getApp(appId).then(data => {
+			//应用upstream
+			let appUpstream = ''
+			let upstream = data.upstream ? data.upstream.split('//') : '';
+			if (upstream.length > 1) {
+				appUpstream = upstream[1]
+			} else {
+				appUpstream = upstream[0]
+			}
+			this.setState({ appType: data.type, appDatas: data, type: data.type === 'middleware' ? '中间件' : '应用', springCloud: data.springcloud ? true : false })
 			this.setState({
 				clientName: data.name,
-				clinetUrl: data.host
+				code: data.code,
+				appUpstream: appUpstream,
+				ctx: data.ctx,
+				appId: data.id,
+				APMChecked: data.apm,
+				name: data.name,
+				host: data.host,
+				isK8s:data.deployMode==='k8s'?true:false
 			})
 		})
-		getSso(appid).then(data => {
+	}
+
+
+	componentDidMount() {
+		this.loadData();
+		const appId = this.props.appid;
+		getSso(appId).then(data => {
 			if (data) {
 				if (data.securityLevel === "0") {
 					data.securityLevel = "普通"
@@ -60,53 +92,14 @@ class CertificationOpenForm extends Component {
 					clinetUrl: data.clinetUrl,
 					loginUrl: data.loginUrl
 				})
-			}
-		})
-
-		getOrgs(appid).then(data => {
-			//出现重复数据是因为分类机构ID不一样 现在还不知道如何处理重复数据的显示问题，先暂时全部显示
-			data.forEach((item, i) => {
-				if (item.categoryOrgId === item.orgId) {
-					//获取分类机构数据
-					getCategoryorgs(item.orgId).then(org => {
-						if (org) {
-							item.name = org.name;
-							item.categoryOrgName = org.name;
-							item.id = item.orgId;
-							this.state.orgs.push(item);
-							this.setState({
-								orgName: this.state.orgName + "," + org.name
-							})
-						}
+				//获取应用可管理的机构
+				getManagerOrgs(appId).then(data => {
+					this.setState({
+						orgNames: data.names,
+						editable: data.editable
 					})
-				} else {
-					//获取机构数据
-					getOrg(item.orgId).then(org => {
-						getCategoryorgs(item.categoryOrgId).then(datas => {
-							if (datas) {
-								item.name = org.name;
-								item.categoryOrgName = datas.name;
-								item.id = item.orgId;
-								this.state.orgs.push(item);
-								this.setState({
-									orgName: this.state.orgName + "," + org.name + '(' + datas.name + ')'
-								})
-							}
-						})
-
-					})
-				}
-				this.setState({
-					org: data
 				})
-			})
-		})
-		//获取应用可管理的机构
-		getManagerOrgs(appid).then(data => {
-			this.setState({
-				orgNames: data.names,
-				editable: data.editable
-			})
+			}
 		})
 	}
 
@@ -116,7 +109,14 @@ class CertificationOpenForm extends Component {
 			this.setState({
 				switch: true
 			})
-			this.showModal1();
+			//查询应用访问地址
+			getApp(this.props.appid).then(data => {
+				this.setState({
+					clientName: data.name,
+				});
+				this.showModal1();
+			})
+
 		} else {
 			this.showModal3();
 		}
@@ -133,6 +133,121 @@ class CertificationOpenForm extends Component {
 	showModal3 = () => {
 		this.setState({
 			visible3: true
+		})
+	}
+
+	//开启统一认证注入环境变量,values 为开启sso接口返回的参数
+	handleENV = (values) => {
+		let code = this.state.code;
+		let envId = base.currentEnvironment.id;
+		let appid = this.props.appid
+		queryEnvById(envId).then(res => {
+			queryBaseConfig(code).then(data => {
+				let pro = [];
+				let pros = [];
+				let containers = [];//用于将容器名存储以便后面做新增接口调用
+				let params = [{
+					key: constants.SSO_KEY[0],
+					value: base.currentEnvironment.authServerInnerAddress,
+					source: '1',
+				}, {
+					key: constants.SSO_KEY[1],
+					value: base.currentEnvironment.authServerAddress,
+					source: '1',
+				}, {
+					key: constants.SSO_KEY[2],
+					value: values.clientId || '',
+					source: '1',
+				}, {
+					key: constants.SSO_KEY[3],
+					value: values.clientSecret || '',
+					source: '1',
+				}, {
+					key: constants.SSO_KEY[4],
+					value: values.clinetUrl,
+					source: '1',
+				}]
+				if (data.length > 0) {
+					data.forEach(item => {
+						//先调查询接口，如果数据存在，则调删除接口，否则不处理
+						pros.push(existEnvs(code, item.name, constants.SSO_KEY[0]));
+						pros.push(existEnvs(code, item.name, constants.SSO_KEY[1]));
+						pros.push(existEnvs(code, item.name, constants.SSO_KEY[2]));
+						pros.push(existEnvs(code, item.name, constants.SSO_KEY[3]));
+						pros.push(existEnvs(code, item.name, constants.SSO_KEY[4]));
+						containers.push(item.name);
+					})
+					Promise.all(pros).then(response => {
+						response.forEach((item, i) => {
+							//如果是开启状态
+							if (this.state.isOpen) {
+								if (item) {
+									pro.push(deleteAppEnvs(code, item.name, item.id))
+								}
+							} else {
+								//如果是关闭状态
+								if (item) {
+									//如果数据存在则修改环境变量
+									if (item.key === constants.SSO_KEY[0]) {
+										pro.push(editEnvs(code, item.containerName, params[0], item.id));
+									}
+									if (item.key === constants.SSO_KEY[1]) {
+										pro.push(editEnvs(code, item.containerName, params[1], item.id));
+									}
+									if (item.key === constants.SSO_KEY[2]) {
+										pro.push(editEnvs(code, item.containerName, params[2], item.id));
+									}
+									if (item.key === constants.SSO_KEY[3]) {
+										pro.push(editEnvs(code, item.containerName, params[3], item.id));
+									}
+									if (item.key === constants.SSO_KEY[4]) {
+										pro.push(editEnvs(code, item.containerName, params[4], item.id));
+									}
+								} else {
+									containers.forEach(items => {
+										pro.push(addAppEnvs(code, items, params[i]))
+									})
+								}
+							}
+						})
+						//当有存在的key才去调接口
+						Promise.all(pro).then(response => {
+							//先默认type=2固定
+							let queryParams = {
+								type: '2'
+							}
+							let bodyParams = {
+								host: values.clinetUrl || ''
+							}
+							updateApp(appid, queryParams, bodyParams).then(data => {
+								if (values.clientId) {
+									this.setState({
+										//visible1: this.state.isOpen,
+										clientId: values.clientId,
+										clientSecret: values.clientSecret,
+										clientType: values.clientType,
+										expirein: values.expirein,
+										reExpirein: values.reExpirein,
+										securityLevel: values.securityLevel,
+										clinetUrl: values.clinetUrl,
+										loginUrl: values.loginUrl,
+										//isOpen: !this.state.isOpen,
+										status: '',
+										help: ''
+									});
+									message.success('启用成功')
+								} else {
+									this.setState({
+										clinetUrl: '',
+										visible3: false,
+										isOpen: false
+									})
+								}
+							})
+						})
+					})
+				}
+			})
 		})
 	}
 
@@ -160,15 +275,18 @@ class CertificationOpenForm extends Component {
 				return
 			}
 			if (this.state.switch) {
-				//先默认type=2固定
-				let queryParams = {
-					type: '2'
-				}
-				let bodyParams = {
-					host: values.clinetUrl
-				}
 				openSso(appid, values).then(val => {
 					if (val) {
+						getManagerOrgs(appid).then(data => {
+							this.setState({
+								orgNames: data.names,
+								editable: data.editable,
+								visible1: false,
+								isOpen: true,
+								clientId: val.clientId,
+								clientSecret: val.clientSecret,
+							})
+						});
 						if (val.clientType === "1") {
 							val.clientType = "web"
 						}
@@ -181,35 +299,25 @@ class CertificationOpenForm extends Component {
 						if (val.securityLevel === '2') {
 							val.securityLevel = '高安全级'
 						}
-						updateApp(appid, queryParams, bodyParams).then(data => {
-							if (data) {
-							}
-						})
-						this.setState({
-							switch: false,
-							visible1: false,
-							clientId: val.clientId,
-							clientSecret: val.clientSecret,
-							clientType: val.clientType,
-							expirein: val.expirein,
-							reExpirein: val.reExpirein,
-							securityLevel: val.securityLevel,
-							clinetUrl: val.clinetUrl,
-							loginUrl: val.loginUrl,
-							isOpen: true,
-							status: '',
-							help: ''
-						});
-						message.success('启用成功')
+						//注入环境变量已经修改app
+						this.handleENV(val);
 					}
-				}).catch(err => {
-					if (err) {
-						message.error('开启失败，请联系管理员')
+				}).catch(e => {
+					if (e) {
+						base.ampMessage('统一权限开启失败' );
 					}
 				})
 			} else {
 				eidtSso(appid, values).then(val => {
 					if (val) {
+						getManagerOrgs(appid).then(data => {
+							this.setState({
+								orgNames: data.names,
+								editable: data.editable,
+								visible1: false,
+								isOpen: true,
+							})
+						});
 						if (val.clientType === "1") {
 							val.clientType = "web"
 						}
@@ -242,20 +350,18 @@ class CertificationOpenForm extends Component {
 				})
 			}
 		})
-
 	}
 
 
 	handleOk3 = (e) => {
 		const appid = this.props.appid;
 		closeSso(appid).then(val => {
-			this.setState({
-				clinetUrl: '',
-				visible3: false,
-				isOpen: false
-			})
+			this.setState({ visible3: false, isOpen: false });
+			//先暂时传空对象过去，
+			this.handleENV({ clientId: '', clinetUrl: '', clientSecret: '' });
 		})
 	}
+
 	handleCancel1 = (e) => {
 		this.setState({
 			visible1: false,
@@ -264,39 +370,9 @@ class CertificationOpenForm extends Component {
 		});
 	}
 
-
 	handleCancel3 = (e) => {
 		this.setState({
 			visible3: false
-		})
-	}
-
-	//选择机构确定返回数据
-	handleOnOk = (orgs) => {
-		this.setState({
-			orgName: ''
-		})
-		let orgary = [];
-		const appid = this.props.appid;
-		if (Array.isArray(orgs)) {
-			orgs.forEach(item => {
-				item.orgId = item.id;
-				orgary.push(item)
-			})
-		}
-		updateOrgs(appid, orgary).then(data => {
-			let orgName = ''
-			orgs.forEach(item => {
-				if (item.id === item.categoryOrgId) {
-					orgName += "," + item.name
-				} else {
-					orgName += "," + item.name + '(' + item.categoryOrgName + ')'
-				}
-			})
-			this.setState({
-				orgs: orgs,
-				orgName: orgName
-			})
 		})
 	}
 
@@ -322,14 +398,46 @@ class CertificationOpenForm extends Component {
 			})
 		}
 	}
+
+	//机构读写取消modal
+	handleCancel = (e) => {
+		const appid = this.props.appid
+		getManagerOrgs(appid).then(data => {
+			this.setState({
+				orgNames: data.names,
+				editable: data.editable,
+				visible: false
+			})
+		})
+	}
+	//是否支持https
+	handleHttpChange = (value) => {
+    let id = this.state.appId;
+    let queryParams = {
+      type: '2'
+    }
+    let schema = '';
+    if (value) {
+      schema = 'https'
+    } else {
+      schema = 'http'
+    }
+
+    let bodyParams = {
+      schema: schema
+    }
+    updateApp(id, queryParams, bodyParams).then(data => {
+      this.loadData();
+    })
+    this.setState({
+      checked: value
+    })
+  }
+
 	renderOpen = () => {
-		let action1;
-		if(base.allpermissions.includes('app_editUnifiedCertification')){
-			action1 = <a style={{ float: "right", fontSize: 14 }} onClick={this.showModal1}>修改</a>;
-		}
 		return (
 			<div>
-					<DescriptionList style={{ marginBottom: 24 }} title={action1}>
+				<DescriptionList style={{ marginBottom: 24 }}>
 					<Description term="客户端ID">{this.state.clientId}</Description>
 					<Description term="客户端凭证">{this.state.doSee ? this.state.clientSecret : '******'} <Icon style={{ marginLeft: 8, cursor: 'pointer' }} type={this.state.doSee ? 'eye' : 'eye-o'} onClick={e => this.setState({ doSee: !this.state.doSee })} /></Description>
 					<Description term="应用类型">{this.state.clientType}</Description>
@@ -349,8 +457,19 @@ class CertificationOpenForm extends Component {
 			</DescriptionList>
 		)
 	}
+
+	showModal = () => {
+		this.setState({
+			visible: true
+		});
+	}
 	render() {
-		const Authorized = RenderAuthorized(base.allpermissions);
+		let { appUpstream,appDatas} = this.state;
+		let action1;
+		if (base.allpermissions.includes('app_editUnifiedCertification')) {
+			action1 = <a style={{ float: "right", fontSize: 14 }} onClick={this.showModal1}>修改</a>;
+		}
+		const action = <a style={{ float: "right", display: this.state.editable ? '' : 'none' }} onClick={this.showModal}>修改</a>
 		const title = <span>统一认证 <Authorized authority='app_unifiedCertification' noMatch={<Switch disabled='true' style={{ marginLeft: 24 }} checkedChildren="开" unCheckedChildren="关" checked={this.state.isOpen} onClick={this.handleClick} />}>  <Switch style={{ marginLeft: 24 }} checkedChildren="开" unCheckedChildren="关" checked={this.state.isOpen} onClick={this.handleClick} /> </Authorized></span>
 		const { getFieldDecorator } = this.props.form;
 		const formItemLayout = {
@@ -364,25 +483,21 @@ class CertificationOpenForm extends Component {
 				md: { span: 13 },
 			},
 		};
-		// const orgModal = <OrgSelectModal title={'机构选择'} renderButton={() => { return <a style={{ float: "right", fontSize: 14 }}>修改</a> }} defaultValue={this.state.orgs} onOk={orgs => this.handleOnOk(orgs)} multiple={true} checkableTopOrg={false} checkableCategoryOrg={true} checkableOrg={true}/>;
 		const levelLabel = <span><Tooltip overlayStyle={{ width: '420px' }} title={<pre style={{ fontSize: '10px' }}>
-			{`普通：默认等级，应用的用户凭证与用户在
-认证服务器的凭证的生命周期一致，
-默认为七天(该时间可配置)，
-七天内有使用过应用则会自动续期，无需重新登录。
-中级：应用的用户凭证在超时后，
-在服务器重新进行认证时会需要用户再次输入密码进行身份校验。
-一般会配合较短的应用用户凭证有效期配置来使用，
-比如应用的凭证有效期设置为10分钟，
-如果10分钟内用户没有在应用内进行操作，那么再次使用应用时，
-会要求用户输入自己的密码才能继续访问。用户凭证存储在cookie中，
-关闭浏览器用户凭证不会失效
-高级：有效期策略与中级一致，但是关闭浏览器后用户凭证会立即失效，
-关闭后立即打开浏览器也需要重新输入密码验证身份。
-			`}</pre>} ><Icon type="info-circle-o" /></Tooltip>应用安全等级</span>
+			{}</pre>} ><Icon type="info-circle-o" /></Tooltip>应用安全等级</span>
 		return (
 			<div>
-				<Card title={title} style={{ margin: 24 }} bordered={false}>
+				<Card bordered={false} style={{ margin: 24 }} title='路由'>
+					{base.currentEnvironment.routerSwitch ? <SettingTable appDatas={appDatas} checked={this.state.checked} />
+						: <span>动态路由配置已关闭</span>
+					}
+				</Card> 
+
+				<Card bordered={false} style={{ margin: 24 }} title='集群'>
+					<SettingClusterList appDatas={appDatas} appUpstream={appUpstream} checked={(e) => this.handleHttpChange(e)} />
+				</Card>
+
+				<Card title={title} style={{ margin: 24 }} bordered={false} extra={this.state.isOpen?action1:''}>
 					{
 						this.state.isOpen ?
 							this.renderOpen() : this.renderClose()
@@ -390,16 +505,18 @@ class CertificationOpenForm extends Component {
 				</Card>
 				{
 					this.state.isOpen ?
-						<Card title="可访问应用的用户列表" style={{ margin: 24 }} bordered={false}>
-							{/* 	<DescriptionList col="1" style={{ marginBottom: 24 }} title={orgModal}>
-								<Description term="允许以下机构的用户访问应用">{this.state.orgName.slice(1)}</Description>
-							</DescriptionList> */}
-							{/* 传入用户集合id */}
-							<User orgs={this.state.orgs} appId={this.props.appid} />
-
-							{/* <div className="sub-title-text" style={{ marginTop: 24 }}>白名单</div>
-							<WhiteUser appid={this.props.appid} /> */}
-						</Card>
+						<div>
+							<Card title='应用的机构用户数据权限' style={{ margin: 24 }} bordered={false} extra={action}>
+								<DescriptionList col='1'>
+									<Description>
+										{this.state.orgNames ? this.state.orgNames : '无数据'}
+									</Description>
+								</DescriptionList>
+							</Card>
+							<Card title="可访问应用的用户列表" style={{ margin: 24 }} bordered={false}>
+								<User appId={this.props.appid} />
+							</Card>
+						</div>
 						: null
 				}
 
@@ -426,12 +543,12 @@ class CertificationOpenForm extends Component {
 						</FormItem>
 						<FormItem {...formItemLayout} label="凭证有效时间(s)">
 							{getFieldDecorator('expirein', { initialValue: this.state.expirein })(
-								<InputNumber style={{ width: '100%' }} min={60} placeholder="输入时间" />
+								<InputNumber style={{ width: '100%' }} min={1} placeholder="输入时间" />
 							)}
 						</FormItem>
 						<FormItem {...formItemLayout} label="刷新凭证有效时间(s)">
 							{getFieldDecorator('reExpirein', { initialValue: this.state.reExpirein })(
-								<InputNumber style={{ width: '100%' }} min={60} placeholder="输入时间" />
+								<InputNumber style={{ width: '100%' }} min={1} placeholder="输入时间" />
 							)}
 						</FormItem>
 						<FormItem {...formItemLayout} label={levelLabel}>
@@ -447,7 +564,7 @@ class CertificationOpenForm extends Component {
 							help={this.state.help}
 							label="应用回调地址">
 							{getFieldDecorator('clinetUrl', { initialValue: this.state.clinetUrl })(
-								<Input disabled={this.state.isOpen} onBlur={e => this.handleChange(e)} placeholder="输入地址" />
+								<Input onBlur={e => this.handleChange(e)} placeholder="输入地址" />
 							)}
 						</FormItem>
 						<FormItem {...formItemLayout} label="自定义登录页">
@@ -465,8 +582,18 @@ class CertificationOpenForm extends Component {
 				>
 					<p>关闭统一认证功能后，统一权限管理也将无法使用，确认要关闭吗？</p>
 				</Modal>
-			</div>
 
+				<Modal
+					style={{ minHeight: 600, overflow: 'auto', width: 600 }}
+					title="机构与读写权限设置"
+					visible={this.state.visible}
+					onCancel={this.handleCancel}
+					footer={null}   //将底部按钮取消掉
+					destroyOnClose={true}
+				>
+					<OrgModal appid={this.props.appid} />
+				</Modal>
+			</div>
 		)
 	}
 }

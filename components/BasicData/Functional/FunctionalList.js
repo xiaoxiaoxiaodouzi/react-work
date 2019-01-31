@@ -1,13 +1,13 @@
 import React, { PureComponent,Fragment } from 'react';
-import { Row, Col, Card, Form, Input, Select, Button, Table, Icon, Divider,message} from 'antd';
+import { Row, Col, Form, Input, Select, Button, Table, Icon, Divider,message} from 'antd';
 import Link from 'react-router-dom/Link';
-import { getResources } from '../../../services/functional'
+import { getResources, queryAppAIP } from '../../../services/aip'
 import { GlobalHeaderContext } from '../../../context/GlobalHeaderContext'
-import { queryAppAIP } from '../../../services/apps'
 import constants from '../../../services/constants'
 import RoleResourceModal from './RoleResourceModal'
 import { base } from '../../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../../common/Authorized';
+import Ellipsis from 'ant-design-pro/lib/Ellipsis';
 
 
 const FormItem = Form.Item;
@@ -36,14 +36,15 @@ class TableList extends PureComponent {
 
   componentWillReceiveProps(nextProps){
     if(nextProps.environment!== this.props.environment){
-      queryAppAIP().then(data => {
+      queryAppAIP(null,{'AMP-ENV-ID':base.environment}).then(data => {
         this.setState({ apps: data })
       })
       this.loadData(1, 10);
     }
   }
   componentDidMount() {
-    queryAppAIP().then(data => {
+    if(this.props.permissions)base.allpermissions = this.props.permissions;
+    queryAppAIP(null,{'AMP-ENV-ID':base.environment}).then(data => {
       this.setState({ apps: data })
     })
     this.loadData(1, 10);
@@ -52,11 +53,11 @@ class TableList extends PureComponent {
   loadData = (current, pageSize, params) => {
     this.setState({loading:true})
     let queryParams = {
-      pid: 0,    //功能默认pid为0
+      type: 'function',    //只查功能
       page: current,
       rows: pageSize
     }
-    if(base.isAdmin) queryParams.withOutAuthorize = true;
+    //if(base.isAdmin) queryParams.withOutAuthorize = true;
     let query = Object.assign({}, queryParams, params);
     getResources(query).then(data => {
       this.setState({loading:false, dataSource: data.contents, current: data.pageIndex, pageSize: data.pageSize, total: data.total, totalPage: data.totalPage })
@@ -82,6 +83,9 @@ class TableList extends PureComponent {
     e.preventDefault();
     this.props.form.validateFields((err, values) => {
       if (!err) {
+        // if(values.functionType === 'all'){
+        //   delete values['functionType'];
+        // }
         this.loadData(1, 10, values);
       }
     });
@@ -115,17 +119,27 @@ class TableList extends PureComponent {
 
   renderSimpleForm() {
     const { getFieldDecorator } = this.props.form;
+    const formItemLayout = {
+			labelCol: {
+				xs: { span: 24 },
+				sm: { span: 8 },
+			},
+			wrapperCol: {
+				xs: { span: 24 },
+				sm: { span: 16 },
+			},
+		};
     return (
       <div className='tableList'>
-        <Form onSubmit={this.handleSearch} layout="inline">
-          <Row style={{ marginBottom: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
-            <Col md={8} sm={24}>
-              <FormItem label="功能名称">
-                {getFieldDecorator('name')(<Input placeholder="请输入" />)}
+        <Form onSubmit={this.handleSearch}>
+        <Row style={{ marginBottom: 12 }} gutter={{ md: 4, lg: 12, xl: 18 }}>
+            <Col span={7}>
+              <FormItem {...formItemLayout} label="功能名称">
+                {getFieldDecorator('name')(<Input onChange={(value) => {this.name=value}} placeholder="请输入" />)}
               </FormItem>
             </Col>
-            <Col md={8} sm={24}>
-              <FormItem label="所属应用">
+            <Col span={7}>
+              <FormItem {...formItemLayout} label="所属应用">
                 {getFieldDecorator('appId')(
                   <Select 
                   showSearch
@@ -142,7 +156,17 @@ class TableList extends PureComponent {
                 )}
               </FormItem>
             </Col>
-            <Col md={8} sm={24}>
+            <Col span={5}>
+                <FormItem {...formItemLayout} label="功能分类">
+                {getFieldDecorator('functionType')(
+                    <Select>
+                        <Option key='web' value = 'web'>WEB</Option>
+                        <Option key='app' value = 'app'>APP</Option>
+                    </Select>
+                )}
+                </FormItem>
+            </Col>
+            <Col span={5}>
               <span>
                 <Button type="primary" htmlType="submit">查询</Button>
                 <Button style={{ marginLeft: 8 }} onClick={this.handleFormReset}>重置</Button>
@@ -159,17 +183,27 @@ class TableList extends PureComponent {
 
   renderAdvancedForm() {
     const { getFieldDecorator } = this.props.form;
+    const formItemLayout = {
+			labelCol: {
+				xs: { span: 24 },
+				sm: { span: 8 },
+			},
+			wrapperCol: {
+				xs: { span: 24 },
+				sm: { span: 16 },
+			},
+		};
     return (
       <div className='tableList'>
         <Form onSubmit={this.handleSearch} layout="inline">
-          <Row style={{ marginBottom: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
-            <Col md={8} sm={24}>
-              <FormItem label="功能名称">
+          <Row style={{ marginBottom: 12 }} gutter={{ md: 4, lg: 12, xl: 18 }}>
+            <Col span={8}>
+              <FormItem {...formItemLayout} label="功能名称">
                 {getFieldDecorator('name')(<Input placeholder="请输入" />)}
               </FormItem>
             </Col>
-            <Col md={8} sm={24}>
-              <FormItem label="所属应用">
+            <Col span={8}>
+              <FormItem {...formItemLayout} label="所属应用">
                 {getFieldDecorator('app')(
                   <Select
                     showSearch
@@ -186,16 +220,16 @@ class TableList extends PureComponent {
                 )}
               </FormItem>
             </Col>
-            <Col md={8} sm={24}>
-              <FormItem label="管理员">
+            <Col span={8}>
+              <FormItem {...formItemLayout} label="管理员">
                 {getFieldDecorator('admin')(
                   <Input placeholder="请输入" />
                 )}
               </FormItem>
             </Col>
           </Row>
-          <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
-            <Col style={{ marginTop: 16 }} md={8} sm={24}>
+          <Row gutter={{ md: 4, lg: 12, xl: 18 }}>
+            <Col style={{ marginTop: 16 }} span={8}>
               <FormItem label="已授权用户集合">
                 {getFieldDecorator('users')(
                   <Input placeholder="请输入" />
@@ -218,7 +252,6 @@ class TableList extends PureComponent {
   }
 
   render() {
-    const Authorized = RenderAuthorized(base.allpermissions);
     const pagination = {
       showTotal: total => `共 ${total} 条记录  第 ${this.state.current}/${this.state.totalPage} 页`,
       total: this.state.total,
@@ -237,43 +270,52 @@ class TableList extends PureComponent {
     const columns = [{
       title: '名称',
       dataIndex: 'name',
-      // width: '10%',
       render: (text, record) => {
         return <Link style={{whiteSpace:'nowrap'}} to={`applications/${record.appId}/functional/${record.id}`}>{text}</Link>
       }
     }, {
       title: '所属应用',
       dataIndex: 'appName',
-      width: '10%',
       render: (text, record) => {
-        return <Link style={{whiteSpace:'nowrap'}} to={`apps/${record.appId}`}>{text}</Link>
+        return (
+          <Authorized authority='functional_appRedirect' noMatch={<span style={{whiteSpace:'nowrap'}}>{text}</span>}>
+            <Link style={{whiteSpace:'nowrap'}} to={`apps/${record.appId}`}>{text}</Link>
+          </Authorized>
+        )
       }
     },{
       title: '所属角色',
       dataIndex: 'roleList',
-      // width: '10%',
       render: (values, record) => {
-        return values.length>0?values.map(element=>{
-          return <Fragment><Link style={{marginRight:5,whiteSpace:'nowrap'}} to={`/applications/${element.appId}/functionalroles/${element.id}`}>{element.name}</Link> </Fragment>;
+        return values.length>0?values.map((element,index)=>{
+          return <Fragment key={index}><Link style={{marginRight:5,whiteSpace:'nowrap'}} to={`/applications/${element.appId}/functionalroles/${element.id}`}>{element.name}</Link> </Fragment>;
         }):'--';
       }
     }, {
       title: '管理员',
       dataIndex: 'managers',
-      // width: '20%',
       render: (value,record)=>{
-        return value.length>0?value.map(u=>{
-          return <Fragment><span style={{marginRight:5,whiteSpace:'nowrap'}}>[{constants.functionResource.userCollectionType[u.userCollectionType]}]{u.userCollectionName}</span> </Fragment>;
-        }):'--';
+        let newArray=[];
+        value.forEach(i=>{
+          if(newArray.filter(t=>t.id!==i.id).length===0){
+            newArray.push(i)
+          }
+        })
+        return <Ellipsis tooltip lines={1}>
+          {newArray.length>0?newArray.map((u,index)=>{
+            return <Fragment key={index}><span style={{marginRight:5}}>[{constants.functionResource.userCollectionType[u.userCollectionType]}]{u.userCollectionName}</span> </Fragment>;
+          }):'--'}
+        </Ellipsis>
       }
     }, {
       title: '已授权用户集合',
       dataIndex: 'userCollections',
-      // width: '25%',
       render: (value,record)=>{
-        return value.length>0?value.map(u=>{
-          return <Fragment><span style={{marginRight:5,whiteSpace:'nowrap'}}>[{constants.functionResource.userCollectionType[u.userCollectionType]}]{u.userCollectionName}</span> </Fragment>;
-        }):'--';
+        return <Ellipsis tooltip lines={1}>
+          {value.length>0?value.map((u,index)=>{
+            return <Fragment key={index}><span style={{marginRight:5}}>[{constants.functionResource.userCollectionType[u.userCollectionType]}]{u.userCollectionName}</span> </Fragment>;
+          }):'--'}
+        </Ellipsis>
       }
     }, {
       title: '操作',
@@ -281,7 +323,7 @@ class TableList extends PureComponent {
       key: 'action',
       render: (text, record) => {
         return (
-          <span>
+          <span style={{whiteSpace: 'nowrap'}}>
             <Authorized authority='functional_roleUser' noMatch={<a disabled='true' onClick={() => this.onManagerModal(record.userCollections,record,'addUsers','角色授权用户设置')} >授权用户</a>}>
               <a onClick={() => this.onManagerModal(record.userCollections,record,'addUsers','角色授权用户设置')} >授权用户</a>
             </Authorized>
@@ -295,7 +337,7 @@ class TableList extends PureComponent {
     }];
     
     return (
-      <Card bordered={false} style={{ margin: '24px 24px 0' }} >
+      <div>
         {this.state.expandForm ? this.renderAdvancedForm() : this.renderSimpleForm()}
         <Table 
         style={{ marginTop: 24 }}
@@ -306,7 +348,7 @@ class TableList extends PureComponent {
           loading={this.state.loading}
           />
         <RoleResourceModal title={this.state.title} type={this.state.type} record={this.state.record} visible={this.state.authorizeVisible} handleAuthorizeModal={this.handleAuthorizeModal}/>
-      </Card>
+      </div>
     );
   }
 }

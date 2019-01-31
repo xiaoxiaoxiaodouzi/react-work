@@ -1,6 +1,6 @@
 import React, { Fragment } from 'react';
 import { Drawer, Button, Table, Input, Checkbox, Alert } from 'antd';
-import { getResources } from '../../services/functional'
+import { getResources } from '../../services/aip'
 
 const Search = Input.Search;
 const defaultTableAlert = '勾选功能导入到菜单。';
@@ -24,6 +24,7 @@ export default class FunctionalSelectedDrawer extends React.PureComponent {
   hiddenFilterDatas = [];
   componentWillReceiveProps(nextProps) {
     if (nextProps.visible && nextProps.visible !== this.props.visible) {
+      this.functionType = nextProps.functionType;
       this.loadData();
       const selectedRowKeys = nextProps.selectedDatas.map(f => f.id);
       this.setState({ selectedRowKeys, tableAlert: getTableAlert(selectedRowKeys) });
@@ -35,7 +36,7 @@ export default class FunctionalSelectedDrawer extends React.PureComponent {
   }
   loadData = () => {
     this.setState({ loading: true });
-    getResources({ pid: 0 }).then(data => {
+    getResources({ type: 'function' ,functionType:this.functionType}).then(data => {
       this.allDatas = data;
       this.hiddenFilterDatas = data.filter(d => {
         let nohidden = true;
@@ -65,7 +66,7 @@ export default class FunctionalSelectedDrawer extends React.PureComponent {
     let value=this.state.searchValue;
     // eslint-disable-next-line
     let ary=this.allDatas.filter(i=>{
-      if(i.name.includes(value) || i.appName.includes(value)){
+      if((i.name && i.name.includes(value) )|| (i.appName && i.appName.includes(value))){
         return true
       }
     });
@@ -77,57 +78,31 @@ export default class FunctionalSelectedDrawer extends React.PureComponent {
     const columns = [{
       title: '功能名称',
       dataIndex: 'name',
-     /*  filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
-        <div className="custom-filter-dropdown">
-          <Search
-            placeholder="功能搜索"
-            value={selectedKeys[0]}
-            onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-            onPressEnter={this.handleSearch(selectedKeys, confirm, 'funtional')}
-          />
-        </div>
-      ),
-      onFilter: (value, record) => {
-        return record.name && record.name.toLowerCase().includes(value.toLowerCase());
-      }, */
-      render: (text) => {
-        const { searchValue } = this.state;
-        return searchValue ? (
-          <span>
-            {text.split(new RegExp(`(?<=${searchValue})|(?=${searchValue})`, 'i')).map((fragment, i) => (
-              fragment.toLowerCase() === searchValue.toLowerCase()
-                ? <span key={i} className="highlight">{fragment}</span> : fragment // eslint-disable-line
-            ))}
-          </span>
-        ) : text;
-      }
+      // render: (text) => {
+      //   const { searchValue } = this.state;
+      //   return searchValue ? (
+      //     <span>
+      //       {text.split(new RegExp(`(?<=${searchValue})|(?=${searchValue})`, 'i')).map((fragment, i) => (
+      //         fragment.toLowerCase() === searchValue.toLowerCase()
+      //           ? <span key={i} className="highlight">{fragment}</span> : fragment // eslint-disable-line
+      //       ))}
+      //     </span>
+      //   ) : text;
+      // }
     }, {
       title: '所属应用',
       dataIndex: 'appName',
-     /*  filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
-        <div className="custom-filter-dropdown">
-          <Search
-            placeholder="功能搜索"
-            value={selectedKeys[0]}
-            onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-            onPressEnter={this.handleSearch(selectedKeys, confirm, 'app')}
-          />
-        </div>
-      ),
-      onFilter: (value, record) => {
-        return record.appName && record.appName.toLowerCase().includes(value.toLowerCase());
-      }, */
-      render: (text) => {
-        const { searchValue } = this.state;
-        return searchValue ? (
-          <span>
-            {text.split(new RegExp(`(?<=${searchValue})|(?=${searchValue})`, 'i')).map((fragment, i) => (
-              fragment.toLowerCase() === searchValue.toLowerCase()
-                ? <span key={i} className="highlight">{fragment}</span> : fragment // eslint-disable-line
-            ))}
-          </span>
-        ) : text;
-      }
+      // render: (text) => {
+      //   const { searchValue } = this.state;
+      //   return searchValue ? (
+      //     <span>
+      //       {text.split(new RegExp(`(?<=${searchValue})|(?=${searchValue})`, 'i')).map((fragment, i) => (
+      //         fragment.toLowerCase() === searchValue.toLowerCase()
+      //           ? <span key={i} className="highlight">{fragment}</span> : fragment // eslint-disable-line
+      //       ))}
+      //     </span>
+      //   ) : text;
+      // }
     }];
     const rowSelection = {
       selectedRowKeys: this.state.selectedRowKeys,

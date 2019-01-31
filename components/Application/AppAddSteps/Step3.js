@@ -2,7 +2,8 @@ import React from 'react';
 import { Button } from 'antd';
 import Result from 'ant-design-pro/lib/Result';
 import Link from 'react-router-dom/Link';
-import { queryAppInfo } from '../../../services/apps';
+import { queryAppInfo } from '../../../services/cce';
+import { base } from '../../../services/base';
 
 /* function ExtraText(props) {
     return (
@@ -27,12 +28,18 @@ class Step3 extends React.Component {
     }
     componentWillReceiveProps(nextProps) {
         if (nextProps.status === 1 && this.state.appInfo!==nextProps.appinfo) {
-            queryAppInfo(nextProps.appinfo.code).then(data => {
+            if(base.configs.passEnabled){
+                queryAppInfo(nextProps.appinfo.code).then(data => {
+                    this.setState({
+                        cceInfo: data,
+                        appInfo:nextProps.appinfo
+                    })
+                })
+            }else{
                 this.setState({
-                    cceInfo: data,
                     appInfo:nextProps.appinfo
                 })
-            })
+            }            
         }else{
             this.setState({ appInfo:nextProps.appinfo });
         }

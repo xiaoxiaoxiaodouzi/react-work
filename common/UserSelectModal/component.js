@@ -1,7 +1,6 @@
 import React from "react";
-import { Modal, Table, Button, Row, Col, message, Input, Alert, Tag } from "antd";
+import  { Modal, Table, Button, Row, Col, message, Input, Alert, Tag,Checkbox } from "antd";
 import {OrgCategorySelectTree,OrgSelectTree} from 'c2-orguser';
-import { base } from "../../services/base";
 
 class UserSelectModal extends React.Component {
 
@@ -21,7 +20,8 @@ class UserSelectModal extends React.Component {
 			searchText: '',
 			category:'',
 			org:'',
-			orgId:''
+			orgId:'',
+			cascadeCheck:false
 		}
 	
 		this._onHandleOk = this._onHandleOk.bind(this);
@@ -32,21 +32,29 @@ class UserSelectModal extends React.Component {
 	componentDidMount() {
 		// eslint-disable-next-line
 		var selectUsers = this.props.selectUsers && [...this.props.selectUsers] || [];
-		let disabledUsers = this.props.disabledUsers || [];
+		let disabledUsers = this.props.disableData || [];
 		selectUsers.forEach(u => {
 			u.closable = false;
 		})
 		let selectedRowKeys = this.getSelectUserIds(selectUsers);
+		let pagination = this.props.pagination;
+		if(pagination){
+		
+			pagination.onShowSizeChange = this._onShowSizeChange;
+		}
+		
 		this.setState({
 			selectUsers: selectUsers,
 			disabledUsers: disabledUsers,
 			selectedRowKeys: selectedRowKeys,
+			pagination:pagination,
+			dataSource:this.props.dataSource
 		})
 	}
 
 	componentWillReceiveProps(nextProps) {
 
-		if (!this.props.visible && nextProps.visible) {
+		if (this.props.visible && nextProps.visible) {
 			// eslint-disable-next-line
 			var selectUsers = nextProps.selectUsers && [...nextProps.selectUsers] || [];
 			var disableData = nextProps.disableData || [];
@@ -54,10 +62,18 @@ class UserSelectModal extends React.Component {
 				u.closable = false;
 			})
 			var selectedRowKeys = this.getSelectUserIds(selectUsers);
+			let pagination = nextProps.pagination;
+			if(pagination){
+			
+				pagination.onShowSizeChange = this._onShowSizeChange;
+			}
+
 			this.setState({
 				selectUsers: selectUsers,
 				disabledUsers: disableData,
 				selectedRowKeys: selectedRowKeys,
+				pagination:pagination,
+				dataSource:nextProps.dataSource
 			})
 		}
 
@@ -73,12 +89,17 @@ class UserSelectModal extends React.Component {
 	//*********************************************************************** */
 
 	//拉取分页数据
-	_tableOnChange(pagination, filters, sorter) {
-		this.props.onChange(pagination, Object.assign(filters, { name: this.state.searchText,categoryId:this.state.category,orgId:this.state.orgId}), sorter)
+	_tableOnChange(pagination, filters) {
+		this.props.onChange(pagination, Object.assign(filters, { name: this.state.searchText,categoryId:this.state.category,orgId:this.state.orgId,cascade:this.state.cascadeCheck}),pagination.pageSize)
+	}
+
+	//每页显示条数
+	_onShowSizeChange = (current,size) =>{
+		this.props.onChange(this.state.pagination, { name: this.state.searchText,categoryId:this.state.category,orgId:this.state.orgId}, size)
 	}
 
 	_onHandleOk() {
-		this.setState({ searchText: '' })
+		this.setState({ searchText: '' ,cascadeCheck:false})
 		this.props.onHandleOk(this.state.selectUsers);
 	}
 
@@ -207,18 +228,18 @@ class UserSelectModal extends React.Component {
 	}
 
 	handleCancle = () => {
-		this.setState({ searchText: '' })
+		this.setState({ searchText: '',cascadeCheck:false })
 		this.props.onCancel();
 	}
 
 	_onSearch() {
-		this.props.onSearch && this.props.onSearch(this.state.searchText,this.state.category,this.state.org);
+		this.props.onSearch && this.props.onSearch(this.state.searchText,this.state.category,this.state.orgId,this.state.cascadeCheck);
 	}
 	//分类机构下拉树改变后的回调
 	_onCategoryChange = (value) => {
 		if(value){
 			this.setState({ category: value,org:null});
-			this.props.onSearch(this.state.searchText,value,this.state.orgId);
+			this.props.onSearch(this.state.searchText,value,this.state.orgId,this.state.cascadeCheck);
 		}
 		
 	}
@@ -226,9 +247,14 @@ class UserSelectModal extends React.Component {
 	_onOrgChange = (value) => {
 		if(value){
 			this.setState({ org: value,orgId:value.value});
-			this.props.onSearch(this.state.searchText,this.state.category,value.value);
+			this.props.onSearch(this.state.searchText,this.state.category,value.value,this.state.cascadeCheck);
 		}
 		
+	}
+
+	//级联checkbox修改后回调
+	_cascadeCheck = (e) => {
+		this.setState({cascadeCheck:e.target.checked});
 	}
 	//*********************************************************************** */
 	//***********************************UI********************************** */
@@ -243,30 +269,34 @@ class UserSelectModal extends React.Component {
 				visible={this.props.visible}
 				onOk={this._onHandleOk}
 				onCancel={() => this.handleCancle()}
+				destroyOnClose={true}
 				maskClosable={false}
 				width={this.props.width}>
 				{this.props.description && <Alert description={this.props.description} type="info" style={{ marginBottom: "10px" }} />}
 				<strong style={{ marginRight: 8, marginTop: 15 }}>{this.props.mark}:</strong><br />
 				<div className="user-selected-tags" style={{ minHeight: 32 }}>
-					{
+					{ 
+						this.state.selectUsers.length ?
 						this.state.selectUsers.map(u => {
 							return <Tag key={u.id} closable={u.closable == null ? true : u.closable} onClose={e => { this._delUser(u.id) }}>{u.name}</Tag>
-						})
+						}):
+						 <div style={{marginTop:10}}><a disabled='true'>还未选择数据</a></div>
+						//<Alert description={'请选择用户！'} type="info" />
 					}
 				</div>
 				<Row type={'flex'} align="middle" style={{ paddingTop: 10, paddingBottom: 10 }}>
 					<Col><label>机构分类:</label></Col>
-					<Col style={{ paddingLeft: 10, paddingRight: 10 }}>
+					<Col style={{ paddingLeft: 2, paddingRight: 5 }}>
 						<OrgCategorySelectTree 
 						style={{ width: "160px" }}
 						value={this.state.category}
 						onSelect={this._onCategoryChange}
 						ref="categoryOrgSelect"
-						ampEnvId={base.currentEnvironment.id}
+						ampEnvId={"1"}
 						/>
 					</Col>
 					<Col><label>机构:</label></Col>
-					<Col style={{ paddingLeft: 10, paddingRight: 10 }}>
+					<Col style={{ paddingLeft: 2, paddingRight: 5 }}>
 						<OrgSelectTree 
 						style={{ width: "160px" }}
 						category={this.state.category}
@@ -276,15 +306,18 @@ class UserSelectModal extends React.Component {
 						/>
 					</Col>
 					<Col><label>姓名:</label></Col>
-					<Col style={{ paddingLeft: 10, paddingRight: 10 }}><Input value={this.state.searchText} onPressEnter={this._onSearch.bind(this)} onChange={(event) => { this.setState({ searchText: event.target.value }) }} /></Col>
+					<Col style={{ paddingLeft: 2, paddingRight: 5 }}><Input style={{width:160}} value={this.state.searchText} onPressEnter={this._onSearch.bind(this)} onChange={(event) => { this.setState({ searchText: event.target.value }) }} /></Col>
+					<Col><label>级联:</label></Col>
+					<Col  style={{ paddingLeft: 2, paddingRight: 15 }}><Checkbox defaultValue={this.state.cascadeCheck} onChange={this._cascadeCheck}/></Col>
 					<Col><Button type="primary" htmlType="submit" onClick={this._onSearch.bind(this)}>查询</Button></Col>
 				</Row>
 				<Table
 					rowKey="id"
 					size="small"
+					showSizeChanger={true}
 					columns={this.props.columns}
-					dataSource={this.props.dataSource}
-					pagination={this.props.pagination}
+					dataSource={this.state.dataSource}
+					pagination={this.state.pagination}
 					loading={this.state.loading}
 					rowSelection={this._rowSelection()}
 					onRowClick={this._onRowClick}

@@ -1,6 +1,6 @@
 import React,{Component} from 'react'
 import {Card,Table,Input,Button,Row,Col,Form} from 'antd' 
-import {getTaskList} from '../../../services/images'
+import {getTaskList} from '../../../services/cce'
 import moment from 'moment'
 import './ImageTaskList.css'
 import LogModal from './LogModal'

@@ -1,8 +1,7 @@
 import React from 'react'
 import {Row, Col,Divider,Button,Tree,Form,Input,Select,message,Modal} from 'antd'
 import TreeHelp from './../../../utils/TreeHelp'
-import {getMenus,getMenuById,deleteMenuById,updateMenus,addMenus} from '../../../services/menus'
-
+import {getMenus,addMenus,getMenuById,deleteMenuById,updateMenus} from '../../../services/aip'
 
 const TreeNode = Tree.TreeNode;
 const FormItem = Form.Item;

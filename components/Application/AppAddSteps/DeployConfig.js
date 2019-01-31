@@ -1,12 +1,13 @@
 import React, { Component } from "react";
-import { message, Input, Button, Radio, Row, Col, Form } from "antd";
+import { message, Input, Button, Radio, Row, Col, Form,InputNumber, Select} from "antd";
 /* import NetworkConfig from '../Deploy/NetworkConfig';
 import EnvVariables from '../Deploy/EnvVariables';
 import HealthCheck from '../Deploy/HealthCheck'; */
 import { checkCmd } from '../../../utils/utils';
-import appUtil from '../../../services/appguide'
-import {getEnvs} from '../../../services/images'
-
+import appUtil from '../../../services/cce'
+import {getEnvs} from '../../../services/cce'
+import DescriptionList from 'ant-design-pro/lib/DescriptionList';
+const { Description } = DescriptionList;
 
 const FormItem = Form.Item;
 const RadioGroup = Radio.Group;
@@ -23,6 +24,10 @@ class DeployConfig extends Component {
         quotaInfo: [],
         name: '',            //容器名称
         base: '',            //健康检查参数
+        customize:false,
+        request:0.1,
+        limit:0.1,
+        memory:1
     }
     envFlag = false;
     netFlag = false;
@@ -41,15 +46,21 @@ class DeployConfig extends Component {
                 if (p.outerPort) networkConfig.outaddress = this.defaultNode + ':' + p.outerPort;
                 this.state.networkConfigs.push(networkConfig);
             })
+            let customize = this.props.container.resources.resourcesType==='-1' || this.props.container.resources.resourcesType===-1?true:false;
+            let resources = this.props.container.resources;
             this.setState({
                 networkConfigs: this.state.networkConfigs,
                 netConfData: this.state.networkConfigs,
                 switched: this.props.container.isHealthCheck,
                 radioValue: this.props.container.resources.resourcesType,
+                customize:customize,
                 envConfData: this.props.container.env,
                 name: this.props.container.name,
                 cmd: this.props.container.cmd,
                 base: this.props.container.base,
+                limit:customize?resources.limits.cpu.amount:0.1,
+                request:customize?resources.requests.cpu.amount:0.1,
+                memory:customize? resources.limits.memory.amount.substring(0,resources.limits.memory.amount.length - 2):1
             })
         }
         appUtil.getQuotaData().then(data => {
@@ -58,7 +69,6 @@ class DeployConfig extends Component {
     }
     componentWillReceiveProps(nextProps) {
         if(nextProps.item && nextProps.item!==this.props.item){
-            
             getEnvs(nextProps.item.namespace,nextProps.item.name).then(data=>{
                 let ary=[];
                 if(data.contents.length>0){
@@ -89,6 +99,16 @@ class DeployConfig extends Component {
         this.setState({
             radioValue: e.target.value
         })
+
+        if(e.target.value === -1 || e.target.value === '-1'){
+            this.setState({
+                customize:true
+            })
+        }else{
+            this.setState({
+                customize:false
+            })
+        }
     }
 
     handleSubmit = (e, value) => {
@@ -150,9 +170,11 @@ class DeployConfig extends Component {
                 //把健康检查的参数放到容器里面去
                 values.base = this.state.base ? this.state.base : '';
                 if (value === "确定") {
-                    this.props.stepover(true, values, this.state.netConfData, this.state.envConfData, this.state.imagePath, this.state.switched);
+                    this.props.stepover(true, values, this.state.netConfData, this.state.envConfData, this.state.imagePath,
+                         this.state.switched,this.state.limit,this.state.request,this.state.memory);
                 } else {
-                    this.props.stepover(false, values, this.state.netConfData, this.state.envConfData, this.state.imagePath, this.state.switched);
+                    this.props.stepover(false, values, this.state.netConfData, this.state.envConfData, 
+                        this.state.imagePath, this.state.switched,this.state.limit,this.state.request,this.state.memory);
                 }
             }
         });
@@ -237,8 +259,47 @@ class DeployConfig extends Component {
                                         return <RadioButton key={index} value={index}>{quota.cpu + '核'} {quota.memory + quota.memoryUnit}</RadioButton>;
                                     })
                                 }
+                                <RadioButton key='-1' value='-1'>自定义</RadioButton>
                             </RadioGroup>
                         </FormItem>
+
+                        <div style={{marginTop:8}}>
+                            {this.state.customize?
+                            <div>
+                            <DescriptionList style={{marginLeft:10}} col={1}>
+                                <Description term="CPU限制"><div><Select disabled={true} style={{width:100,marginRight:5}} value='request'><Select.Option value='request'>request</Select.Option></Select>
+                                                <InputNumber defaultValue={this.state.request} precision={1} onChange={
+                                                  (value)=>{
+                                                    if(value>this.state.limit){
+                                                      message.info("request值不能大于limit！")
+                                                    }else{
+                                                      this.setState({request:value});
+                                                    }
+                                                }} 
+                                                style={{width:'50%'}} min={0.1} max={this.state.limit} step={0.1}/> 核</div>
+                                            <div style={{marginTop:5}}><Select disabled={true} style={{width:100,marginRight:5}} value='limit'><Select.Option value='limit'>limit</Select.Option></Select>
+                                            <InputNumber defaultValue={this.state.limit} precision={1} 
+                                            onChange={(value)=>{
+                                              if(value<this.state.request){
+                                                message.info("request值不能大于limit！")
+                                              }else{
+                                                this.setState({limit:value});
+                                              }
+                                            }} 
+                                            style={{width:'50%'}} min={this.state.request} step={0.1}/> 核</div>
+                                            <div style={{marginTop:5,color:'rgb(190,190,190)'}}>request只用于资源分配调度，不限制实际使用</div>
+                                            <div style={{color:'rgb(190,190,190)'}}>limit与资源调度无关，表示资源的最大使用上限</div>
+                                        </Description>                     
+                                    </DescriptionList> 
+                                    <DescriptionList style={{marginTop:10,marginLeft:35}} col={1}>
+                                        <Description term="内存"><InputNumber defaultValue={this.state.memory} onChange={(value)=>this.setState({memory:value})} style={{width:'63%'}} min={1} max={32}/> Gi
+                                                                <div style={{marginTop:5,color:'rgb(190,190,190)'}}>内存限制默认rquest=limit</div>
+                                        </Description>
+                                    </DescriptionList>
+                                </div>
+                                    :"" 
+                                    }
+                            </div>
                         {/* <br />
                         <FormItem {...formItemLayout} label="健康检查：">
                             <HealthCheck container={this.state.name} onChangeProbe={this.onChangeProbe} probe={this.state.base ? this.state.base.probe : ''} />

@@ -1,9 +1,10 @@
 import React,{Component} from 'react'
-import { Form,Breadcrumb,Divider} from 'antd';
+import { Form} from 'antd';
 import PageHeaderLayout from './layouts/PageHeaderLayout'
 import ImagesTabMine from '../../components/Setting/Images/ImagesTabMine'
 import {base} from '../../services/base'
 import ImageTaskList from '../../components/Setting/Images/ImageTaskList'
+import {BreadcrumbTitle} from '../../common/SimpleComponents'
 
 const tabList = [{
   key: 'mine',
@@ -33,12 +34,8 @@ class ImagesForm extends Component{
   }
   render(){
     const {history}=this.props;
-    let title = <Breadcrumb style={{marginTop:6}}>
-    <Breadcrumb.Item><Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a","verticalAlign":"text-bottom"}}/> 高级设置</Breadcrumb.Item>
-    <Breadcrumb.Item>镜像管理</Breadcrumb.Item>
-    </Breadcrumb>;
+    let title = BreadcrumbTitle([{name:"高级设置"},{name:"镜像管理"}]);
     return (
-      <div>
       <PageHeaderLayout
       title={title}
       onTabChange={this.onTabChange}
@@ -47,7 +44,6 @@ class ImagesForm extends Component{
       >
           {this.state.key === 'mine' ? (<ImagesTabMine tenant={base.tenant} history={history} />) : (this.state.key === 'taskList' ? <ImageTaskList /> : <ImagesTabMine tenant='c2cloud' history={history}/>)}
       </PageHeaderLayout>
-      </div>
     )
   }
 }

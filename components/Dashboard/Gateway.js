@@ -1,9 +1,10 @@
 import React,{PureComponent,Fragment} from 'react';
 import { Row,Col,Card,Icon,Tooltip } from 'antd';
 import { ChartCard } from 'ant-design-pro/lib/Charts';
-import {getAppMonit,getApigatewayApp} from '../../services/monitor'
+import { getApigatewayApp } from '../../services/cce';
 import {base} from '../../services/base'
 import constants from '../../services/constants';
+import { resourceusage } from '../../services/monit';
 
 export default class Gateway extends PureComponent {
   state = {
@@ -13,7 +14,7 @@ export default class Gateway extends PureComponent {
   componentDidMount(){
     getApigatewayApp(base.tenant).then(data=>{
       if(data && data.contents && data.contents.length > 0){
-        getAppMonit(data.contents[0].id).then(data=>{
+        resourceusage(data.contents[0].id).then(data=>{
           let gateway = {
             gatewayNormal:0,
             gatewayWarning:0,

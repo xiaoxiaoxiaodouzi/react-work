@@ -1,13 +1,12 @@
 import React, { Fragment } from 'react';
 import { Row,Col,Input,Button,Alert,Table,Card,Tag,Modal,message } from 'antd';
 import Ellipsis from 'ant-design-pro/lib/Ellipsis';
-import { queryAppAIP } from '../../../services/apps';
+import { queryAppAIP } from '../../../services/aip';
 import DataFormate from '../../../utils/DataFormate';
-import { getApiGrationinfo, removeAppServer,addAppsToServer } from '../../../services/api'
+import { getApiGrationinfo, removeAppServer, addAppsToServer } from '../../../services/aip';
 import { base } from '../../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../../common/Authorized';
 
-const Authorized = RenderAuthorized(base.allpermissions);
 export default class PermissionCard extends React.Component {
 
   constructor(props) {
@@ -82,7 +81,7 @@ export default class PermissionCard extends React.Component {
       title: '应用名称',
       dataIndex: 'name',
       key: 'name',
-      width: '40%',
+      width: '30%',
       render: (text, record) => {
         var tags = record.tags || [];
         return (
@@ -101,7 +100,9 @@ export default class PermissionCard extends React.Component {
       title: '应用描述',
       dataIndex: 'desc',
       key: 'desc',
-      width: '45%',
+      render:(text)=>{
+        return <Ellipsis lines={1} tooltip>{text}</Ellipsis>
+      }
     }];
 
     if(base.allpermissions.includes('service_cancelAuthorization')){
@@ -109,7 +110,7 @@ export default class PermissionCard extends React.Component {
         title: '操作',
         dataIndex: 'options',
         key: 'options',
-        width: '15%',
+        width: '100px',
         render: (text, record) => {
           return (
             <div>
@@ -130,7 +131,7 @@ export default class PermissionCard extends React.Component {
     if(name){
       params.name = name;
     }
-    queryAppAIP(params).then(data=>{
+    queryAppAIP(params,{'AMP-ENV-ID':base.environment}).then(data=>{
       let modalData = data.contents.slice();
       modalData.forEach(element=>{
         element.key = element.id;

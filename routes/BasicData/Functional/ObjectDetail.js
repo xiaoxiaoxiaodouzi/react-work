@@ -7,20 +7,22 @@ import moment from 'moment';
 import constants from '../../../services/constants';
 import Permission from '../../../components/BasicData/Functional/Permission';
 import Log from '../../../components/BasicData/Functional/Log';
-import Statistic from '../../../components/BasicData/Functional/Statistic';
+import FunctionMonit from '../../../components/BasicData/Functional/FunctionMonit';
 import { ObjectDetailContext } from '../../../context/ObjectDetailContext'
-import { getResourceById, deleteFunctional, updateResource ,getResourceTree} from '../../../services/functional'
-import { getAppInfo } from '../../../services/appdetail'
+import {getResourceById,updateResource,getResourceTree,deleteFunctional} from '../../../services/aip'
+import { getAppInfo } from '../../../services/aip'
 import FunctionModal from '../../../components/BasicData/Functional/FunctionModal'
 import InputInline from '../../../common/Input'
 import TreeHelp from '../../../utils/TreeHelp'
+import { base } from '../../../services/base';
+import Authorized from '../../../common/Authorized';
 
 
 const { Description } = DescriptionList;
 const tabList = [
   { key: 'permission', tab: '详情' },
   { key: 'log', tab: '日志' },
-  { key: 'statistic', tab: '统计' }
+  { key: 'monit', tab: '监控' }
 ];
 const confirm = Modal.confirm;
 class FunctionalDetail extends React.Component {
@@ -36,29 +38,31 @@ class FunctionalDetail extends React.Component {
     isPublic: '',
     desc: '',
     data: {},
-    datas:[],   //应用下的所有资源 树结构
+    datas: [],   //应用下的所有资源 树结构
     roleList: [],            //角色集合数据
     userCollections: [],     //用户集合数据
     visible: false,          //编辑模态框开关
-    oriData:[],       //所有资源 LIST结构
+    oriData: [],       //所有资源 LIST结构
     roleListChange: (roleList) => {
       this.setState({ roleList })
     }
   }
 
   componentDidMount() {
-    getResourceById(this.props.match.params.appid, this.props.match.params.id).then(data => {
-      if (data.length > 0) {
-        this.setState({ resourceName: data[0].name, appName: data[0].appName, data: data[0] })
-      }
-    })
-    getResourceTree(this.props.match.params.appid).then(datas=>{
+    if (this.props.permissions) base.allpermissions = this.props.permissions;
+
+    getResourceTree(this.props.match.params.appid).then(datas => {
       if (datas.length > 0) {
         datas.forEach(i => {
           i.pid = i.parentId
         });
-        let treeData=TreeHelp.toChildrenStruct(datas)
-        this.setState({datas:treeData,oriData:datas})
+        let treeData = TreeHelp.toChildrenStruct(datas)
+        this.setState({ datas: treeData, oriData: datas })
+      }
+    })
+    getResourceById(this.props.match.params.appid, this.props.match.params.id).then(data => {
+      if (data.length > 0) {
+        this.setState({ resourceName: data[0].name, data: data[0] })
       }
     })
     getAppInfo(this.props.match.params.appid).then(data => {
@@ -111,14 +115,14 @@ class FunctionalDetail extends React.Component {
   renderExtra() {
     return (
       <Row>
-        <Col sm={24} md={12}>
+        <Col sm={24}>
           <div style={{ color: 'rgba(0, 0, 0, 0.43)' }}>收藏的用户</div>
           <div style={{ color: 'rgba(0, 0, 0, 0.85)', fontSize: 20 }}>--</div>
         </Col>
-        <Col sm={24} md={12}>
+        {/* <Col sm={24} md={12}>
           <div style={{ color: 'rgba(0, 0, 0, 0.43)' }}>访问次数</div>
           <div style={{ color: 'rgba(0, 0, 0, 0.85)', fontSize: 20 }}>--</div>
-        </Col>
+        </Col> */}
       </Row>
     )
   }
@@ -128,25 +132,36 @@ class FunctionalDetail extends React.Component {
         <DescriptionList size="small" col="2">
           <Description term="所属应用">{this.state.appName ? this.state.appName : '无'}</Description>
           {/* <Description term="是否删除">{this.state.isDelete ? this.state.isDelete : '无'}</Description> */}
-          <Description term="是否默认收藏">{this.state.isPublic ? this.state.isPublic : '无'}</Description>
-          <Description term="最近修改时间">{moment(new Date()).format('YYYY-MM-DD HH:mm')}</Description>
+          <Description term="是否默认收藏">{this.state.isPublic ? this.state.isPublic : '否'}</Description>
+          <Description term="最近修改时间">{moment(new Date()).format('YYYY-MM-DD HH:mm')}</Description>    
         </DescriptionList>
-        <DescriptionList size="small" col="1">
+
+        <DescriptionList size="small" col="1" style={{marginTop:8}}>
           <Description term="描述">{this.state.desc || '/'}</Description>
         </DescriptionList>
+        
       </div>
     )
   }
 
   render() {
     const title = (
-      <InputInline title={'功能名称 '} value={this.state.data.name} onChange={(value) => this.onOk(value, 'name')} dataType={'Input'} mode={'inline'} />
+      <Authorized authority="function_edit" noMatch={<InputInline title={'功能名称 '} editing={false} value={this.state.data.name} dataType={'Input'} mode={'inline'} />}>
+        <InputInline title={'功能名称 '} value={this.state.data.name} onChange={(value) => this.onOk(value, 'name')} dataType={'Input'} mode={'inline'} />
+      </Authorized>
+      
     )
 
     const action = (
       <div>
-        <Button type='primary' onClick={() => { this.setState({ visible: true }) }}>编辑</Button>
-        <Button type='danger' onClick={this.showDeleteConfirm}>删除</Button>
+          <Authorized authority="functional_edit" noMatch={null }>
+
+            <Button type='primary' onClick={() => { this.setState({ visible: true }) }}>编辑</Button>
+          </Authorized>
+          <Authorized authority="functional_delete" noMatch={null }>
+           <Button type='danger' onClick={this.showDeleteConfirm}>删除</Button>
+          </Authorized>
+        
       </div>
     );
 
@@ -165,8 +180,10 @@ class FunctionalDetail extends React.Component {
         <ObjectDetailContext.Provider value={this.state}>
           <Route path="/applications/:appid/functional/:id" component={Permission} exact />
           <Route path="/applications/:appid/functional/:id/permission" component={Permission} />
-          <Route path="/applications/:appid/functional/:id/log" component={Log} />
-          <Route path="/applications/:appid/functional/:id/statistic" component={Statistic} />
+          
+          {/* <Route path="/applications/:appid/functional/:id/log" component={Log} /> */}
+          <Route path="/applications/:appid/functional/:id/log"  render={props => <Log {...props} upstream={this.upstream} data={this.state.data} />}  />
+          <Route path="/applications/:appid/functional/:id/monit" render={props => <FunctionMonit {...props} upstream={this.upstream} data={this.state.data} />}  />
         </ObjectDetailContext.Provider>
 
         <FunctionModal type={'update'} oriData={this.state.oriData} datas={this.state.datas} data={this.state.data} visible={this.state.visible} onOk={this.onOk} onCancel={() => { this.setState({ visible: false }) }} />

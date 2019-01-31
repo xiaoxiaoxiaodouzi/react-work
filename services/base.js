@@ -1,36 +1,49 @@
 import C2Fetch from '../utils/Fetch';
+import { message } from "antd";
 // import constants from './constants';
 
 let proxy = 'proxy/';
 export let base = {
   currentUser:null,
   environments:[],
-  currentEnvironment:null,
+  currentEnvironment:{},
   tenant:null,
-  configs:null,
+  environment:'1',
+  configs:{},
   menus:[],
   isAdmin:false,
+  safeMode:false,
   isRoleManager:false,
   allpermissions:[],
   getCurrentUser:()=>{
     const url=`ws/getSubject`;
     return C2Fetch.get(url,null,"获取当前用户信息失败");
   },
+  /**
+   * 当前环境匹配顺序
+   * 1. 匹配浏览器本地存储的环境（最后一次在当前浏览器中切换的环境）
+   * 2. 找是否有包含主环境
+   * 3. 默认选择第一个环境
+   */
   getCurrentEnvironment:(allEnviroments)=>{
     if(!allEnviroments || allEnviroments.length === 0) return ;
     let currentEnvironment;
-    allEnviroments.forEach(e => {
-      if (window.localStorage.localEnvironmentId === e.id) currentEnvironment = e;
-      if (e.isMain && currentEnvironment === undefined) currentEnvironment = e;
-    })
-    if(!currentEnvironment){
-      currentEnvironment = allEnviroments[0];
+    let mainEnvironment;
+    for (let index = 0; index < allEnviroments.length; index++) {
+      const e = allEnviroments[index];
+      if (window.localStorage.localEnvironmentId === e.id){
+        currentEnvironment = e;
+        break;
+      } 
+      if(e.isMain)mainEnvironment = e;
     }
+    if(currentEnvironment === undefined)currentEnvironment = mainEnvironment?mainEnvironment:allEnviroments[0];
+    
     return currentEnvironment;
   },
   loginOut:()=>{
     const url=`ws/logout`;
-    return C2Fetch.get(url,null,"退出登录失败");
+    return C2Fetch.get(url,null,false);
   },
   getAppState:(stateCode)=>{
     const stateMap = {
@@ -42,17 +55,18 @@ export let base = {
     }
     return stateMap[stateCode];
   },
-  getEnvironments:()=>{
+  getEnvironments:(params)=>{
     let url = 'amp/v1/envs';
-    return C2Fetch.get(url,null,"获取环境信息失败");
+    return C2Fetch.get(url,params,"获取环境信息失败");
   },
   getEnvironmentsByTenant:(code)=>{
     let url = 'amp/v1/envTenant/tenant/'+code;
+    if(code === 'admin')url = 'amp/v1/envs';
     return C2Fetch.get(url,null,"根据租户获取环境信息失败");
   },
   getAllPermissons:(params)=>{
     let url=proxy+`aip/v1/allpermissions`
-    return C2Fetch.get(url,params,'查询角色下的资源失败')
+    return C2Fetch.get(url,params,'查询角色下的资源失败',{'AMP-ENV-ID':1});
   },
   //过滤到PASS租户
   filterTenantData:(tenantData)=>{
@@ -63,6 +77,10 @@ export let base = {
       }
     })
     return tenants;
+  },
+  ampMessage:(title,description)=>{
+    if(base.configs.errorMessage)message.error(title);
+    if(base.configs.messageBell)base.addMessage({title,description});
   }
- ///aip/v1/allpermissions
+ 
 }

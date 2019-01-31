@@ -1,11 +1,11 @@
 import React, { PureComponent } from 'react';
-import { queryAppAIP,queryAppCCE } from '../../../services/apps';
+import { queryAppCCE } from '../../../services/cce'
 import DataFormate from '../../../utils/DataFormate';
-import { getMiddleware,addMiddleware,deleteMiddleware } from '../../../services/deploy';
+import { getMiddleware,addMiddleware,deleteMiddleware, queryAppAIP } from '../../../services/aip';
 import { Button,Table,Modal,Badge,message,Popconfirm,Icon } from 'antd';
 import Link from 'react-router-dom/Link';
 import {base} from '../../../services/base'
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../../common/Authorized';
 //status={statusMap[text]} text={status[text]} 
 
 const statusMap = { 'succeeded': 'success', 'running': 'processing', 'stop': 'default', 'pending': 'processing', 'exception':'warning','failed':'error' };
@@ -127,7 +127,7 @@ export default class Middleware extends PureComponent {
         }
       });
       return flag;
-    })
+    })    
     keys.forEach(element=>{
       this.addMiddlewareWithApp(appId,element);
     });
@@ -142,7 +142,6 @@ export default class Middleware extends PureComponent {
     this.getAllMiddleware(1,10);
   }
   render() {
-    const Authorized = RenderAuthorized(base.allpermissions);
     const { data,loading,visibleModal,modalData,loadingModalData,modalPage,modalRow,modalTotal,selectedRowKeys } = this.state;
     const columns = [{
       title: '名称',
@@ -241,7 +240,7 @@ export default class Middleware extends PureComponent {
           pagination={false}
           dataSource={data} 
           columns={columns} 
-          rowKey="id"
+          rowKey="name"
         />
         <Modal 
           title="新增中间件"
@@ -252,6 +251,7 @@ export default class Middleware extends PureComponent {
             dataSource={modalData} 
             columns={columnsModal} 
             size='small'
+            rowKey='key'
             pagination={paginationModal} 
             rowSelection={rowSelection}
             loading={loadingModalData} />

@@ -1,19 +1,21 @@
 import React from 'react'
 import { Badge, Button, Tag, Icon, Card, Table, Tooltip } from 'antd';
-import { queryAppAIP, queryAppCCE } from '../../../services/apps';
+import { queryAppAIP } from '../../../services/aip';
+import { queryAppCCE } from '../../../services/cce'
 import Link from 'react-router-dom/Link';
 import SearchInput from './SearchInput';
 import DataFormate from '../../../utils/DataFormate'
 //import {base} from '../../../services/base'
 import constants from '../../../services/constants';
 import { base } from '../../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../../common/Authorized';
 
 export default class AppTable extends React.Component {
     showTotal = () => {
         const { total, current, totalPage } = this.state.pagination;
         return `共 ${total} 条记录  第 ${current}/${totalPage} 页 `;
     }
+    appCodes = null;
     state = {
         loading: false,
         datas: [],
@@ -33,52 +35,88 @@ export default class AppTable extends React.Component {
             total: null,
             pageSize: null,
             current: null,
-            totalPage: null
+            totalPage: null,
+            allStatus:this.props.allStatus,
         },
-        tenant: '',
         environment: '',
+        type:this.props.type,
+        
     }
-    // componentDidMount() {
-        //     this.setState({ tenant: this.props.tenant, environment: this.props.environment }, () => {
-            //         this.getApps();
-            //     });
-            // }
-            componentWillReceiveProps(nextProps) {
-                if ((nextProps.tenant && nextProps.tenant !== this.state.tenant) || (nextProps.environment && nextProps.environment !== this.state.environment) || (nextProps.status && nextProps.status !== this.props.status)) {
-                    let searchParam = {};
-                    if(nextProps.status)searchParam.status = nextProps.status;
-                    this.setState({ tenant: nextProps.tenant, environment: nextProps.environment, searchParam: searchParam }, () => {
-                        this.getApps();
-                    });
-                }
-                
-            }
+
+    appStateMap={};
+
+    componentWillReceiveProps(nextProps) {
+        if(nextProps.allStatus ){
+           this.appStateMap = nextProps.appStateMap;
+           this.setState({
+            allStatus : nextProps.allStatus
+           })
+        }
+
+        if ((nextProps.tenant && nextProps.tenant !== this.props.tenant) || (nextProps.environment && nextProps.environment !== this.state.environment) || (nextProps.status && nextProps.status !== this.props.status)) {
+            let searchParam = {};
             
-            getApps = (page = 1, rows = 10) => {
-                let params = {
-                    name: this.state.searchParam.name?this.state.searchParam.name.trim():'',
-                    tagId: this.state.searchParam.tagId ? this.state.searchParam.tagId.toString() : '',
-                    status: this.state.searchParam.status,
-                };
-                
-                //如果类型参数，则获取中间件列表
-                if (this.props.type) {
-                    params.type = this.props.type;
-                }
-                params.page = page;
-                params.rows = rows;
-                params.tenant = this.state.tenant;
+            if(nextProps.status){
+                searchParam.status = nextProps.allStatus && nextProps.allStatus[ nextProps.status] ?nextProps.status:'';
+                //**********根据状态获取code */
+                //getAppCodeByStatus(upFirstWord(nextProps.status)).then(response => {
+                    let appCodes = nextProps.allStatus && nextProps.allStatus[ nextProps.status]?nextProps.allStatus[ nextProps.status].code:[];
+                    this.appCodes = appCodes;
+                    this.getApps(nextProps.tenant,1,10,appCodes);            
+                //})    
+            }else{
+                this.getApps(nextProps.tenant);
+            }
+            this.setState({ environment: nextProps.environment, searchParam: searchParam ,type:nextProps.type});
+        }
+        
+    }
+    
+    getApps = (tenant,page = 1, rows = 10,codeArr) => {
+        let params = {
+            name: this.state.searchParam.name?this.state.searchParam.name.trim():'',
+            tagId: this.state.searchParam.tagId ? this.state.searchParam.tagId.toString() : '',
+        };
+        
+        //如果类型参数，则获取中间件列表
+        if (this.props.type) {
+            params.type = this.props.type;
+        }
+        params.page = page;
+        params.rows = rows;
+        params.tenant = tenant;
+        
+        if(codeArr){
+            params.code = codeArr;
+            if(codeArr.length===0){
                 this.setState({
-                    loading: true
+                    datas: [],
+                    pagination: {
+                        showSizeChanger: true,
+                        showQuickJumper: true,
+                        showTotal: this.showTotal,
+                        total: 0,
+                        pageSize: 10,
+                        current: 1,
+                        totalPage: 1
+                    },
                 })
-                if(base.isAdmin)params.withOutAuthorize = true;
-                queryAppAIP(params).then(data => {
-                    const aipData = data.contents;
-                    const newPagination = { ...this.state.pagination };
-                    newPagination.total = data.total;
-                    newPagination.current = data.pageIndex;
-                    newPagination.pageSize = data.pageSize;
-                    newPagination.totalPage = data.totalPage;
+
+                return;
+            }
+        }
+        if(base.isAdmin)params.withOutAuthorize = true;
+        this.setState({
+            loading: true
+        })
+        queryAppAIP(params,{'AMP-ENV-ID':base.environment}).then(data => {
+            const aipData = data.contents;
+            const newPagination = { ...this.state.pagination };
+            newPagination.total = data.total;
+            newPagination.current = data.pageIndex;
+            newPagination.pageSize = data.pageSize;
+            newPagination.totalPage = data.totalPage;
+            
             let appIds = []
             aipData.forEach((item, index) => {
                 if (item.code) {
@@ -91,21 +129,24 @@ export default class AppTable extends React.Component {
                 pagination: newPagination
             })
             if(appIds.length>0){
-                queryAppCCE({ appIds }).then(data1 => {
-                    aipData.forEach((item, index) => {
-                        if (data1[item.code]) {
-                            let cceItem = data1[item.code];
-                            delete cceItem.id;
-                            delete cceItem.creator;
-                            delete cceItem.status;
-                            delete cceItem.name;
-                            Object.assign(item, cceItem);
-                        }
+                if(base.configs.passEnabled){
+                    queryAppCCE({ appIds }).then(data1 => {
+                        aipData.forEach((item, index) => {
+                            if (data1[item.code]) {
+                                let cceItem = data1[item.code];
+                                delete cceItem.id;
+                                delete cceItem.creator;
+                                delete cceItem.status;
+                                delete cceItem.name;
+                                Object.assign(item, cceItem);
+                            }
+                        })
+                        this.setState({
+                            datas: aipData
+                        })
                     })
-                    this.setState({
-                        datas: aipData
-                    })
-                })
+                }
+                
             }
         }).catch(err => {
             this.setState({ loading: false, datas: [] })
@@ -118,10 +159,10 @@ export default class AppTable extends React.Component {
         this.setState({
             pagination: newPagination
         });
-        this.getApps(pagination.current, pagination.pageSize);
+        this.getApps(this.props.tenant,pagination.current, pagination.pageSize,this.appCodes);
     }
     handleSearch = () => {
-        this.getApps(1, 10);
+        this.getApps(this.props.tenant,1, 10,this.appCodes);
     }
     tagClick = (id) => {
         const newSearchParam = { ...this.state.searchParam };
@@ -129,25 +170,26 @@ export default class AppTable extends React.Component {
         this.setState({
             searchParam: newSearchParam
         }, () => {
-            this.getApps(1, 10);
+            this.getApps(this.props.tenant,1, 10);
         })
     }
     restFields = () => {
         const searchParam = {
             name: "",
             tagId: [],
-            status: '',
+            status: ''
         };
         this.setState({
-            searchParam
+            searchParam,
+            codes:null
         }, () => {
-            this.getApps(1, 10);
+            this.appCodes = null;
+            this.getApps(this.props.tenant,1, 10);
         })
         this.props.onStatusChange();
     }
     searchChange = (value) => {
         const newSearchParam = { ...this.state.searchParam };
-        
         if (value.name || value.name === '') {
             newSearchParam.name = value.name;
         }
@@ -155,18 +197,15 @@ export default class AppTable extends React.Component {
             newSearchParam.tagId = value.tagId;
         }
         if (value.status) {
+            //**********根据状态获取code */
             newSearchParam.status = value.status;
-            this.props.onStatusChange(value.status);
+            this.appCodes = this.state.allStatus[value.status].code; 
         }
         this.setState({
             searchParam: newSearchParam
         })
     }
-    
-    
     render() {
-        const Authorized = RenderAuthorized(base.allpermissions);
-
         const appTypeRender = (record)=>{
             if(record.type === 'web')return <Tooltip title='Web应用'><Icon type="desktop" style={{paddingRight:'5px'}}/></Tooltip>
             if(record.type === 'app')return <Tooltip title='APP'><Icon type="mobile" style={{paddingRight:'5px'}} /></Tooltip>
@@ -174,7 +213,7 @@ export default class AppTable extends React.Component {
         }
         
         //表格列
-        const columns = [{
+        let columns = [{
             title: '名称',
             dataIndex: 'name',
             key: 'name',
@@ -234,6 +273,7 @@ export default class AppTable extends React.Component {
             width: '100px',
             render: (value, record) => {
                 return (
+                    record.deployMode === 'k8s' ? 
                     <Tooltip title={
                         <div>
                             <p style={{marginBottom: 0}}>集群：{!record.clusterName && '--'}</p>{!record.clusterName?'':<p style={{marginBottom:2,textIndent:'1em'}}>{record.clusterName }</p>}
@@ -243,8 +283,10 @@ export default class AppTable extends React.Component {
                                 return <p key={index} style={{marginBottom:2,textIndent:'1em'}}> <Link style={{color:'yellow'}} to={'setting/images/' + imageInfo[0] + '?' + item.split('/')[1]}>{imageInfo[0]}</Link><Icon type="tag-o" style={{ fontSize: 12 }} />{imageInfo[1]}</p>
                             }) : '--'}</p>
                         </div>} overlayClassName="maxWithNone" overlayStyle={{maxWidth:'none'}}>
-                        <span>{record.deployMode === 'k8s' ? '云部署' : '外置部署'}</span>
-                    </Tooltip>)
+                        <span>云部署</span>
+                    </Tooltip> : 
+                    '外置部署'
+                )
             }
         }, {
             title: '实例个数',
@@ -254,10 +296,21 @@ export default class AppTable extends React.Component {
             render: (value, record) => (record.replicas === undefined || record.totalReplicas === undefined) ? '--' : record.replicas + "/" + record.totalReplicas
         }, {
             title: '状态',
-            dataIndex: 'status',
-            key: 'status',
+            // dataIndex: 'status',
+            // key: 'status',
             width: '100px',
-            render: (value, record) => <Badge status={constants.APP_STATE_EN[value]} text={constants.APP_STATE_CN[value]} />
+            render: (value, record) => {
+                let codeValue = this.appStateMap[record.code];
+                let appStatus = codeValue?codeValue.toLowerCase():'unknown';
+                let en = constants.APP_STATE_EN[appStatus];  
+                
+                if(codeValue){
+                    let cn = codeValue?this.state.allStatus[codeValue].statusName:'';
+                    return <Badge status={en} text={cn} /> 
+                }else{
+                    return "--"
+                }                
+            }
         }, {
             title: '运行时间',
             dataIndex: 'createtime',
@@ -278,33 +331,26 @@ export default class AppTable extends React.Component {
             }
 
         }];
-       // console.log(base.allpermissions)
+
+        if(!base.configs.APMEnabled){
+            columns.splice(2,1);
+        }
+        console.log(this.state.allStatus);
         return (
-            <Card bordered={false} style={{ margin: 24 }}
-            >
-                {/* <Row style={{
-                    fontSize: '16px', fontWeight: 500,
-                    marginBottom: '24px', color: 'rgba(0, 0, 0, 0.85)'
-                }}>
-                    <Col span={6}>应用列表</Col>
-                    <Col span={6} offset={12}>
-                        <Search placeholder="请输入" onBlur={e => this.onSearchName(e.target.value)} onSearch={value => this.onSearchName(value)} />
-                    </Col>
-                </Row> */}
+            <Card bordered={false} style={{ margin: 24 }}>
                 <SearchInput
                     tenant={this.props.tenant}
                     environment={this.props.environment}
                     handlesearch={this.handleSearch}
                     searchparam={this.state.searchParam}
                     restfields={this.restFields}
+                    allStatus={this.state.allStatus}
                     searchchange={this.searchChange} />
-                <Link to={{ pathname: '/addapp', search: this.props.type }}>
-
-                <Authorized authority={this.props.type?'middleware_add':'app_add'} noMatch={null}>
-                    <Button type="primary" style={{ marginBottom: 16, marginTop: 24 }} icon="plus">新建</Button>
+                <Authorized authority={this.state.type === "middleware" ?'middleware_add':'app_add'} noMatch={null}>
+                    <Link to={{ pathname: '/addapp', search: this.state.type }}>
+                        <Button type="primary" style={{ marginBottom: 16}} icon="plus">新建</Button>
+                    </Link>
                 </Authorized>
-
-                </Link>
                 <Table columns={columns} dataSource={this.state.datas}
                     rowKey={record => record.id} loading={this.state.loading}
                     pagination={this.state.pagination} onChange={this.onTableChange} />

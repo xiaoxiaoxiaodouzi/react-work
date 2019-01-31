@@ -1,11 +1,11 @@
 import React, { Component, Fragment } from 'react'
 import PropTypes from 'prop-types'
 import { Table, Divider, Popconfirm, Icon } from 'antd'
-import { getResources, } from '../../../services/functional'
+import { getResources } from '../../../services/aip'
 import Link from 'react-router-dom/Link';
 import constants from '../../../services/constants'
-import { base } from '../../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../../common/Authorized';
+import Ellipsis from 'ant-design-pro/lib/Ellipsis';
 
 export default class FunctionTable extends Component {
 	static propTypes = {
@@ -73,7 +73,6 @@ export default class FunctionTable extends Component {
 	}
 
 	render() {
-		const Authorized = RenderAuthorized(base.allpermissions);
 		const columns = [
 			{
 				title: '名称', dataIndex: 'name', key: 'name',width:'20%', render: (text, record) => {
@@ -87,20 +86,20 @@ export default class FunctionTable extends Component {
 			{ title: 'URL', dataIndex: 'uri', key: 'uri',width:'10%' },
 			/* { title: '标签', dataIndex: 'tag', key: 'tag' }, */
 			{
-				title: '图标', dataIndex: 'fontIcon', key: 'fontIcon',width:'6%', render: (text) => {
+				title: '图标', dataIndex: 'fontIcon', key: 'fontIcon',width:'7%', render: (text) => {
 					return <Icon type={text} />
 				}
 			},
 			{ title: '编码', dataIndex: 'code', key: 'code'},
 			{
-				title: '关联角色', dataIndex: 'roleList', key: 'roleList', render: (text, record) => {
+				title: '关联角色', dataIndex: 'roleList',width:200, key: 'roleList', render: (text, record) => {
 					let ary = [];
 					if (record.roleList && record.roleList.length > 0) {
 						record.roleList.forEach(i => {
 							ary.push(i.name);
 						})
 					}
-					return ary.join(',')
+					return <Ellipsis tooltip lines={1} length={200}>{ary.join(',')}</Ellipsis>
 				}
 			},
 			{
@@ -109,7 +108,7 @@ export default class FunctionTable extends Component {
 				}
 			},
 			{
-				title: '操作', key: 'operation',width:'15%', render: (record, text) =>
+				title: '操作', key: 'operation',width:'20%', render: (record, text) =>
 					<Fragment>
 						<Authorized authority='app_addFunction' noMatch={<a disabled="true" onClick={e => this.props.ModalVisible('addResource', record)} > 新增</a>}>
 							<a onClick={e => this.props.ModalVisible('addResource', record)} > 新增</a>

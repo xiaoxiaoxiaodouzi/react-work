@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import { Table, Card,message,Divider,InputNumber} from "antd";
-import { getTenantQuota,getTenantById,updateQuota,getApplicationRes } from "../../services/tenants";
+import { getTenantById, getTenantQuota, updateQuota } from '../../services/tp';
+import { getApplicationRes } from '../../services/cce';
 import constants from '../../services/constants';
 
 export default class QuotaList extends Component {

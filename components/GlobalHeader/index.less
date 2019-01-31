@@ -16,14 +16,14 @@
     .logo {
         height: 64px;
         line-height: 58px;
-        verticalAlign: top;
+        vertical-align: top;
         display: inline-block;
         padding: 0 0 0 24px;
         cursor: pointer;
         font-size: 20px;
         img {
             display: inline-block;
-            verticalAlign: middle;
+            vertical-align: middle;
         }
     }
     .menu {
@@ -54,13 +54,13 @@
             display: inline-block;
             transition: all .3s;
             height: 100%;
-            >i {
-                font-size: 16px;
-                verticalAlign: middle;
-            }
             &:hover,
             &:global(.ant-popover-open) {
                 background: @primary-1;
+            }
+            > i {
+                vertical-align: middle;
+                color: @text-color;
             }
         }
         .search {
@@ -72,17 +72,20 @@
         }
         .account {
             .avatar {
+                i.anticon-user {
+                    font-size: 16px;
+                }
                 margin: 20px 8px 20px 0;
                 color: @primary-color;
                 background: rgba(255, 255, 255, .85);
-                verticalAlign: middle;
+                vertical-align: middle;
             }
         }
     }
 }
 
 :global(.ant-divider-vertical) {
-    verticalAlign: unset;
+    vertical-align: unset;
 }
 
 @media only screen and (max-width: @screen-md) {

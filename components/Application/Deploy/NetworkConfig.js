@@ -1,8 +1,7 @@
 import React, { PureComponent,Fragment } from 'react';
 import { Button,Table,Select,message,Divider,InputNumber,Tooltip,Icon,Alert } from 'antd';
 import showConfirmModal from './ShowConfirmModal';
-import { base } from '../../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../../common/Authorized';
 const Option = Select.Option;
 /* 部署页面网络配置,props(networkConfigs,node)
  * networkConfigs arr 集群数据
@@ -256,7 +255,6 @@ export default class NetworkConfig extends PureComponent {
     this.showConfirmAddOrEdit(e,key,temp);
   }
   render() {
-    const Authorized = RenderAuthorized(base.allpermissions);
     const titleTip = (
       <Tooltip title="端口必须在30000-32767之间,为空时平台自动分配">
           <Icon type="info-circle-o" />
@@ -384,12 +382,12 @@ export default class NetworkConfig extends PureComponent {
           return (
             <span>
               { !this.props.isAddApp?
-              <Authorized authority='app_editNet' noMatch={<a disabled="true" onClick={e =>this.onEdit(record.key)}>编辑</a>}>
+              <Authorized authority={this.props.type==='middleware'?'middlewares_editNet':'app_editNet'} noMatch={<a disabled="true" onClick={e =>this.onEdit(record.key)}>编辑</a>}>
                 <a onClick={e =>this.onEdit(record.key)}>编辑</a>
               </Authorized>
               : '' }
               <Divider type="vertical" />
-              <Authorized authority='app_deleteNet' noMatch={<a disabled="true" onClick={e =>this.props.isAddApp? this.remove(record.key) :this.showConfirmDelete(e,record.key)}>删除</a>}>
+              <Authorized authority={this.props.type==='middleware'?'middlewares_deleteNet':'app_deleteNet'} noMatch={<a disabled="true" onClick={e =>this.props.isAddApp? this.remove(record.key) :this.showConfirmDelete(e,record.key)}>删除</a>}>
                 <a onClick={e =>this.props.isAddApp? this.remove(record.key) :this.showConfirmDelete(e,record.key)}>删除</a>
               </Authorized>
             </span>
@@ -413,9 +411,9 @@ export default class NetworkConfig extends PureComponent {
           pagination={false}
           dataSource={data} 
           columns={columns} 
-          rowKey="id"
+          rowKey="containerName"
         /> 
-        <Authorized authority='app_addNet' noMatch={<Button disabled="true" style={{ width: '100%', marginTop: 16, marginBottom: 8 }}type="dashed"onClick={this.newRecord}icon="plus">添加网络配置</Button>}>
+        <Authorized authority={this.props.type==='middleware'?'middlewares_addNet':'app_addNet'} noMatch={<Button disabled="true" style={{ width: '100%', marginTop: 16, marginBottom: 8 }}type="dashed"onClick={this.newRecord}icon="plus">添加网络配置</Button>}>
           <Button
             style={{ width: '100%', marginTop: 16, marginBottom: 8 }}
             type="dashed"

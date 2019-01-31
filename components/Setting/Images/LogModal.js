@@ -1,6 +1,6 @@
 import React,{Component} from 'react'
 import {Modal} from 'antd'
-import {getLogs} from '../../../services/images'
+import {getLogs} from '../../../services/cce'
 export default class LogModal extends Component{
   state={
     visible:false,

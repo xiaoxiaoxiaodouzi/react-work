@@ -1,6 +1,6 @@
 import React, { Component, Fragment } from 'react';
 import { Table, Row, Col, Form, Input, Button } from 'antd';
-import { getUsersByRoleId } from '../../../services/functional'
+import { getUsersByRoleId } from '../../../services/aip'
 import PropTypes from 'prop-types'
 import constants from '../../../services/constants'
 const FormItem = Form.Item;
@@ -58,18 +58,28 @@ class UserForm extends Component {
 
   renderSimple = () => {
     const { getFieldDecorator } = this.props.form;
+    const formItemLayout = {
+			labelCol: {
+				xs: { span: 24 },
+				sm: { span: 8 },
+			},
+			wrapperCol: {
+				xs: { span: 24 },
+				sm: { span: 16 },
+			},
+		};
     return (
       <div className='tableList'>
         <Form onSubmit={this.handleSearch} layout="inline">
-          <Row style={{ marginBottom: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
-            <Col md={8} sm={24}>
-              <FormItem label="用户名">
+          <Row style={{ marginBottom: 12 }} gutter={{ md: 4, lg: 12, xl: 18 }}>
+            <Col span={8}>
+              <FormItem {...formItemLayout} label="用户名">
                 {getFieldDecorator('name')(
                   <Input placeholder="请输入" />
                 )}
               </FormItem>
             </Col>
-            <Col md={8} sm={24}>
+            <Col span={16}>
               <span style={{ float: 'right' }}>
                 <Button type="primary" htmlType="submit" onClick={this.handleSearch}>查询</Button>
                 <Button style={{ marginLeft: 8 }} onClick={this.handleFormReset}>重置</Button>

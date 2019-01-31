@@ -1,9 +1,8 @@
 import React, { PureComponent } from 'react';
-import { queryMountableVolumes,createVolumes } from '../../../services/deploy';
+import { queryMountableVolumes, createVolumes } from '../../../services/cce'
 import { Button,Table,Input,message,Modal,Divider,Select,Form } from 'antd';
 import showConfirmModal from './ShowConfirmModal';
-import { base } from '../../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../../common/Authorized';
 const Option = Select.Option;
 const FormItem = Form.Item;
 /* 部署页面存储卷,props(volumes,afterstorage)
@@ -219,8 +218,10 @@ class Storages extends PureComponent {
     });
   }
   render() {
-    const Authorized = RenderAuthorized(base.allpermissions);
-    const { data,mountableVolumes,visibleModal,name,storage,storageValue } = this.state;
+    //console.log('123',this.props.type==='middleware'?'middlewares_addStorageVolume':'app_addStorageVolume',base.allpermissions.includes('middlewares_addStorageVolume'),base.allpermissions);
+    //console.log("xxxx",...base.allpermissions);
+    const { data,mountableVolumes,visibleModal,storage,storageValue } = this.state;
+    const { getFieldDecorator } = this.props.form;
     const formItemLayout = {
       labelCol: {
         sm: { span: 5 },
@@ -296,7 +297,7 @@ class Storages extends PureComponent {
           );
         }
         return (
-          <Authorized authority='app_cancelMount' noMatch={<a disabled='true' onClick={e =>this.props.isAddApp? this.remove(record.key):this.showConfirmDelete(e,record.key)}>取消挂载</a>}>
+          <Authorized authority={this.props.type==='middleware'?'middlewares_cancelMount':'app_cancelMount'} noMatch={<a disabled='true' onClick={e =>this.props.isAddApp? this.remove(record.key):this.showConfirmDelete(e,record.key)}>取消挂载</a>}>
             <a onClick={e =>this.props.isAddApp? this.remove(record.key):this.showConfirmDelete(e,record.key)}>取消挂载</a>
           </Authorized>
         );
@@ -310,9 +311,9 @@ class Storages extends PureComponent {
           dataSource={data} 
           loading={this.props.storageLoading}
           columns={columns} 
-          rowKey="id"
+          rowKey="name"
         />
-        <Authorized authority='app_addStorageVolume' noMatch={<Button disabled="true" style={{ width: '100%', marginTop: 16, marginBottom: 8 }}type="dashed" onClick={this.newRecord} icon="plus">添加</Button> }>
+        <Authorized authority={this.props.type==='middleware'?'middlewares_addStorageVolume':'app_addStorageVolume'} noMatch={'' }>
           <Button
             style={{ width: '100%', marginTop: 16, marginBottom: 8 }}
             type="dashed"
@@ -322,6 +323,7 @@ class Storages extends PureComponent {
             添加
           </Button> 
         </Authorized>
+        
         <Modal 
           title="创建存储卷"
           visible={visibleModal}
@@ -333,7 +335,18 @@ class Storages extends PureComponent {
           }}>
           <Form>
             <FormItem {...formItemLayout} label="名称">
-              <Input onChange={e => this.setState({name:e.target.value})} value={name} placeholder="存储卷名称"/>
+            {getFieldDecorator("name",{rules:[
+              {
+                validator:(rule, value, callback) => {
+                  const reg = /^[a-z0-9-]([a-z0-9-]*[a-z0-9-])?$/;
+                  if(value !=='' && !reg.test(value)){
+                    callback('只接受数字、小写字母和中划线!');
+                  }
+                  callback();
+                }
+              }
+            ]})(
+            <Input onChange={e => this.setState({name:e.target.value})} placeholder="存储卷名称"/>)}
             </FormItem>
             <FormItem {...formItemLayout} label="容量">
               <Select value={storage} placeholder="选择容量" onChange={value => this.setState({storage:value})}>

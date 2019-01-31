@@ -1,16 +1,16 @@
 import React, { Fragment } from 'react';
 import PropTypes from 'prop-types';
 import Link from 'react-router-dom/Link';
-import { Row, Col, Input, Button, Table, Select, Divider, Icon, Dropdown, Menu, TreeSelect, Form, Modal, Radio, message } from 'antd';
+import  { Popconfirm,Row, Col, Input, Button, Table, Select, Divider, Icon, Dropdown, Menu, TreeSelect, Form, Modal, Radio, message } from 'antd';
 import Ellipsis from 'ant-design-pro/lib/Ellipsis';
 import ServerImport from './ServerImport';
 import ServerAddModal from '../../../components/Application/Api/ServerAddModal';
-import { removeServicesApis, queryAllGroups, queryAllServices, queryServiceData, queryTags, removeServicesApisBatch } from '../../../services/api';
+import { removeServicesApis,clearAllApis, queryAllGroups, queryAllServices, queryAppTags, removeServicesApisBatch } from '../../../services/aip';
 import TreeHelp from '../../../utils/TreeHelp';
 import { base } from '../../../services/base';
 import { GlobalHeaderContext } from '../../../context/GlobalHeaderContext'
 import SynService from '../../../components/Application/Api/SynService'
-import RenderAuthorized from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../../common/Authorized';
 
 const confirm = Modal.confirm;
 const RadioGroup = Radio.Group;
@@ -67,6 +67,8 @@ class ProvidedServices extends React.Component {
 			filterMethod: '',
 			isServerAddModalShow: false,
 			expandForm: false,
+			clearAllLoading:false,
+			synLoading:false,
 			pagination: { current: 1, total: 1, showTotal: this.showTotal, pageSize: 1, totalPage: 1, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, },
 		}
 
@@ -94,7 +96,7 @@ class ProvidedServices extends React.Component {
 		}
 	}
 	getTags = (groupId) => {
-		queryTags(groupId)
+		queryAppTags(groupId)
 			.then((response) => {
 				console.log('objectres', response);
 				response.forEach(element => {
@@ -136,7 +138,7 @@ class ProvidedServices extends React.Component {
 			}
 		}
 		this.setState({ loading: true });
-		queryAllServices(groupId, page, rows, value, filterMethod, name, uri, tenant).then(response => {
+		queryAllServices(groupId, page, rows, value, filterMethod, name.replace(/(^\s+)|(\s+$)/g,""), uri.replace(/(^\s+)|(\s+$)/g,""), tenant).then(response => {
 			let pagination = { current: response.pageIndex, showTotal: this.showTotal, totalPage: response.totalPage, total: response.total, pageSize: response.pageSize, pageSizeOptions: ['10', '20', '30', '50'], showSizeChanger: true, showQuickJumper: true, };
 			this.setState({
 				dataSource: response.contents,
@@ -147,20 +149,21 @@ class ProvidedServices extends React.Component {
 			response.contents.forEach(element => {
 				names.push(element.code)
 			})
-			queryServiceData(names.toString()).then((data) => {
-				//this.setState({dataSource:data});
-				response.contents.forEach(element => {
-					data.forEach(item => {
-						if (element.serviceName === item.serviceName) {
-							element.count = item.count;
-							element.time = item.time;
-						}
-					})
-					/* element.count = 12;
-					element.time = 222; */
-				})
-				this.setState({ dataSource: response.contents })
-			})
+			//服务统计
+			// queryServiceData(names.toString()).then((data) => {
+			// 	//this.setState({dataSource:data});
+			// 	response.contents.forEach(element => {
+			// 		data.forEach(item => {
+			// 			if (element.serviceName === item.serviceName) {
+			// 				element.count = item.count;
+			// 				element.time = item.time;
+			// 			}
+			// 		})
+			// 		/* element.count = 12;
+			// 		element.time = 222; */
+			// 	})
+			// 	this.setState({ dataSource: response.contents })
+			// })
 		}).catch(err => {
 			this.setState({ loading: false, dataSource: [], pagination: false });
 		})
@@ -171,7 +174,6 @@ class ProvidedServices extends React.Component {
 			title: '名称',
 			dataIndex: 'name',
 			key: 'name',
-			width: '20%',
 			render: (text, record) => {
 				return (
 					<Link to={`/apis/${record.id}`}><Ellipsis style={{ margingLeft: 5 }} lines={1} tooltip={true}>{text}</Ellipsis></Link>
@@ -181,7 +183,7 @@ class ProvidedServices extends React.Component {
 			title: '方法',
 			dataIndex: 'methods',
 			key: 'methods',
-			width: '10%',
+			width: '78px',
 			render: (text, record) => {
 				return (
 					<Row>
@@ -193,7 +195,6 @@ class ProvidedServices extends React.Component {
 			title: '路径',
 			dataIndex: 'uri',
 			key: 'uri',
-			width: '25%',
 			render: (text, record) => {
 				return <Ellipsis style={{ margingLeft: 5 }} lines={1} tooltip={true}>{text}</Ellipsis>
 			}
@@ -201,35 +202,36 @@ class ProvidedServices extends React.Component {
 			title: '级别',
 			dataIndex: 'visibility',
 			key: 'visibility',
-			width: '70px',
+			width: '64px',
 			render: (text, record) => {
 				return text === '1' ? '普通' : text === '0' ? '私有' : '公开'
 			}
-		}, {
-			title: '统计',
-			dataIndex: 'grantion',
-			key: 'grantion',
-			width: '130px',
-			align: 'right',
-			render: (text, record) => {
-				if (!record.count && !record.time) {
-					return '--'
-				}
-				return (record.count ? record.count + '次' : '--') + ' | ' + (record.time ? record.time + 'ms' : '--')
-			}
+		// }, {
+		// 	title: '统计',
+		// 	dataIndex: 'grantion',
+		// 	key: 'grantion',
+		// 	width: '80px',
+		// 	align: 'right',
+		// 	render: (text, record) => {
+		// 		if (!record.count && !record.time) {
+		// 			return '--'
+		// 		}
+		// 		return (record.count ? record.count + '次' : '--') + ' | ' + (record.time ? record.time + 'ms' : '--')
+		// 	}
 		}, {
 			title: '操作',
 			dataIndex: 'options',
 			key: 'options',
-			width: '147px',
+			width: '150px',
 			render: (text, record) => {
+				let disabled = !base.allpermissions.includes('service_delete') && !record.owned
 				const menu = (
 					<Menu>
 						<Menu.Item>
 							<Link to={`/apis/${record.id}`}>配置</Link>
 						</Menu.Item>
 						<Menu.Divider />
-						<Menu.Item disabled={!base.allpermissions.includes('service_delete')} onClick={() => {
+						<Menu.Item disabled={disabled} onClick={() => {
 							if (record.appNumber) {
 								message.error(`[${record.name}]服务已经授权，不可删除`)
 								return;
@@ -416,16 +418,18 @@ class ProvidedServices extends React.Component {
 	renderExpandForm = () => {
 		const formItemLayout = {
 			labelCol: {
-				span: 4
+				xs: { span: 24 },
+				sm: { span: 8 },
 			},
 			wrapperCol: {
-				span: 20
+				xs: { span: 24 },
+				sm: { span: 16 },
 			},
 		};
 		return (
 			<Form >
-				<Row gutter={16} >
-					<Col lg={6} md={8} sm={24}>
+				<Row gutter={{ md: 4, lg: 12, xl: 18 }} >
+					<Col span={6}>
 						<FormItem {...formItemLayout} label={!this.props.editable ? "应用&标签" : "标签"}>
 							<TreeSelect treeDefaultExpandAll
 								showSearch={true}
@@ -439,21 +443,21 @@ class ProvidedServices extends React.Component {
 							/>
 						</FormItem>
 					</Col>
-					<Col lg={5} md={8} sm={24}>
+					<Col span={5}>
 						<FormItem {...formItemLayout} label="服务名称">
 							<Input
 								onChange={(e) => { this.setState({ name: e.target.value }) }} value={this.state.name}
 								placeholder="请输入服务名称" />
 						</FormItem>
 					</Col>
-					<Col lg={5} md={8} sm={24}>
+					<Col span={5}>
 						<FormItem {...formItemLayout} label="服务路径">
 							<Input
 								onChange={(e) => { this.setState({ uri: e.target.value }) }} value={this.state.uri}
 								placeholder="请输入服务路径" />
 						</FormItem>
 					</Col>
-					<Col lg={4} md={8} sm={24}>
+					<Col span={4}>
 						<FormItem {...formItemLayout} label="请求方法">
 							<Select style={{ width: '100%' }}
 								placeholder="选择服务请求方法"
@@ -467,7 +471,7 @@ class ProvidedServices extends React.Component {
 							</Select>
 						</FormItem>
 					</Col>
-					<Col style={{ float: 'right' }} lg={4} md={8} sm={24}>
+					<Col style={{ float: 'right' }} span={4}>
 						<span style={{ float: 'right' }} >
 							<Button
 								htmlType="submit"
@@ -487,8 +491,8 @@ class ProvidedServices extends React.Component {
 
 	//同步按钮操作
 	showModal = () => {
+		this.setState({synLoading:true});
 		if (this.props.editable) {
-			console.log('aaaa', this.props.appId)
 			this.setState({ synGroupId: this.props.appId, visible: true })
 		} else {
 			if (this.state.value) {
@@ -502,16 +506,24 @@ class ProvidedServices extends React.Component {
 					}
 				})
 			} else {
+				this.setState({synLoading:false})
 				message.error('请先选择应用标签')
 			}
 		}
 	}
-
+	clearAllApis = () => {
+		this.setState({clearAllLoading:true})
+		clearAllApis(this.props.appId).then(data => {
+			this.setState({clearAllLoading:false});
+			this._pullData(this.groupId, 1, 10, this.props.tenant);
+		}).catch(err =>{
+			this.setState({clearAllLoading:false});
+		})
+	}
 	handleOk = () => {
-		this.setState({ visible: false })
+		this.setState({ visible: false,synLoading:false })
 	}
 	render() {
-		const Authorized = RenderAuthorized(base.allpermissions);
 		let tempData = [];
 		this.state.treeData.forEach(element => {
 			tempData.push({ ...element, children: null });
@@ -534,12 +546,14 @@ class ProvidedServices extends React.Component {
 							<ServerImport appId={this.props.appId} upstream={this.props.upstream} hasChange={this._hasChange} />
 						</Authorized>
 						<Authorized authority='service_add' noMatch={null}>
-							<Button onClick={() => this.setState({ isServerAddModalShow: true })} style={{ marginLeft: 8, marginRight: 8 }}>添加</Button>
+							<Button onClick={() => this.setState({ isServerAddModalShow: true })} style={{ marginLeft: 8}}>添加</Button>
 						</Authorized>
-						<Button onClick={() => this.onDebugger()} style={{ marginLeft: 8, marginRight: 8 }}>在线文档</Button>
+						<Button onClick={() => this.onDebugger()} style={{ marginLeft: 8 }}>在线文档</Button>
 						<Authorized authority='service_synchronize' noMatch={null}>
-							<Button onClick={() => this.showModal()} type='primary'>同步</Button>
+							<Button onClick={() => this.showModal()} loading={this.state.synLoading} style={{ marginLeft: 8 }}>同步</Button>
 						</Authorized>
+						{this.props.appId?<Popconfirm title="是否确定当前应用下的所有服务？" onConfirm={this.clearAllApis}><Button loading={this.state.clearAllLoading} style={{ marginLeft: 8 }}>清空所有服务</Button></Popconfirm>:""}
+						
 						<Modal
 							title="文档预览"
 							okText='预览'
@@ -591,7 +605,7 @@ class ProvidedServices extends React.Component {
 					columns={this._getColumn()}
 					onChange={this._onChange} />
 
-			</ div>
+			</div>
 		)
 	}
 }

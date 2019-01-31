@@ -1,8 +1,8 @@
 import React, { Component, Fragment } from 'react'
 import PropTypes from 'prop-types'
 import { Tree, Input, Select, Tabs, Tag, Form, Table, Button } from "antd";
-import { getTopOrgs, getCategoryOrgs, getOrgsTree, getChildrenOrgs, getUsergroups, getUserCount, getJobs, searchOrgByName } from '../../services/functional'
-
+import { getJobs, getUserCount, getTopOrgs, getCategoryOrgs, getOrgsTree, getChildrenOrgs, getUsergroups, searchOrgByName } from '../../services/uop';
+import Ellipsis from 'ant-design-pro/lib/Ellipsis';
 const tagValue = {
   'ORG': '机构',
   'JOB': '岗位',
@@ -508,29 +508,38 @@ class UserUnionTree extends Component {
       width: '20%'
     }, {
       title: '机构名称',
-      dataIndex: '',
+      width: '30%',
       render: (text, record) => {
         return record.orgName + '-' + record.categoryOrgName
       }
     }, {
       title: '描述',
       dataIndex: 'desc',
-      width: '30%'
+      width: '30%',
+      render:(text)=>{
+        return <Ellipsis tooltip lines={1}>{text}</Ellipsis>
+      }
     }, {
       title: '用户数',
-      dataIndex: 'userCount'
+      dataIndex: 'userCount',
+      align:'center',
+      width:120
     }];
     const columnUserunion = [{
       title: '用户组名称',
       dataIndex: 'name',
-      width: '20%'
+      width: 300
     }, {
       title: '描述',
       dataIndex: 'desc',
-      width: '40%'
+      render:(text)=>{
+        return <Ellipsis tooltip lines={1}>{text}</Ellipsis>
+      }
     }, {
       title: '用户数',
-      dataIndex: 'userCount'
+      dataIndex: 'userCount',
+      align:'center',
+      width:120
     }];
     const rowSelectionJob = {
       selectedRowKeys: this.state.checkedJobKeys,
@@ -615,7 +624,7 @@ class UserUnionTree extends Component {
             </Form>
 
 
-            {this.state.treeDataOrg.length
+            {this.state.treeDataOrg && this.state.treeDataOrg.length > 0
               ? <Tree
                 loadData={this.loadtreeDataOrg}
                 checkable
@@ -624,7 +633,7 @@ class UserUnionTree extends Component {
                 checkedKeys={this.state.checkedOrgKeys} >
                 {this.renderTreeNodes(this.state.treeDataOrg)}
               </Tree>
-              : '数据加载中...'}
+              :this.state.treeDataOrg.length===0?"无数据":'数据加载中...'}
           </TabPane>
           <TabPane tab="岗位" key="2">
             <Form layout="inline" style={{ marginBottom: 16 }} onSubmit={(e) => this.onSubmit('job', e)}>

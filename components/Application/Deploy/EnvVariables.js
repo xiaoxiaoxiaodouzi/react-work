@@ -1,9 +1,10 @@
 import React, { PureComponent } from 'react';
 import { Button, Table, Alert, Popconfirm, Divider, Input, message, Select, Badge, Modal, Row, Col } from 'antd';
-import { appStart } from '../../../services/appdetail';
-import { queryEnvs, addEnvs, editEnvs, deleteEnvs, resetEnv, batchAddEnvs } from '../../../services/deploy';
+import { appStart, queryEnvs, batchAddEnvs, editEnvs, resetEnv } from '../../../services/cce';
+import { addAppEnvs, deleteAppEnvs } from '../../../services/cce';
+import Authorized from '../../../common/Authorized';
+import Ellipsis from 'ant-design-pro/lib/Ellipsis';
 import { base } from '../../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
 const Option = Select.Option;
 const { TextArea } = Input;
 const envRegexp = /^[A-Za-z_]([A-Z0-9a-z_])*$/;
@@ -83,13 +84,13 @@ export default class EnvVariables extends PureComponent {
       source: target.source
     };
     this.setState({ loading: true });
-    addEnvs(appCode, operationkey, params).then(() => {
+    addAppEnvs(appCode, operationkey, params).then(() => {
       //this.setState({showWarning:true});
       this.loadData(appCode, operationkey);
       message.success("环境变量添加成功");
-    }).catch(() => {
+    }).catch((e) => {
       this.loadData(appCode, operationkey);
-      message.error("环境变量添加失败");
+      base.ampMessage("环境变量添加失败" );
     });
   }
   //批量添加env 
@@ -99,21 +100,22 @@ export default class EnvVariables extends PureComponent {
     batchAddEnvs(appCode, operationkey, envs).then(() => {
       this.loadData(appCode, operationkey);
       message.success("环境变量导入成功");
-    }).catch(() => {
+      this.setState({ visibleModal: false });
+    }).catch((e) => {
       this.loadData(appCode, operationkey);
-      message.error("环境变量导入失败");
+      base.ampMessage("环境变量导入失败" );
     });
   }
   //删除env
   deleteData = (key) => {
     const { appCode, operationkey } = this.state;
     this.setState({ loading: true });
-    deleteEnvs(appCode, operationkey, key).then(() => {
+    deleteAppEnvs(appCode, operationkey, key).then(() => {
       this.loadData(appCode, operationkey);
       message.success("环境变量删除成功");
-    }).catch(() => {
+    }).catch((e) => {
       this.loadData(appCode, operationkey);
-      message.error("环境变量删除失败");
+      base.ampMessage("环境变量删除失败" );
     });
   }
   //修改env 
@@ -129,9 +131,9 @@ export default class EnvVariables extends PureComponent {
     editEnvs(appCode, operationkey, params, key).then(() => {
       message.success("环境变量修改成功");
       this.loadData(appCode, operationkey);
-    }).catch(() => {
+    }).catch((e) => {
       this.loadData(appCode, operationkey);
-      message.error("环境变量修改失败");
+      base.ampMessage("环境变量修改失败" )
     });
   }
   toggleEditable = (e, key) => {
@@ -293,8 +295,8 @@ export default class EnvVariables extends PureComponent {
     resetEnv(appCode, operationkey, target.id, params).then(() => {
       message.success('环境变量撤销修改成功');
       this.loadData(appCode, operationkey);
-    }).catch(() => {
-      message.error('环境变量撤销修改失败');
+    }).catch((e) => {
+      base.ampMessage('环境变量撤销修改失败' );
       this.loadData(appCode, operationkey);
     });
   }
@@ -314,7 +316,7 @@ export default class EnvVariables extends PureComponent {
       }
       textEnvs += element.name + '=' + value + '\n';
     });
-    console.log('dataenvs', this.state.data, textEnvs);
+    //console.log('dataenvs', this.state.data, textEnvs);
     this.setState({ visibleModal: true, textEnvs });
   }
   checkEnvs = () => {
@@ -406,10 +408,10 @@ export default class EnvVariables extends PureComponent {
       });
       this.setState({ data: newData });
       this.props.afterenvconf(newData);
+      this.setState({ visibleModal: false });
     } else {
       this.batchAddData(tempEnvs);
     }
-    this.setState({ visibleModal: false });
   }
 
   //环境变量修改，传递状态给父组件来判断是否部署上面加红点
@@ -426,7 +428,6 @@ export default class EnvVariables extends PureComponent {
   }
 
   render() {
-    const Authorized = RenderAuthorized(base.allpermissions);
     const { data, showWarning, loading, visibleModal, textEnvs } = this.state;
     const columns = [{
       title: '键',
@@ -487,7 +488,6 @@ export default class EnvVariables extends PureComponent {
     }, {
       title: '描述',
       dataIndex: 'desc',
-      width: '25%',
       render: (text, record) => {
         if (record.editable) {
           return (
@@ -498,12 +498,12 @@ export default class EnvVariables extends PureComponent {
             />
           );
         }
-        return text;
+        return <Ellipsis tooltip lines={1} length={150}>{text}</Ellipsis>;
       },
     }, {
-      title: '状态',
+      title: '操作状态',
       dataIndex: 'operateWay',
-      width: '10%',
+      width: 110,
       render: (text, record) => {
         return <Badge status={statusMap[record.operateWay]} text={statusList[statusMap[record.operateWay]]} />
         //return statusList[text];
@@ -534,14 +534,14 @@ export default class EnvVariables extends PureComponent {
         if (statusMap[record.operateWay] === 'default' || statusMap[record.operateWay] === 'success') {
           return (
             <span>
-              <Authorized authority='app_editdEnvironmentalVariable' noMatch={<a disabled="true">编辑</a>}>
+              <Authorized authority={this.props.type==='web'?'app_editdEnvironmentalVariable':'middlewares_editdEnvironmentalVariable'} noMatch={<a disabled="true">编辑</a>}>
               <a onClick={e => this.toggleEditable(e, record.key)}>编辑</a>
               </Authorized>
               
               {(record.source === '0' || !record.source) ?
                 <span>
                   <Divider type="vertical" />
-                  <Authorized authority='app_deleteEnvironmentalVariable' noMatch={<a disabled="true">删除</a>}>
+                  <Authorized authority={this.props.type==='web'?'app_deleteEnvironmentalVariable':'middlewares_deleteEnvironmentalVariable'} noMatch={<a disabled="true">删除</a>}>
                   <Popconfirm title="是否要删除此行？" onConfirm={() => this.remove(record.key)}>
                     <a>删除</a>
                   </Popconfirm>
@@ -559,7 +559,7 @@ export default class EnvVariables extends PureComponent {
               {(record.source === '0' || !record.source) ?
                 <span>
                   <Divider type="vertical" />
-                  <Authorized authority='app_deleteEnvironmentalVariable' noMatch={<a disabled="true">删除</a>}>
+                  <Authorized authority={this.props.type==='web'?'app_deleteEnvironmentalVariable':'middlewares_deleteEnvironmentalVariable'} noMatch={<a disabled="true">删除</a>}>
                   <Popconfirm title="是否要删除此行？" onConfirm={() => this.remove(record.key)}>
                     <a>删除</a>
                   </Popconfirm>
@@ -578,7 +578,7 @@ export default class EnvVariables extends PureComponent {
           return (
             <span>
               {(record.source === '0' || !record.source) ?
-              <Authorized authority='app_deleteEnvironmentalVariable' noMatch={<a disabled="true">删除</a>}>
+              <Authorized authority={this.props.type==='web'?'app_deleteEnvironmentalVariable':'middlewares_deleteEnvironmentalVariable'} noMatch={<a disabled="true">删除</a>}>
                 <Popconfirm title="是否要删除此行？" onConfirm={() => this.remove(record.key)}>
                   <a>删除</a>
                 </Popconfirm>
@@ -670,13 +670,13 @@ export default class EnvVariables extends PureComponent {
         if (statusMap[record.operateWay] === 'default' || statusMap[record.operateWay] === 'success') {
           return (
             <span>
-              <Authorized authority='app_editdEnvironmentalVariable' noMatch={<a disabled="true">编辑</a>}>
+              <Authorized authority={this.props.type==='middleware'?'middlewares_editdEnvironmentalVariable':'app_editdEnvironmentalVariable'} noMatch={<a disabled="true">编辑</a>}>
               <a onClick={e => this.toggleEditable(e, record.key)}>编辑</a>
               </Authorized>
               {(record.source === '0' || !record.source) ?
                 <span>
                   <Divider type="vertical" />
-                  <Authorized authority='app_deleteEnvironmentalVariable' noMatch={<a disabled="true">删除</a>}>
+                  <Authorized authority={this.props.type==='middleware'?'middlewares_deleteEnvironmentalVariable':'app_deleteEnvironmentalVariable'} noMatch={<a disabled="true">删除</a>}>
                   <Popconfirm title="是否要删除此行？" onConfirm={() => this.remove(record.key)}>
                     <a>删除</a>
                   </Popconfirm>
@@ -690,13 +690,13 @@ export default class EnvVariables extends PureComponent {
             <span>
               <a onClick={e => this.handleRestore(e, record.key)}>撤销</a>
               <Divider type="vertical" />
-              <Authorized authority='app_editdEnvironmentalVariable' noMatch={<a disabled="true">编辑</a>}>
+              <Authorized authority={this.props.type==='middleware'?'middlewares_editdEnvironmentalVariable':'app_editdEnvironmentalVariable'} noMatch={<a disabled="true">编辑</a>}>
               <a onClick={e => this.toggleEditable(e, record.key)}>编辑</a>
               </Authorized>
               {(record.source === '0' || !record.source) ?
                 <span>
                   <Divider type="vertical" />
-                  <Authorized authority='app_deleteEnvironmentalVariable' noMatch={<a disabled="true">删除</a>}>
+                  <Authorized authority={this.props.type==='middleware'?'middlewares_deleteEnvironmentalVariable':'app_deleteEnvironmentalVariable'} noMatch={<a disabled="true">删除</a>}>
                   <Popconfirm title="是否要删除此行？" onConfirm={() => this.remove(record.key)}>
                     <a>删除</a>
                   </Popconfirm>
@@ -715,7 +715,7 @@ export default class EnvVariables extends PureComponent {
           return (
             <span>
               {(record.source === '0' || !record.source) ?
-              <Authorized authority='app_deleteEnvironmentalVariable' noMatch={<a disabled="true">删除</a>}>
+              <Authorized authority={this.props.type==='middleware'?'middlewares_deleteEnvironmentalVariable':'app_deleteEnvironmentalVariable'} noMatch={<a disabled="true">删除</a>}>
                 <Popconfirm title="是否要删除此行？" onConfirm={() => this.remove(record.key)}>
                   <a>删除</a>
                 </Popconfirm>
@@ -743,7 +743,7 @@ export default class EnvVariables extends PureComponent {
           loading={loading}
           dataSource={data}
           columns={this.props.isAddApp ? simpColumns : columns}
-          rowKey={record => record.key}
+          rowKey='name'
         />
         <Modal
           title="环境变量导入"
@@ -760,7 +760,7 @@ export default class EnvVariables extends PureComponent {
             rows={12} value={textEnvs} onChange={e => this.setState({ textEnvs: e.target.value })} />
         </Modal>
         <Row gutter={16} >
-        <Authorized authority='app_addEnvironmentalVariable' noMatch={ <Col span={12} >
+        <Authorized authority={this.props.type==='middleware'?'middlewares_addEnvironmentalVariable':'app_addEnvironmentalVariable'} noMatch={ <Col span={12} >
             <Button disabled="true"
               style={{ width: '100%', marginTop: 16, marginBottom: 8 }}
               type="dashed"
@@ -781,15 +781,27 @@ export default class EnvVariables extends PureComponent {
             </Button>
           </Col>
         </Authorized>
+        
           <Col span={12} >
-            <Button
-              style={{ width: '100%', marginTop: 16, marginBottom: 8 }}
-              type="dashed"
-              onClick={this.openModal}
-              icon="download"
-            >
-              导入
-            </Button>
+            <Authorized authority={this.props.type==='middleware'?'middlewares_importEnvironmentalVariable':'app_importEnvironmentalVariable'} noMatch={<Button
+                  disabled="true"
+                  style={{ width: '100%', marginTop: 16, marginBottom: 8 }}
+                  type="dashed"
+                  onClick={this.openModal}
+                  icon="download"
+                >
+                导入
+              </Button>}>
+              <Button
+                style={{ width: '100%', marginTop: 16, marginBottom: 8 }}
+                type="dashed"
+                onClick={this.openModal}
+                icon="download"
+              >
+                导入
+              </Button>
+            </Authorized>
+            
           </Col>
         </Row>
       </div>

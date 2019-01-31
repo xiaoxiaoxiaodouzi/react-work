@@ -1,8 +1,9 @@
 import React, { Component } from 'react'
 import { Card, Table, Button, Input, message, Popconfirm, Divider, Select, Icon, Checkbox } from 'antd';
-import { entrypoints, addEntrypoints, editEntrypoints, deleteEntrypoints } from '../../../services/running'
+import {editEntrypoints,addEntrypoints,entrypoints,deleteEntrypoints} from '../../../services/aip'
 import IconSelectModal from '../../../common/IconSelectModal'
 import constants from '../../../services/constants'
+import { base } from '../../../services/base';
 
 const Option = Select.Option;
 class Entrance extends Component {
@@ -125,12 +126,12 @@ class Entrance extends Component {
 								loading: false,
 							})
 							message.success('新增成功')
-						}).catch(err => {
-							message.error('获取入口配置信息出错')
+						}).catch(e => {
+							base.ampMessage('获取入口配置信息出错' );
 							this.setState({ loading: false })
 						});
-					}).catch(err => {
-						message.error('新增入口配置信息出错')
+					}).catch(e => {
+						base.ampMessage('新增入口配置信息出错' );
 						this.setState({ loading: false })
 					});;
 				} else {
@@ -159,12 +160,12 @@ class Entrance extends Component {
 								loading: false,
 							})
 							message.success('修改成功')
-						}).catch(err => {
-							message.error('获取入口配置信息出错')
+						}).catch(e => {
+							base.ampMessage('获取入口配置信息出错' );
 							this.setState({ loading: false })
 						});
-					}).catch(err => {
-						message.error('修改入口配置信息出错')
+					}).catch(e => {
+						base.ampMessage('修改入口配置信息出错' );
 						this.setState({ loading: false })
 					});
 				} else {
@@ -187,8 +188,8 @@ class Entrance extends Component {
 		deleteEntrypoints(appid, id).then(e => {
 			message.success('删除成功');
 			this.setState({ data: newData, loading: false });
-		}).catch(error => {
-			message.error('删除入口配置出错');
+		}).catch(e => {
+			base.ampMessage('删除入口配置出错' );
 			this.setState({
 				loading: false
 			})
@@ -205,8 +206,8 @@ class Entrance extends Component {
 				isEditing: false,
 				loading: false
 			})
-		}).catch(err => {
-			message.error('获取入口配置信息出错')
+		}).catch(e => {
+			base.ampMessage('获取入口配置信息出错' );
 			this.setState({ loading: false })
 		});
 	}

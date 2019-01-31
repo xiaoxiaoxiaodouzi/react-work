@@ -1,6 +1,7 @@
 import React from 'react'
 import { Form, Input, Button, Icon, Upload, message, Select } from 'antd';
-import { getList, getDockerfileByArtifact, getDockerfileByType, getLogs, getCurrentUser, getImageCategorys, updateImages } from '../../services/images'
+import { getCurrentUser } from '../../services/images'
+import { getImageCategorys, getList, updateImages, getDockerfileByArtifact, getDockerfileByType, getLogs } from '../../services/cce';
 import { base } from '../../services/base'
 import PropTypes from 'prop-types';
 import constants from '../../services/constants'

@@ -2,12 +2,11 @@ import React from 'react';
 import { message, Card, Steps, Col, Row,Breadcrumb, Divider} from 'antd';
 import PageHeader from 'ant-design-pro/lib/PageHeader';
 import { Step1, Step2, Step3 } from '../../components/Application/AppAddSteps';
-import { addAppBasicInfo, addAppDeployInfo, deleteAppBasicInfo } from '../../services/apps';
-import { updateApp } from '../../services/running'
-import { addEnvs } from '../../services/deploy'
-import { addServerGroup } from '../../services/api'
+import { addAppDeployInfo } from '../../services/cce'
+import { addAppEnvs } from '../../services/cce'
+import { addServerGroup, updateApp, addAppBasicInfo, deleteAppBasicInfo } from '../../services/aip'
 import { base } from '../../services/base'
-import { doUpstream } from '../../services/domainList'
+import { doUpstream } from '../../services/amp'
 
 const Step = Steps.Step;
 class AddApp extends React.Component {
@@ -154,6 +153,7 @@ class AddApp extends React.Component {
     }
 
     newAppInfo.tags = selectedTags;
+    newAppInfo.enviroment = values.enviroment;
 
     this.setState({
       appInfo: newAppInfo,
@@ -200,7 +200,7 @@ class AddApp extends React.Component {
     })
 
     //应用管理添加应用
-    addAppBasicInfo(this.state.appInfo).then(newAppInfo => {
+    addAppBasicInfo(this.state.appInfo,{'AMP-ENV-ID':this.state.appInfo.enviroment}).then(newAppInfo => {
       //部署平台添加应用
       addAppDeployInfo({ deployment: newDeployment, configMap: this.state.configMap, clusterService: this.state.clusterService, nodePortService: this.state.nodePortService }).then(data => {
         //保存为已生效环境变量
@@ -210,7 +210,20 @@ class AddApp extends React.Component {
           c.env.forEach(e => {
             e.key = e.name;
             e.operateWay = 'effect';
-            addEnvs(this.state.appInfo.code, containerName, e);
+            addAppEnvs(this.state.appInfo.code, containerName, e);
+          });
+          //添加api-key的环境变量（临时处理！）
+          const apiKeyEvn = {key:'c2_sso_proxy_apigateway_apikey',value:newAppInfo.routeId,desc:'API-KEY',source:1};
+          const proxySchemaEvn = {key:'c2_sso_proxy_apigateway_schema',value:base.currentEnvironment.apiGatewaySchema,desc:'网关协议',source:1};
+          const proxyHostEvn = {key:'c2_sso_proxy_apigateway_host',value:base.currentEnvironment.apiGatewayHost,desc:'网关地址',source:1};
+          const proxyPortEvn = {key:'c2_sso_proxy_apigateway_port',value:base.currentEnvironment.apiGatewayPort,desc:'网关端口',source:1};
+          const appCodeEvn = {key:'application_code',value:newAppInfo.code,desc:'应用编码',source:1};
+          const appIdEvn = {key:'application_id',value:newAppInfo.id,desc:'应用ID',source:1};
+          const appNameEvn = {key:'applicaiton_name',value:newAppInfo.name,desc:'应用名称',source:1};
+          const appEnvironmentEvn = {key:'application_env',value:base.currentEnvironment.code,desc:'应用名称',source:1};
+          const initEvns = [apiKeyEvn,proxyHostEvn,proxySchemaEvn,proxyPortEvn,appCodeEvn,appIdEvn,appNameEvn,appEnvironmentEvn];
+          initEvns.forEach(evn=>{
+            addAppEnvs(this.state.appInfo.code, containerName, evn);
           });
         })
         //创建应用之后添加集群
@@ -231,8 +244,8 @@ class AddApp extends React.Component {
           displayStep2: false,
           displayStep3: true,
         })
-      }).catch((error) => {
-        message.error("部署平台添加应用出错！");
+      }).catch((e) => {
+        base.ampMessage("部署平台添加应用出错！" );
         deleteAppBasicInfo(newAppInfo.id);
       })
     })

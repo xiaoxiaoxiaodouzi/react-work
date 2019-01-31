@@ -24,7 +24,8 @@ class OrgSelectModal extends Component {
             dataSource: [],
             selectedItems: [],
             selectedKeys: [],
-            selectedValue: []
+            selectedValue: [],
+            disabledOrg:props.disabledOrg
         }
 
         this.orgs = {};
@@ -40,7 +41,6 @@ class OrgSelectModal extends Component {
     }
 
     componentWillReceiveProps(nextProps) {
-
         if(nextProps.visible != null){
             
             var selectedValue = [];
@@ -57,7 +57,8 @@ class OrgSelectModal extends Component {
                 visible: nextProps.visible,
                 selectedItems: nextProps.defaultValue,
                 selectedKeys: selectedKeys,
-                selectedValue: selectedValue
+                selectedValue: selectedValue,
+                disabledOrg:nextProps.disabledOrg
             });
         }
 
@@ -132,10 +133,17 @@ class OrgSelectModal extends Component {
 
             C2Fetch.get(`proxy/uop/v1/orgs/${orgId}/children`, { categoryId: categoryId }, "获取机构数据出错！")
                 .then((orgs) => {
+                    
                     orgs.forEach((element) => {
                         element.categoryOrgName = treeNode.props.dataRef.categoryOrgName;
                         //第一段处理分类机构下获取子机构，第二段处理机构下获取子机构
-                        element.disabled = treeNode.props.dataRef.id === treeNode.props.dataRef.categoryOrgId ? !th.props.checkableOrg || treeNode.props.checked || false : !th.props.checkableOrg || treeNode.props.dataRef.disabled || treeNode.props.checked || false;
+                        element.disabled = treeNode.props.dataRef.id === treeNode.props.dataRef.categoryOrgId ? !th.props.checkableOrg || treeNode.props.checked || false : 
+                        !th.props.checkableOrg || treeNode.props.dataRef.disabled || treeNode.props.checked || false ;
+                        if(!element.disabled){
+                            if(this.state.disabledOrg.indexOf(element.id) !== -1){
+                                element.disabled = true;
+                            }
+                        }
                         this.orgs[element.id + "&&" + element.categoryOrgId] = element;
                     })
                     treeNode.props.dataRef.children = orgs;

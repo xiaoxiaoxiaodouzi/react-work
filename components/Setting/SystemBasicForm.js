@@ -1,11 +1,17 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
-import { Form, Input, Checkbox, Modal } from 'antd'
+import  { Form, Input, Switch,Modal } from 'antd'
 import UserSelectModal from '../../common/UserSelectModal/index'
 import constants from '../../services/constants'
+import { base } from '../../services/base';
 class SystemBasic extends Component {
   static propTypes = {
     prop: PropTypes.object
+  }
+  state={
+    disabled:!base.configs.passEnabled,
+    apmDisabled:!base.configs.APMEnabled,
+    monitDisabled:!base.configs.monitEnabled
   }
 
   //表单数据校验
@@ -34,20 +40,14 @@ class SystemBasic extends Component {
     callback()
   }
 
-  CheckBoxChange = (e) => {
-    this.props.CheckBoxChange(e.target.checked ? 1 : 0)
-  }
-
   _handleOk = (e) => {
     e.preventDefault();
     let form = this.props.form;
-    let initialize = this.props.initialize
     form.validateFields((err, values) => {
       if (err) {
         return
       }
       if (values) {
-        values.initialize = initialize;
         this.props._handleOk(values);
       }
     })
@@ -56,8 +56,8 @@ class SystemBasic extends Component {
     const { getFieldDecorator } = this.props.form;
     const formItemLayout = {
       labelCol: {
-        xs: { span: 24 },
-        sm: { span: 7 },
+        xs: { span: 36 },
+        sm: { span: 10 },
       },
       wrapperCol: {
         xs: { span: 24 },
@@ -65,6 +65,7 @@ class SystemBasic extends Component {
         md: { span: 13 },
       },
     };
+    console.log(this.state);
     return (
       <div>
         <Modal
@@ -75,18 +76,16 @@ class SystemBasic extends Component {
           destroyOnClose
         >
           <Form>
-            <Form.Item {...formItemLayout} label="部署内网地址">
-              {getFieldDecorator('paasManageUrl', {
-                initialValue: this.props.paasManageUrl,
-                rules: [{
-                  required: true,
-                  validator: this.validateParams
-                }],
-              })(
-                <Input />
-              )}
+            <Form.Item {...formItemLayout} label="管理租户CODE">
+              {getFieldDecorator('manageTenantCode', {
+                initialValue: this.props.manageTenantCode
+              })(<Input />)}
             </Form.Item>
-
+            <Form.Item {...formItemLayout} label="是否启用性能监控">
+              {getFieldDecorator('APMEnabled',{
+                  initialValue:this.props.APMEnabled
+                })(<Switch defaultChecked={this.props.APMEnabled} onChange={(e)=>{this.setState({apmDisabled:!e})}}/>)}
+            </Form.Item>
             <Form.Item {...formItemLayout} label="性能监控地址">
               {getFieldDecorator('APMServerUrl', {
                 initialValue: this.props.APMServerUrl,
@@ -95,36 +94,58 @@ class SystemBasic extends Component {
                 }],
 
               })(
-                <Input />
+                <Input disabled={this.state.apmDisabled}/>
               )}
             </Form.Item>
-            <Form.Item {...formItemLayout} label="管理租户CODE">
-              {getFieldDecorator('manageTenantCode', {
-                initialValue: this.props.manageTenantCode
-              })(<Input />)}
+            <Form.Item {...formItemLayout} label="是否启用全局资源监控">
+              {getFieldDecorator('monitEnabled',{
+                  initialValue:this.props.monitEnabled
+                })(<Switch defaultChecked={this.props.monitEnabled} onChange={(e)=>{this.setState({monitDisabled:!e})}}/>)}
             </Form.Item>
-            {this.props.isDone ? '' :
-              <Form.Item {...formItemLayout} label="是否初始化完成">
-                {getFieldDecorator('initialize')(<Checkbox checked={this.props.initialize === '1' ? true : false} onChange={this.CheckBoxChange} />)}
-              </Form.Item>}
+            <Form.Item {...formItemLayout} label="全局资源监控地址">
+              {getFieldDecorator('globalResourceMonitUrl', {
+                initialValue: this.props.globalResourceMonitUrl
+              })(<Input disabled={this.state.monitDisabled}/>)}
+            </Form.Item>
+            <Form.Item {...formItemLayout} label="是否启用pass">
+              {getFieldDecorator('passEnabled',{
+                initialValue:this.props.passEnabled
+              })(<Switch defaultChecked={this.props.passEnabled} onChange={(e)=>{this.setState({disabled:!e})}}/>)}
+            </Form.Item>
+            <Form.Item {...formItemLayout} label="部署内网地址">
+              {getFieldDecorator('paasManageUrl', {
+                initialValue: this.props.paasManageUrl,
+                rules: [{
+                  required: !this.state.disabled,
+                  validator: this.validateParams
+                }],
+              })(
+                <Input disabled={this.state.disabled}/>
+              )}
+            </Form.Item>
+            <Form.Item {...formItemLayout} label="错误消息提示框">
+              {getFieldDecorator('errorMessage',{
+                initialValue:this.props.errorMessage
+              })(<Switch defaultChecked={this.props.errorMessage}/>)}
+            </Form.Item>
+            <Form.Item {...formItemLayout} label="消息铃铛">
+              {getFieldDecorator('messageBell',{
+                initialValue:this.props.messageBell
+              })(<Switch defaultChecked={this.props.messageBell}/>)}
+            </Form.Item>
+            <Form.Item {...formItemLayout} label="系统管理员">
+              <div>
+                <UserSelectModal
+                  title={'设置管理员'}
+                  mark='系统管理员'
+                  description=''
+                  selectedUsers={this.props.managers}
+                  // disabledUsers={this.state.managers}
+                  dataIndex={{ dataIdIndex: 'id', dataNameIndex: 'name' }}
+                  onOk={(users) => { this.props._putUsersByGroup(users) }} />
+              </div>
+            </Form.Item>
           </Form>
-          <Form.Item {...formItemLayout} label="全局资源监控地址">
-            {getFieldDecorator('globalResourceMonitUrl', {
-              initialValue: this.props.globalResourceMonitUrl
-            })(<Input />)}
-          </Form.Item>
-          <Form.Item {...formItemLayout} label="系统管理员">
-            <div>
-              <UserSelectModal
-                title={'设置管理员'}
-                mark='系统管理员'
-                description=''
-                selectedUsers={this.props.managers}
-                // disabledUsers={this.state.managers}
-                dataIndex={{ dataIdIndex: 'id', dataNameIndex: 'name' }}
-                onOk={(users) => { this.props._putUsersByGroup(users) }} />
-            </div>
-          </Form.Item>
         </Modal>
       </div>
     )

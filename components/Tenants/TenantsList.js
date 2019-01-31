@@ -1,11 +1,13 @@
 import React, { Component} from 'react';
-import { getTenant, AddTenant, getTenantById, getApplicationRes,getTenantApps,getTenentUsercount} from '../../services/tenants'
-import { Card, Button, Row, Col, Table, Form, Input} from 'antd';
+import { getTenant, AddTenant, DeleteTenant, getTenantById, getTenentUsercount } from '../../services/tp';
+import { getApplicationRes } from '../../services/cce';
+import {getTenantApps} from '../../services/aip'
+import  { Card, Button, Row, Col, Table, Form, Input, Divider,Popconfirm,message } from 'antd';
 // import OrgSelectModal from '../../common/OrgSelectModal'
 import constants from '../../services/constants';
 import AddTenantModal from './AddTenantModal';
-import { base } from '../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../common/Authorized';
+import { base } from '../../services/base'
 
 const FormItem = Form.Item;
 class TenantsListForm extends Component{
@@ -16,7 +18,8 @@ class TenantsListForm extends Component{
       visible:false,  //选择机构开关
       loading:true,
       addVisible:false,
-      tenantCodes : []
+      tenantCodes : [],
+      tenantIds:[]
     }
   }
   
@@ -40,15 +43,17 @@ class TenantsListForm extends Component{
       let tenants=[];
       let tenantCodes = [];
       if (data.contents instanceof Array){
+        let tenantIds = []
         data.contents.forEach(item=>{
           //过滤掉没有tenent_type的数据
           if(item.tenant_type && item.tenant_code){
             tenants.push(item)
             ary.push(getTenantById(item.id));
             tenantCodes.push(item.tenant_code);
+            tenantIds.push(item.id);
           }
         })
-        this.setState({tenantCodes:tenantCodes});
+        this.setState({tenantCodes:tenantCodes,tenantIds:tenantIds});
       }
       if(ary.length>0){
         Promise.all(ary).then(response=>{
@@ -56,14 +61,35 @@ class TenantsListForm extends Component{
             //根据租户的code去查询租户的CPU内存使用量
             response.forEach((item)=>{
               let datas = [];
-              getApplicationRes(item.tenant_code).then(res=>{
+              //cce权限
+              if(base.configs.passEnabled){
+                getApplicationRes(item.tenant_code).then(res=>{
+                  getTenantApps({tenant:item.tenant_code}).then(apps=>{
+                    getTenentUsercount(item.id).then(users=>{
+                      let params={
+                        id:item.id,
+                        name:item.name,
+                        cpus: res.cpuUsedTotal + '/' + item[constants.QUOTA_CODE[0]]?item[constants.QUOTA_CODE[0]]:item[constants.QUOTA_CODE[0]]===0?0:'--',
+                        rams: parseFloat(res.memoryUsedTotal) / (1024 * 1024 * 1024).toFixed(1) + '/' + item[constants.QUOTA_CODE[1]]?item[constants.QUOTA_CODE[1]]:item[constants.QUOTA_CODE[1]]===0?0:'--' ,
+                        apps:apps,
+                        users:users
+                      }
+                      this.state.data.forEach(d=>{
+                        if(d.id===params.id)datas.push(params);
+                        else datas.push(d);
+                      });
+                      this.setState({
+                        data: datas
+                      })
+                    })
+                  })
+                })
+              }else{
                 getTenantApps({tenant:item.tenant_code}).then(apps=>{
                   getTenentUsercount(item.id).then(users=>{
                     let params={
                       id:item.id,
                       name:item.name,
-                      cpus: res.cpuUsedTotal + '/' + item[constants.QUOTA_CODE[0]]?item[constants.QUOTA_CODE[0]]:item[constants.QUOTA_CODE[0]]===0?0:'--',
-                      rams: parseFloat(res.memoryUsedTotal) / (1024 * 1024 * 1024).toFixed(1) + '/' + item[constants.QUOTA_CODE[1]]?item[constants.QUOTA_CODE[1]]:item[constants.QUOTA_CODE[1]]===0?0:'--' ,
                       apps:apps,
                       users:users
                     }
@@ -76,7 +102,7 @@ class TenantsListForm extends Component{
                     })
                   })
                 })
-              })
+              }
             })
           }
         })
@@ -150,9 +176,16 @@ class TenantsListForm extends Component{
     });
   }
 
+  //确认删除租户
+  _deleteConfirm=(tenant)=>{
+    DeleteTenant(tenant.id,constants.TENANT_CODE[0]).then(data => {
+      message.success("删除成功！");
+      this.loadData(1,1000);
+    });
+  }
+
   render(){
-    const Authorized = RenderAuthorized(base.allpermissions);
-    const columns=[
+    let columns=[
       {
         title:'名称',
         dataIndex:'name'
@@ -177,13 +210,58 @@ class TenantsListForm extends Component{
         title:'操作',
         render:(record,text)=>{
           return (
-            <Authorized authority={'tenant_quota'} noMatch={<a disabled='true' onClick={e=>this.handleClick(record)}>查看</a>}>
-              <a onClick={e=>this.handleClick(record)}>查看</a>
+            <div>
+              {/* <Authorized authority={'tenant_quota'} noMatch={<a disabled='true' onClick={e=>this.handleClick(record)}>查看</a>}> */}
+                <a onClick={e=>this.handleClick(record)}>查看</a>
+              {/* </Authorized> */}
+              <Divider type="vertical"/>
+              <Authorized authority={'tenant_delete'} noMatch={<a disabled={true}>删除</a>}>
+                <Popconfirm title={"确认是否删除租户【"+text.name+"】?"} onConfirm={()=>{this._deleteConfirm(text)}} okText="删除" cancelText="取消">
+
+                  <a>删除</a>
+                </Popconfirm>
             </Authorized>
+          </div>
           )
         }
       }
     ]
+
+    if(!base.configs.passEnabled){
+      columns=[
+        {
+          title:'名称',
+          dataIndex:'name'
+        },
+        {
+          title: '应用数',
+          dataIndex: 'apps',
+        },
+        {
+          title: '用户数',
+          dataIndex: 'users',
+        },
+        {
+          title:'操作',
+          render:(record,text)=>{
+            return (
+              <div>
+                {/* <Authorized authority={'tenant_quota'} noMatch={<a disabled='true' onClick={e=>this.handleClick(record)}>查看</a>}> */}
+                  <a onClick={e=>this.handleClick(record)}>查看</a>
+                {/* </Authorized> */}
+                <Divider type="vertical"/>
+                <Authorized authority={'tenant_delete'} noMatch={<a disabled={true}>删除</a>}>
+                  <Popconfirm title={"确认是否删除租户【"+text.name+"】?"} onConfirm={()=>{this._deleteConfirm(text)}} okText="删除" cancelText="取消">
+  
+                    <a>删除</a>
+                  </Popconfirm>
+              </Authorized>
+            </div>
+            )
+          }
+        }
+      ]
+    }
 
     const formItemLayout = {
       labelCol: {
@@ -233,7 +311,8 @@ class TenantsListForm extends Component{
           loading={this.state.loading}
         />
          <AddTenantModal visible = {this.state.addVisible} 
-      tenantCodes = {this.state.tenantCodes} 
+      tenantCodes = {this.state.tenantCodes}
+      tenantIds = {this.state.tenantIds} 
       onCancle={e=>{this.setState({addVisible:false})}}
       transferVisible={(visible) => this.transferAddVisible(visible)}/>
       </Card>

@@ -1,26 +1,28 @@
 import React from 'react';
-import { Button, Input, Col, Card, Row, Table, Form, Icon, Divider, message, Alert, Modal, Popconfirm, Affix } from 'antd';
+import  { Button, Input, Col, Row, Table, Form, Icon, Divider, message, Alert, Modal, Popconfirm, Affix, Menu, Dropdown, Tooltip ,Radio} from 'antd';
 // import { DragDropContext, DragSource, DropTarget } from 'react-dnd';
-import PageHeaderBreadcrumb from '../../common/PageHeaderBreadcrumb';
 import _ from 'lodash';
 import constants from '../../services/constants'
 import TreeHelp from '../../utils/TreeHelp'
 import './NavigationList.css';
 import FunctionalSelectedDrawer from './FunctionalSelectedDrawer';
 import CreatorNavigationModal from './CreatorNavigationModal';
-import { postNavigation, getNavigations, addNavigationsFunctions, deleteNavigation, deleteNavigationFunction, navigationsSort } from './../../services/navigation'
 import { RoleResourceModal } from '../../components/BasicData/Functional/RoleResourceModal';
-import { getResourceRole } from '../../services/functional';
-import GlobalEnvironmentChange from '../../components/GlobalEnvironmentChange'
+import {exportNavigations,navigationsSort,deleteNavigationFunction,getResourceRole,postNavigation,getNavigations,addNavigationsFunctions,deleteNavigation} from '../../services/aip'
 import { GlobalHeaderContext } from '../../context/GlobalHeaderContext'
 import FunctionalUsersDrawer from './FunctionalUsersDrawer';
 import { base } from '../../services/base';
 import Link from 'react-router-dom/Link';
-import RenderAuthorized from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../common/Authorized';
+import Ellipsis from 'ant-design-pro/lib/Ellipsis';
+import UploadData from './UploadData'
 
 const FormItem = Form.Item;
+const RadioGroup = Radio.Group;
+const RadioButton = Radio.Button;
 
 let defaultAlert = '单击行选择指定菜单';
+
 //递归清空选中项
 const cleanTreeNodeActive = (nodes) => {
   nodes.forEach(node => {
@@ -46,7 +48,7 @@ class NavigationManage extends React.PureComponent {
     allFuncationalNodes: [],//所有的功能节点
     funNodes: [],//选中目录下的功能节点
     activeNode: {},//选中的节点
-    tableLoading: false,
+    tableLoading: true,
     drawerButtonDisabled: false,
     sortDisabled: true,
     drawerVisible: false,
@@ -55,28 +57,54 @@ class NavigationManage extends React.PureComponent {
     tableAlert: defaultAlert,
     expandedRowKeys: [],
     authorizedFunction: {},
+    selectedKeys:[],
+    data:[],
+    catalogAndResourceType:'web'
   }
+  catalogAndResourceType='web';
 
-  constructor() {
-    super();
-
+  constructor(props){
+    super(props);
     this.loadData();
   }
+
+  componentDidMount() {
+    if (this.props.permissions) base.allpermissions = this.props.permissions;
+  }
+
   componentWillReceiveProps(nextProps) {
     if (nextProps.environment !== this.props.environment) {
       this.loadData();
     }
   }
+  fisrtExpanded = true;
   loadData = (search) => {
-    this.setState({ tableLoading: true })
+     this.setState({ tableLoading: true })
     let params = {};
     if (base.isAdmin) params.withOutAuthorize = true;
+    params.catalogAndResourceType = this.catalogAndResourceType;
     search = Object.assign({}, search, params);
     getNavigations(search).then(data => {
+      data.forEach(d=>{
+        d.dataIndex = d.pid+'_'+d.id;
+      })
       let allFuncationalNodes = data.filter(d => d.type === constants.NAVIGATION_TYPE.function);
-      let expandedRowKeys = data.filter(d => d.type === constants.NAVIGATION_TYPE.catalog).map(d => d.id);
+     
+      let expandState = window.localStorage.navigationExpandState;
+      let keys = [];//展开一级
+      if(expandState === '1'){
+        keys = data.filter(d => d.type === constants.NAVIGATION_TYPE.catalog && d.pid==='0').map(d => d.dataIndex);//展开二级
+      }else if(expandState === '2'){
+        keys = data.filter(d => d.type === constants.NAVIGATION_TYPE.catalog ).map(d => d.dataIndex);//全部展开
+      }
+
+      let expandedRowKeys = this.fisrtExpanded?keys:this.state.expandedRowKeys;
+      this.fisrtExpanded = false;
       let treeData = TreeHelp.toChildrenStruct(data);
-      this.setState({ treeData, allFuncationalNodes, tableLoading: false, expandedRowKeys, activeNode: {} });
+      
+      this.setState({ treeData, allFuncationalNodes, tableLoading: false, activeNode: {} ,expandedRowKeys,data});
+    }).catch(err=>{
+      this.setState({ tableLoading: false})
     })
   }
 
@@ -103,6 +131,8 @@ class NavigationManage extends React.PureComponent {
   }
 
   menuModelHandle = (navigation) => {
+    navigation.catalogAndResourceType = this.catalogAndResourceType;
+    navigation.catalogType = this.state.catalogAndResourceType;
     postNavigation(navigation, navigation.id).then(data => {
       this.setState({ menuModelVisible: false });
       this.loadData();
@@ -231,39 +261,73 @@ class NavigationManage extends React.PureComponent {
     this.sortDebounce();
   }
 
+  menuSelect = (item,key,selectedKeys) =>{
+    let keys = [];
+    let data = [...this.state.data];  
+    if(item.key === '0'){//展开一级
+      window.localStorage.navigationExpandState = '0';
+      keys = [];
+    }else if(item.key === '1'){//展开二级
+      window.localStorage.navigationExpandState = '1';
+      keys = data.filter(d => d.type === constants.NAVIGATION_TYPE.catalog && d.pid==='0').map(d => d.dataIndex);
+    }else{//全部展开
+      window.localStorage.navigationExpandState = '2';
+      keys = data.filter(d => d.type === constants.NAVIGATION_TYPE.catalog ).map(d => d.dataIndex);;
+    }
+
+    this.setState({expandedRowKeys:keys});
+  }
+
+  //重置
+  reset = () =>{
+    this.setState({searchName:'',searchApp:''});
+		this.loadData();
+  }
+
+  //导出
+  export=()=>{
+    exportNavigations();
+  }
+
   render() {
-    const Authorized = RenderAuthorized(base.allpermissions);
     const columns = [
       {
         title: '菜单名称',
         dataIndex: 'name',
+        width:180,
         render: (text, record) => {
           return (
-            <span>
-              <Icon type={record.type === constants.NAVIGATION_TYPE.catalog ? 'folder' : 'file'} /> {record.type === constants.NAVIGATION_TYPE.function ?
-                <Link to={`/applications/${record.app.id}/functional/${record.id}`}>{text}</Link> : text}
-            </span>
+            <div style={{display:'inline-block',width:148,height:18}} className='nowrap-ellipsis'>
+              <Icon type={record.type === constants.NAVIGATION_TYPE.catalog ? 'folder' : 'file'} /> 
+              {record.type === constants.NAVIGATION_TYPE.function ?
+                <Link title={text} to={`/applications/${record.app.id}/functional/${record.id}`}>{text}</Link> : text}
+            </div>
           )
         }
       }, {
         title: '图标',
         dataIndex: 'fontIcon',
+        width:'60px',
+        align:'center',
         render: (text, record) => <Icon type={text} />
       }, {
         title: '所属应用',
         dataIndex: 'type',
+        width:150,
         render: (text, record) => {
-          return text === constants.NAVIGATION_TYPE.catalog ? '--' : record.app ? record.app.name : '--';
+          return <Ellipsis tooltip lines={1}>{text === constants.NAVIGATION_TYPE.catalog ? '--' : record.app ? record.app.name : '--'}</Ellipsis> 
         }
       }, {
         title: '路径',
         dataIndex: 'uri',
+        width:150,
         render: (text, record) => {
-          return text
+          return  <Ellipsis tooltip lines={1}>{text}</Ellipsis>
         }
       }, {
         title: '操作',
         dataIndex: 'action',
+        width:'110px',
         render: (text, record) => {
           const title = `确定删除该菜单${record.type === constants.NAVIGATION_TYPE.catalog ? '目录?' : '?'}`;
           return (<span>
@@ -294,54 +358,84 @@ class NavigationManage extends React.PureComponent {
       return record.active ? 'active' : '';
     }
     const drawerButtonTitle = this.state.activeNode.type === constants.NAVIGATION_TYPE.function ? '查看功能已授权的用户' : '关联功能';
-
+    const menu = (
+      <Menu onClick={this.menuSelect} selectedKeys={this.state.selectedKeys}>
+        <Menu.Item key='0'>展开一级</Menu.Item>
+        <Menu.Item key='1'>展开二级</Menu.Item>
+        <Menu.Item key='2'>全部展开</Menu.Item>
+      </Menu>
+    );
+    const formItemLayout = {
+			labelCol: {
+				xs: { span: 24 },
+				sm: { span: 8 },
+			},
+			wrapperCol: {
+				xs: { span: 24 },
+				sm: { span: 16 },
+			},
+		};
     return (
-      <div style={{ margin: '-24px -24px 0' }}>
-        <PageHeaderBreadcrumb breadcrumbList={[{ name: '基础数据' }, { name: '全局导航设置' }]} action={<GlobalEnvironmentChange />} />
-        <Card bordered={false} style={{ margin: '24px 24px 0' }} >
-          <div className="tableList">
-            <Form layout="inline" onSubmit={this.handleSearch}>
-              <Row gutter={24}>
-                <Col md={8} sm={24}>
-                  <FormItem label="菜单名称">
-                    <Input onChange={e => this.setState({ searchName: e.target.value })} value={this.state.searchName} />
-                  </FormItem>
-                </Col>
-                <Col md={8} sm={24}>
-                  <FormItem label="应用名称">
-                    <Input onChange={e => this.setState({ searchApp: e.target.value })} value={this.state.searchApp} />
-                  </FormItem>
-                </Col>
-                <Col md={8} sm={24}>
-                  <Button type="primary" htmlType="submit">查询</Button>
-                  <Button style={{ marginLeft: 8 }} onClick={this.props.restfields}>重置</Button>
-                </Col>
-              </Row>
-            </Form>
-          </div>
-          <Affix target={() => document.getElementById('rightSide')}>
-            <div style={{ backgroundColor: 'white', paddingBottom: 10 }}>
-              <Authorized authority='create_directory' noMatch={null}>
-                <Button type="primary" style={{ margin: '24px 5px 16px 0' }} icon="plus" onClick={e => { this.setState({ menuModelVisible: true, menuModelTitle: '创建菜单目录', menuModelData: { pid: this.state.activeNode.id ? this.state.activeNode.id : '0', pname: this.state.activeNode.name ? this.state.activeNode.name : '根目录' } }) }}>创建目录</Button>
-              </Authorized>
-              <Authorized authority='relation_functional' noMatch={null}>
-                <Button type="primary" style={{ margin: '24px 5px 16px 0' }} icon="menu-fold" onClick={this.openDrawer}>{drawerButtonTitle}</Button>
-              </Authorized>
-              <Authorized authority='move' noMatch={null}>
-                <Button type="primary" disabled={this.state.sortDisabled} icon="sort-descending" style={{ margin: '24px 5px 16px 0' }} onClick={e => this.menuSort('up')}>上移</Button>
-              </Authorized>
-              <Authorized authority='move' noMatch={null}>
-                <Button type="primary" disabled={this.state.sortDisabled} icon="sort-ascending" style={{ margin: '24px 5px 16px 0' }} onClick={e => this.menuSort('down')}>下移</Button>
-              </Authorized>
-              <Alert message={this.state.tableAlert} type="info" showIcon />
+      <div>
+        <div className="tableList">
+          <Form onSubmit={this.handleSearch}>
+            <Row gutter={{ md: 4, lg: 12, xl: 18 }}>
+              <Col span={8}>
+                <FormItem {...formItemLayout} label="菜单名称">
+                  <Input onChange={e => this.setState({ searchName: e.target.value })} value={this.state.searchName} />
+                </FormItem>
+              </Col>
+              <Col span={8}>
+                <FormItem {...formItemLayout} label="应用名称">
+                  <Input onChange={e => this.setState({ searchApp: e.target.value })} value={this.state.searchApp} />
+                </FormItem>
+              </Col>             
+              <Col span={8}>
+                <Button type="primary" htmlType="submit">查询</Button>
+                <Button style={{ marginLeft: 8 }} onClick={this.reset}>重置</Button>
+              </Col>
+            </Row>
+          </Form>
+        </div>
+        <Affix>
+          <div style={{ backgroundColor: 'white', paddingBottom: 10,paddingTop:10 ,display:'flex'}}>
+            <Authorized authority='create_directory' noMatch={null}>
+            {this.state.activeNode.type === constants.NAVIGATION_TYPE.function ? "":<Button type="primary" style={{ margin: '0px 5px 10px 0' }} icon="plus" onClick={e => { this.setState({ menuModelVisible: true, menuModelTitle: '创建菜单目录', menuModelData: { pid: this.state.activeNode.id ? this.state.activeNode.id : '0', pname: this.state.activeNode.name ? this.state.activeNode.name : '根目录' } }) }}>创建目录</Button>}
+            </Authorized>
+            <Authorized authority='relation_functional' noMatch={null}>
+              <Button type="primary" style={{ margin: '0px 5px 10px 0' }} icon="menu-fold" onClick={this.openDrawer}>{drawerButtonTitle}</Button>
+            </Authorized>
+            <Authorized authority='move' noMatch={null}>
+              <Button type="primary" disabled={this.state.sortDisabled} icon="sort-descending" style={{ margin: '0px 5px 10px 0' }} onClick={e => this.menuSort('up')}>上移</Button>
+            </Authorized>
+            <Authorized authority='move' noMatch={null}>
+              <Button type="primary" disabled={this.state.sortDisabled} icon="sort-ascending" style={{ margin: '0px 5px 10px 0' }} onClick={e => this.menuSort('down')}>下移</Button>
+            </Authorized>
+            <Button icon="download" onClick={this.export}>导出</Button>
+            <Authorized authority='create_directory' noMatch={null}>
+              <UploadData loadData={this.loadData} style={{marginLeft:5}}/>
+            </Authorized>
+            
+            <div style={{marginLeft:210}}> 
+              <RadioGroup defaultValue={this.state.catalogAndResourceType} onChange={(e)=>{this.setState({catalogAndResourceType:e.target.value});this.catalogAndResourceType=e.target.value;this.loadData();}}>
+                <RadioButton value="web">WEB导航</RadioButton>
+                <RadioButton value="app">APP导航</RadioButton>
+              </RadioGroup>
+              <span style={{marginLeft:5}}><Dropdown overlay={menu}>
+                <Tooltip title="选择默认展开层级"><Icon type='bars'/></Tooltip>
+              </Dropdown></span>
+             
             </div>
-          </Affix>
-          <Table columns={columns} dataSource={this.state.treeData} expandedRowKeys={this.state.expandedRowKeys} onExpandedRowsChange={this.expandChange} loading={this.state.tableLoading} pagination={false} onRow={this.tableOnRow} rowClassName={rowClassName} />
-          <FunctionalSelectedDrawer title={this.state.drawerTitle} visible={this.state.drawerVisible} selectedDatas={this.state.funNodes} hiddenDatas={this.state.allFuncationalNodes} onOk={this.drawerHandle} onClose={e => { this.setState({ drawerVisible: false }) }} />
-          <FunctionalUsersDrawer appId={this.state.activeNode.app ? this.state.activeNode.app.id : null} functionId={this.state.activeNode.id} title={this.state.rolesDrawerTitle} visible={this.state.rolesDrawerVisible} onClose={e => { this.setState({ rolesDrawerVisible: false }) }} />
-          <CreatorNavigationModal title={this.state.menuModelTitle} visible={this.state.menuModelVisible} onCancel={e => { this.setState({ menuModelVisible: false }) }} onOk={this.menuModelHandle} data={this.state.menuModelData} />
-          <RoleResourceModal record={this.state.authorizedFunction} visible={this.state.RoleResourceModalVisible} title={this.state.RoleResourceModalTitle} type='addUsers' handleAuthorizeModal={e => this.setState({ RoleResourceModalVisible: false })} />
-        </Card>
+           
+            
+          </div>
+          <Alert message={this.state.tableAlert} type="info" showIcon />
+        </Affix>
+        <Table columns={columns} dataSource={this.state.treeData} rowKey='dataIndex' expandedRowKeys={this.state.expandedRowKeys} onExpandedRowsChange={this.expandChange} loading={this.state.tableLoading} pagination={false} onRow={this.tableOnRow} rowClassName={rowClassName} />
+        <FunctionalSelectedDrawer title={this.state.drawerTitle} visible={this.state.drawerVisible} selectedDatas={this.state.funNodes} hiddenDatas={this.state.allFuncationalNodes} onOk={this.drawerHandle} onClose={e => { this.setState({ drawerVisible: false }) }} functionType={this.state.catalogAndResourceType}/>
+        <FunctionalUsersDrawer appId={this.state.activeNode.app ? this.state.activeNode.app.id : null} functionId={this.state.activeNode.id} title={this.state.rolesDrawerTitle} visible={this.state.rolesDrawerVisible} onClose={e => { this.setState({ rolesDrawerVisible: false }) }} />
+        <CreatorNavigationModal title={this.state.menuModelTitle} visible={this.state.menuModelVisible} onCancel={e => { this.setState({ menuModelVisible: false }) }} onOk={this.menuModelHandle} data={this.state.menuModelData} catalogAndResourceType={this.state.catalogAndResourceType}/>
+        <RoleResourceModal record={this.state.authorizedFunction} visible={this.state.RoleResourceModalVisible} title={this.state.RoleResourceModalTitle} type='addUsers' handleAuthorizeModal={e => this.setState({ RoleResourceModalVisible: false })} />
       </div>
     );
   }

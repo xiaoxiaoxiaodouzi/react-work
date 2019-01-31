@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import { Table, message, Popconfirm } from 'antd';
-import { getResourceRole, deleteResourceRole } from '../../../services/functional'
+import {getResourceRole,deleteResourceRole} from '../../../services/aip'
 import { ObjectDetailContext } from '../../../context/ObjectDetailContext'
 import Link from 'react-router-dom/Link';
 class Role extends Component {
@@ -68,6 +68,7 @@ class Role extends Component {
         columns={columns}
         pagination={false}
         loading={this.state.loading}
+        rowKey='id'
       />
     )
   }

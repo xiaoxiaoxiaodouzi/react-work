@@ -4,16 +4,24 @@ import DescriptionList from 'ant-design-pro/lib/DescriptionList';
 import UserSelectModal from '../../common/UserSelectModal';
 import { Route,withRouter } from 'react-router-dom';
 import { message } from 'antd';
-import { getTenantById,getTenantManager,updateTenantManager } from '../../services/tenants';
+import { getTenantById, getTenantManager, updateTenantManager } from '../../services/tp';
 import QuotaList from '../../components/Tenants/QuotaList';
 import UserManage from '../../components/Tenants/UserManage';
-import constants from '../../services/constants'
+import constants from '../../services/constants';
+import { base } from '../../services/base';
 
 const { Description } = DescriptionList;
-const tabList = [
+let tabList = [
   { key: 'quota', tab: '配额' }, 
   { key: 'user', tab: '用户' }, 
 ];
+let tabList2
+//cce权限
+if(!base.configs.passEnabled){
+  tabList2 = [
+    { key: 'user', tab: '用户' }, 
+  ];
+}
 class TenantDetail extends React.Component {
   state = {
     tenantId:'',
@@ -31,6 +39,10 @@ class TenantDetail extends React.Component {
       const id = url.slice(url.indexOf("tenants")+8,temp.indexOf('/')>0?(url.indexOf("tenants")+8+temp.indexOf('/')):undefined);
       this.setState({tenantId:id});
       this.loadTenantById(id);
+    }
+    //cce权限
+    if(!base.configs.passEnabled){
+      this.setState({ tabActiveKey: 'user' });
     }
     if(url.indexOf("user") > 0){
       this.setState({ tabActiveKey: 'user' });
@@ -78,27 +90,50 @@ class TenantDetail extends React.Component {
         </Description>
       </DescriptionList>
     )
-    return (
-      <div style={{ margin: '-24px -24px 0' }}>
-        <PageHeader
-          title={'租户名：'+name}
-          logo={<img alt="" src={constants.PIC.tenant} />}
-          content={content}
-          tabList={tabList}
-          tabActiveKey={tabActiveKey}
-          onTabChange={(key)=>this.onTabChange(key)}
-        />
-        <Route 
-          path="/tenants/:appId" 
-          render={ () => <QuotaList code={code} tenantId={tenantId} tenantCode={tenantCode} /> } exact />
-        <Route 
-          path="/tenants/:appId/quota" 
-          render={ () => <QuotaList code={code} tenantId={tenantId} tenantCode={tenantCode} /> } />
-        <Route 
-          path="/tenants/:appId/user" 
-          render={ () => <UserManage tenantId={tenantId} /> } />
-      </div>
-    );
+    //cce权限
+    if(!base.configs.passEnabled){
+      return (
+        <div style={{ margin: '-24px -24px 0' }}>
+          <PageHeader
+            title={'租户名：'+name}
+            logo={<img alt="" src={constants.PIC.tenant} />}
+            content={content}
+            tabList={tabList2}
+            tabActiveKey={tabActiveKey}
+            onTabChange={(key)=>this.onTabChange(key)}
+          />
+          <Route 
+            path="/tenants/:appId" 
+            render={ () => <UserManage tenantId={tenantId} /> }  exact/>
+          <Route 
+            path="/tenants/:appId/user" 
+            render={ () => <UserManage tenantId={tenantId} /> } />
+        </div>
+      );
+    }else{
+      return (
+        <div style={{ margin: '-24px -24px 0' }}>
+          <PageHeader
+            title={'租户名：'+name}
+            logo={<img alt="" src={constants.PIC.tenant} />}
+            content={content}
+            tabList={tabList}
+            tabActiveKey={tabActiveKey}
+            onTabChange={(key)=>this.onTabChange(key)}
+          />
+          <Route 
+            path="/tenants/:appId" 
+            render={ () => <QuotaList code={code} tenantId={tenantId} tenantCode={tenantCode} /> } exact />
+          <Route 
+            path="/tenants/:appId/quota" 
+            render={ () => <QuotaList code={code} tenantId={tenantId} tenantCode={tenantCode} /> } />
+          <Route 
+            path="/tenants/:appId/user" 
+            render={ () => <UserManage tenantId={tenantId} /> } />
+        </div>
+      );
+    }
+    
   }
 }
 

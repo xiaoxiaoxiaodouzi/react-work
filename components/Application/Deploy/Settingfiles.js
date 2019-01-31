@@ -1,8 +1,7 @@
 import React, { PureComponent } from 'react';
 import showConfirmModal from './ShowConfirmModal';
 import { Button,Table,Modal,Form,Input,Divider } from 'antd';
-import { base } from '../../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
+import Authorized from '../../../common/Authorized';
 const FormItem = Form.Item;
 /* 部署页面配置文件,props(configs,aftersetting)
  * configs arr 配置文件数据
@@ -233,7 +232,6 @@ class Settingfiles extends PureComponent {
     this.props.isAddApp?this.handleModalOk():this.showConfirmAddOrEdit();
   }
   render() {
-    const Authorized = RenderAuthorized(base.allpermissions);
     const { data,loadSave,startCmd,visibleModal,content,path,titleModal } = this.state;
     const formItemLayout = {
       labelCol: {
@@ -258,11 +256,11 @@ class Settingfiles extends PureComponent {
       render: (text, record) => {
         return (
           <span>
-             <Authorized authority='app_editConfigFile' noMatch={<a disabled="true" onClick={e => this.editSettingfile(e,record.key)}>编辑</a>}>
+             <Authorized authority={this.props.type==='middleware'?'middlewares_editConfigFile':'app_editConfigFile'} noMatch={<a disabled="true" onClick={e => this.editSettingfile(e,record.key)}>编辑</a>}>
               <a onClick={e => this.editSettingfile(e,record.key)}>编辑</a>
             </Authorized>
             <Divider type="vertical" />
-            <Authorized authority='app_deleteConfigFile' noMatch={<a disabled="true" onClick={e =>this.props.isAddApp?this.remove(record.key):this.showConfirmDelete(record.key)}>删除</a>}>
+            <Authorized authority={this.props.type==='middleware'?'middlewares_deleteConfigFile':'app_deleteConfigFile'} noMatch={<a disabled="true" onClick={e =>this.props.isAddApp?this.remove(record.key):this.showConfirmDelete(record.key)}>删除</a>}>
               <a onClick={e =>this.props.isAddApp?this.remove(record.key):this.showConfirmDelete(record.key)}>删除</a>
             </Authorized>
           </span>
@@ -272,7 +270,7 @@ class Settingfiles extends PureComponent {
     return (
       <div>
         <div className="card-title">配置文件</div>
-        <Authorized authority='app_addConfigFile' noMatch={null}>
+        <Authorized authority={this.props.type==='middleware'?'middlewares_addConfigFile':'app_addConfigFile'} noMatch={null}>
           <Button style={{marginBottom: 16}} type="primary" 
             onClick={() => 
               this.setState({
@@ -316,7 +314,7 @@ class Settingfiles extends PureComponent {
           loading={this.props.settingFileLoading}
           dataSource={data} 
           columns={columns} 
-          rowKey="id"
+          rowKey="mountPath"
         />
         {
           this.props.hidecmd?"":

@@ -1,18 +1,21 @@
 import React from 'react'
-import PageHeader from 'ant-design-pro/lib/PageHeader';
-import {Breadcrumb,Divider} from 'antd';
+import PageHeaderBreadcrumb from '../../common/PageHeaderBreadcrumb'
 import { AppTable, AppState } from '../../components/Application/AppList'
 import GlobalEnvironmentChange from '../../components/GlobalEnvironmentChange'
-import { queryAppCount } from '../../services/apps';
+// import { queryAppCount } from '../../services/aip';
 import { GlobalHeaderContext } from '../../context/GlobalHeaderContext'
+import {getAppStatus} from'../../services/monit';
+import { base } from '../../services/base';
 
 class AppList extends React.Component {
   state = {
     status: null,
     succeededCount: 0,
-    exceptionCount: 0,
+    unknownCount: 0,
     failedCount: 0,
     loading: false,
+    appStateMap:{},
+    allStatus:{}
   }
   componentDidMount() {
     this.loadData(this.props.tenant);
@@ -20,54 +23,60 @@ class AppList extends React.Component {
 
   loadData = (tenant) => {
     this.setState({ loading: true })
-    let querySuccess = queryAppCount({ tenant: tenant, status: 'succeeded',type:"web" });
-    let queryException = queryAppCount({ tenant: tenant, status: 'exception',type:"web" });
-    let queryFailed = queryAppCount({ tenant: tenant, status: 'failed' ,type:"web"})
-    Promise.all([querySuccess, queryException, queryFailed]).then(res => {
-      this.setState({
-        succeededCount: res[0],
-        exceptionCount: res[1],
-        failedCount: res[2],
-        loading: false
+    if(base.configs.monitEnabled){
+      getAppStatus({'env':base.currentEnvironment.code,'tenant':base.tenant}).then(res=>{
+        if(res){
+          //将返回结果转换为appcode：status形式
+          let appStateMap = {};
+          for(var key in res){
+            let object = res[key];
+            let codes = object.code;
+            // eslint-disable-next-line
+            codes.forEach(code => {
+              appStateMap[code] = key;
+            });         
+          }
+          this.setState({
+            succeededCount: res.Running.num ,
+            unknownCount: res.Unknown.num,
+            failedCount: res.Failed.num,
+            loading: false,
+            allStatus:res,
+            appStateMap
+          })
+        }
+        
+      }).catch(e => {
+        this.setState({
+          succeededCount: 0,
+          exceptionCount: 0,
+          failedCount: 0,
+          loading: false
+        });
+        base.ampMessage('根据状态统计应用错误' );
       })
-    }).catch(err => {
-      this.setState({
-        succeededCount: 0,
-        exceptionCount: 0,
-        failedCount: 0,
-      })
-    })
+    }
+    
   }
-
-
-
-
-  componentWillUpdate(nextProps) {
+  componentWillReceiveProps(nextProps) {
     if (this.props.tenant !== nextProps.tenant || this.props.environment !== nextProps.environment) {
       this.loadData(nextProps.tenant);
     }
   }
-
-
-
   onStatusChange = (status) => {
     this.setState({ status });
   }
   render() {
-    const { status, succeededCount, exceptionCount, failedCount ,loading} = this.state;
-    let breadcrumTitle = <Breadcrumb style={{marginTop:6}}>
-    <Breadcrumb.Item><Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a","verticalAlign":"text-bottom"}}/> 应用管理</Breadcrumb.Item>
-  </Breadcrumb>;
+    const { status, succeededCount, unknownCount, failedCount ,loading} = this.state;
     return (
       <div style={{ margin: '-24px -24px 0' }}>
-        <PageHeader title={breadcrumTitle} action={<GlobalEnvironmentChange/>}/>
-        <AppState normal={succeededCount} warm={exceptionCount} abnormal={failedCount} onStatusChange={this.onStatusChange} loading={loading}/>
-        <AppTable loading={loading} status={status} onStatusChange={this.onStatusChange} tenant={this.props.tenant} environment={this.props.environment} />
+        <PageHeaderBreadcrumb breadcrumbList={[{name:'应用管理'}]} action={<GlobalEnvironmentChange/>}/>
+       {base.configs.monitEnabled? <AppState normal={succeededCount} unknown={unknownCount} abnormal={failedCount} onStatusChange={this.onStatusChange} loading={loading}/>:""}
+        <AppTable allStatus={this.state.allStatus} appStateMap={this.state.appStateMap} loading={loading} status={status} onStatusChange={this.onStatusChange} tenant={this.props.tenant} environment={this.props.environment} />
       </div>
     );
   }
 }
-
 
 export default props => (
   <GlobalHeaderContext.Consumer>

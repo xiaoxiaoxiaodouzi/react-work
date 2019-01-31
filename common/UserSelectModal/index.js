@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import { Row, Tag, Tooltip } from "antd";
 import C2Fetch from '../../utils/Fetch';
 import ModalUI from './component';
+import { base } from "../../services/base";
 
 const DefaultColumns = [
 	{ title: "姓名", dataIndex: "name", key: "name" },
@@ -29,7 +30,8 @@ class UserSelectModal extends Component {
 			visible: false,
 			dataSource: [],
 			selectedUsers: [],
-			disableUsers: []
+			disableUsers: [],
+			pagination:{ current: 1, total: 0, pageSize: 6}
 		}
 
 		this._updateUserDatas = this._updateUserDatas.bind(this);
@@ -83,11 +85,10 @@ class UserSelectModal extends Component {
 		this.setState({
 			visible: true
 		});
-		this._onChange({ current: 1 });
 	}
 
-	_onSearch(text,categoryId,orgId) {
-		this._onChange({ current: 1 }, { name: text ,categoryId:categoryId,orgId:orgId});
+	_onSearch(text,categoryId,orgId,cascadeCheck) {
+		this._onChange({ current: 1 }, { name: text ,categoryId:categoryId,orgId:orgId,cascade:cascadeCheck},6);
 	}
 
 	_onHandleOk(users = []) {
@@ -104,12 +105,16 @@ class UserSelectModal extends Component {
 		this.props.onOk && this.props.onOk(resultUsers);
 	}
 
-	_onChange(pagination, filters = {}) {
+	_onChange(pagination, filters ,pageSize) {
 		if (!this.props.tenantId) {
-			Object.assign(filters, { page: pagination.current, rows: 6 })
-			C2Fetch.get(`proxy/uop/v1/users`, filters)
+			if(filters.orgId && filters.orgId !== ''){
+				Object.assign(filters, { page: pagination.current, rows: pageSize })
+				C2Fetch.get(`proxy/uop/v1/orgs/${filters.orgId}/users`, filters,true,{'AMP-ENV-ID': "1"})
 				.then((data) => {
-					var pagination = { current: data.pageIndex, total: data.total, pageSize: data.pageSize };
+					var pagination = { current: data.pageIndex, total: data.total, pageSize: pageSize};
+					pagination.showSizeChanger = true;
+					
+					pagination.pageSizeOptions=this._getPageSize(data.total);
 					this.setState({
 						dataSource: data.contents,
 						pagination: pagination
@@ -117,12 +122,17 @@ class UserSelectModal extends Component {
 				})
 				.catch((e) => {
 					console.error(e);
+					base.ampMessage('获取用户失败' );
 				})
+			}
+			
 		} else {//兼容租户数据源
-			Object.assign(filters, { page: pagination.current, rows: 6 },{userName:filters.name});
-			C2Fetch.get(`tp/v1/tenants/${this.props.tenantId}/users`, filters, '获取租户下的所有用户失败')
+			Object.assign(filters, { page: pagination.current, rows: pageSize },{userName:filters.name});
+			C2Fetch.get(`tp/v1/tenants/${this.props.tenantId}/users`, filters, '获取租户下的所有用户失败',{'AMP-ENV-ID': "1"})
 				.then(data => {
-					var pagination = { current: data.pageIndex, total: data.total, pageSize: data.pageSize };
+					var pagination = { current: data.pageIndex, total: data.total, pageSize: pageSize};
+					pagination.showSizeChanger = true;
+					pagination.pageSizeOptions=this._getPageSize(data.total);
 					this.setState({
 						dataSource: data.contents,
 						pagination: pagination
@@ -130,6 +140,24 @@ class UserSelectModal extends Component {
 				});
 		}
 	}
+
+	//计算页面大小
+	_getPageSize = (total) =>{
+		let options = ['6'];
+		if(total > 6 && total <=50){
+			options.push(total);
+		}else if(total > 50 && total <= 100){
+			options.push('50');
+			options.push(total);
+		}else if(total > 100){
+			options.push('50');
+			options.push('100');
+			options.push(total);
+		}
+
+		return options;
+	}
+
 	//*********************************************************************** */
 	//***********************************UI********************************** */
 	//*********************************************************************** */

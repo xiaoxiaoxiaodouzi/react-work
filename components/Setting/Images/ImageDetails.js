@@ -4,13 +4,13 @@ import './ImageDetails.less'
 import {Card,Table,Divider,Modal,Form,Input,message,Popconfirm,Select,Breadcrumb} from 'antd'
 import DescriptionList from 'ant-design-pro/lib/DescriptionList';
 import dockerPNG from '../../../assets/images/docker.png'
-import {getDetail,getList,updateList,deleteList,updateImages,getImageCategorys} from '../../../services/images'
+import { getImageCategorys, getDetail, getList, updateList, deleteList, updateImages } from '../../../services/cce';
 import moment from 'moment';
 import ImageTableList from './ImageTableList'
 import constants from '../../../services/constants'
 import InputInline from '../../../common/Input'
+import Authorized from '../../../common/Authorized';
 import { base } from '../../../services/base';
-import RenderAuthorized  from 'ant-design-pro/lib/Authorized';
 
 
 const FormItem = Form.Item;
@@ -114,8 +114,8 @@ class ImageDetailsForm extends Component{
         latest:datas.contents[0].tag,
         loading:false
       })
-    }).catch(err=>{
-      message.error('获取镜像配置失败')
+    }).catch(e=>{
+      base.ampMessage('获取镜像配置失败' );
       this.setState({loading:false})
     })
 }
@@ -197,7 +197,6 @@ class ImageDetailsForm extends Component{
     })
   }
   render(){
-    const Authorized = RenderAuthorized(base.allpermissions);
     const description = (
       <div>
         <DescriptionList className='headerList' size="small" col="2">
@@ -213,13 +212,16 @@ class ImageDetailsForm extends Component{
             </Select>
           </Authorized>  
           </Description>
-        </DescriptionList>
-
-        <DescriptionList className='headerList' style={{paddingLeft:'15px'}} size="small" col="1">
           <Authorized authority='image_editDetail' noMatch={'描述：' + this.state.desc}>
-            <InputInline  title={'描述'} value={this.state.desc} onChange={this.handleDescChange} dataType={'TextArea'} mode={'inline'}/>
+            <Description>
+              <InputInline  title={'描述'} value={this.state.desc} onChange={this.handleDescChange} dataType={'TextArea'} mode={'inline'}/>
+            </Description>
           </Authorized>
         </DescriptionList>
+
+        {/* <DescriptionList className='headerList' style={{paddingLeft:'15px'}} size="small" col="1">
+          
+        </DescriptionList> */}
       </div>
     );
 
