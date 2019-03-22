@@ -16,21 +16,13 @@ export function getApplicationTopo({ appCode, from, to, callerRange, calleeRange
   return C2Fetch.get(url, null, false);
 }
 
-
-
-
-
-
 //根据node名称查询node的响应时长apm/v1/apps/{applicationName}/resphistogram
 export function getRespHistogram(appCode,queryParam) {
   const url = proxy + `apm/v1/apps/${appCode}/resphistogram`
   return C2Fetch.get(url, queryParam, false)
 }
 
-
-
 //查询事务列表数据
-
 export function getTransactionInfo(appCode,queryParam){
   const url = proxy +`apm/v1/apps/${appCode}/transactions`
   return C2Fetch.get(url,queryParam,'获取事务数据失败')

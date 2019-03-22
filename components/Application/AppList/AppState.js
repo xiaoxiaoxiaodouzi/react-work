@@ -24,10 +24,15 @@ export default class AppState extends React.Component {
                             <div style={{ cursor: 'pointer' }} onClick={() => this.onStatusChange('Running')} ><Info title={<font color={constants.WARN_COLOR.normal}>运行中</font>} value={<font color={constants.WARN_COLOR.normal}>{this.props.normal||this.props.normal===0?this.props.normal:"--"}</font>} bordered /></div>
                         </Col>                      
                         <Col sm={8} xs={24}>
-                            <div style={{ cursor: 'pointer' }} onClick={() => this.onStatusChange('Failed')} ><Info title={<font color={constants.WARN_COLOR.error}>失败</font>}  value={<font color={constants.WARN_COLOR.error}>{this.props.abnormal||this.props.abnormal===0?this.props.abnormal:"--"}</font>} /></div>
+                            <div style={{ cursor: 'pointer' }} onClick={() => this.onStatusChange('Failed')} ><Info title={<font color={constants.WARN_COLOR.error}>失败</font>} 
+                             value={<font color={constants.WARN_COLOR.error}>{this.props.abnormal||this.props.abnormal===0?this.props.abnormal:"--"}
+                            </font>} bordered /></div>
                         </Col>
                         <Col sm={8} xs={24}>
-                            <div style={{ cursor: 'pointer'}} onClick={() => this.onStatusChange('Unknown')} ><Info title={<font>未知</font>}  value={<font >{this.props.unknown||this.props.unknown===0?this.props.unknown:"--"}</font>} bordered /></div>
+                            <div style={{ cursor: 'pointer'}} onClick={() => this.onStatusChange('Unknown')} >
+                            <Info  title={<font>未知</font>}   
+                            value={<font >{this.props.unknown||this.props.unknown===0?this.props.unknown:"--"}</font>} />
+                            </div>
                         </Col>
                     </Row>}
                 </Card>

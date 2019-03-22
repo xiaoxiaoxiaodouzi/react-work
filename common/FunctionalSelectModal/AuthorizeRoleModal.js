@@ -2,6 +2,7 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import { Modal } from "antd";
 import UserUnionTree from './UserUnionTree'
+import constants from '../../services/constants';
 // created by tanshunwang at 2018-09-05
 //用户集合授权modal组件，接受selectedKeys对象数组，使用标签显示默认选中用户集合，点击确定时关闭modal并传回选中值
 export default class AuthorizeRoleModal extends Component {
@@ -24,23 +25,14 @@ export default class AuthorizeRoleModal extends Component {
 
 
   render() {
-    let modalStyle = {
-      top:20
-    }
-    if(this.props.isOffset){
-      modalStyle = {
-        top:36,
-        marginLeft:340
-      }
-    }
     return (
       <Modal 
-        title={this.props.title?this.props.title:'选择用户集合'} width={1000} style={modalStyle} destroyOnClose mask={!this.props.isOffset}
-        visible={this.props.visible} bodyStyle={{overflowY:'auto',maxHeight:600}}
+        title={this.props.title?this.props.title:'选择用户集合'} width={1000}  destroyOnClose mask={!this.props.isOffset}
+        visible={this.props.visible} bodyStyle={{overflowY:'auto',maxHeight:constants.MODAL_STYLE.BODY_HEIGHT}}
         onOk={ () => this.props.handleModal(true,this.state.selectedKeys) }
         onCancel={() => this.props.handleModal(false)} >
           <UserUnionTree 
-            // disableSelectedKeys={this.props.selectedKeys}
+            disableSelectedKeys={this.props.disableSelectedKeys}
             selectedKeys={this.props.selectedKeys}
             onSelectedKeys={(onSelectedKeys)=>{this.setState({selectedKeys:onSelectedKeys})}}
             />

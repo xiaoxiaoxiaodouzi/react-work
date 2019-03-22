@@ -2,9 +2,9 @@ import React, { Component } from 'react';
 import { Modal, Card, Switch, Form, Input, Select, InputNumber, message, Icon, Tooltip } from 'antd';
 import DescriptionList from 'ant-design-pro/lib/DescriptionList';
 import User from '../../components/Application/Running/User'
-import {  getApp, updateApp, getSso, openSso, closeSso, eidtSso, getManagerOrgs } from '../../services/aip'
+import { updateApp, getSso, openSso, closeSso, eidtSso, getManagerOrgs } from '../../services/aip'
 import { addEnvs, deleteEnvs, existEnvs, editEnvs, queryBaseConfig } from '../../services/cce'
-import { queryEnvById,getPluginConfig, ssorouterplugin, deleteSsorouterplugin} from '../../services/amp'
+import { queryEnvById, getPluginConfig, ssorouterplugin, deleteSsorouterplugin } from '../../services/amp'
 import { base } from '../../services/base';
 import OrgModal from '../../components/Application/Running/OrgModal'
 import Authorized from '../../common/Authorized';
@@ -12,6 +12,7 @@ import constants from '../../services/constants';
 import SettingTable from '../../components/Application/Setting/SettingTable';
 import SettingClusterList from '../../components/Application/Setting/SettingClusterList'
 import { ErrorComponentCatch } from '../../common/SimpleComponents';
+import BlackAndWhite from '../../components/Application/Setting/BlackAndWhite';
 
 const { Description } = DescriptionList;
 const Option = Select.Option;
@@ -36,17 +37,16 @@ class Running extends Component {
 		status: '',
 		help: '',
 		doSee: false,			//是否可见
-		appUpstream:'',
-		appDatas:{},		//应用数据
-		appId:'',
-		checked:false			//是否支持https
+		appUpstream: '',
+		appDatas: {},		//应用数据
+		appId: this.props.match.params.id,
+		checked: false			//是否支持https
 	}
 
 
 	loadData = () => {
-		const appId = this.props.match.params.id;
-		
-		getApp(appId).then(data => {
+		const data = this.props.appData;
+		if (data) {
 			//应用upstream
 			let appUpstream = ''
 			let upstream = data.upstream ? data.upstream.split('//') : '';
@@ -65,13 +65,13 @@ class Running extends Component {
 				APMChecked: data.apm,
 				name: data.name,
 				host: data.host,
-				isK8s:data.deployMode==='k8s'?true:false
+				isK8s: data.deployMode === 'k8s' ? true : false
 			})
-			getPluginConfig({appCode:data.code}).then(config=>{
-				this.setState({anonurls:config.anon_urls?config.anon_urls.join(","):''});
-				
+			getPluginConfig({ appCode: data.code }).then(config => {
+				this.setState({ anonurls: config.anon_urls ? config.anon_urls.join(",") : '' });
+
 			})
-		})
+		}
 	}
 
 
@@ -113,30 +113,18 @@ class Running extends Component {
 			this.setState({
 				switch: true
 			})
-			//查询应用访问地址
-			getApp(this.props.match.params.id).then(data => {
-				this.setState({
-					clientName: data.name,
-				});
-				this.showModal1();
-			})
-
+			this.showModal1();
 		} else {
 			this.showModal3();
 		}
 	}
 
 	showModal1 = () => {
-		let appId = this.props.match.params.id;
-		getApp(appId).then(data => {
-			this.setState({
-				visible1: true,
-				status: '',
-				help: '',
-				clientName:data.name
-			});
-		})
-		
+		this.setState({
+			visible1: true,
+			status: '',
+			help: '',
+		});
 	}
 
 	showModal3 = () => {
@@ -262,7 +250,7 @@ class Running extends Component {
 
 	//统一认证权限模态框确认
 	handleOk1 = (e) => {
-		
+
 		const appid = this.props.match.params.id;
 		this.props.form.validateFields((err, values) => {
 			if (err) {
@@ -294,14 +282,14 @@ class Running extends Component {
 								visible1: false,
 								isOpen: true,
 								clientId: val.clientId,
-								clinetUrl:val.clinetUrl,
-								loginUrl:val.loginUrl,
+								clinetUrl: val.clinetUrl,
+								loginUrl: val.loginUrl,
 								clientSecret: val.clientSecret,
 							});
 							// message.success("启用插件成功")
 
 							//开启统一认证后需要添加插件
-							ssorouterplugin({appCode:this.state.code,anonurls:values.anonurls,clientId:val.clientId,secretCode:val.clientSecret});
+							ssorouterplugin({ appCode: this.state.code, anonurls: values.anonurls, clientId: val.clientId, secretCode: val.clientSecret });
 						});
 						if (val.clientType === "1") {
 							val.clientType = "web"
@@ -315,19 +303,19 @@ class Running extends Component {
 						if (val.securityLevel === '2') {
 							val.securityLevel = '高安全级'
 						}
-						
-						if(base.configs.passEnabled){
+
+						if (base.configs.passEnabled) {
 							//注入环境变量已经修改app
 							this.handleENV(val);
 						}
-						
+
 					}
 				}).catch(err => {
 					if (err) {
-						base.ampMessage('sso开启失败','sso开启失败，请联系管理员')
+						base.ampMessage('sso开启失败', 'sso开启失败，请联系管理员')
 					}
 				})
-				
+
 			} else {
 				eidtSso(appid, values).then(val => {
 					if (val) {
@@ -378,13 +366,13 @@ class Running extends Component {
 		const appid = this.props.match.params.id;
 		closeSso(appid).then(val => {
 			this.setState({ visible3: false, isOpen: false });
-			if(base.configs.passEnabled){
+			if (base.configs.passEnabled) {
 				//先暂时传空对象过去，
 				this.handleENV({ clientId: '', clinetUrl: '', clientSecret: '' });
 			}
 
-			deleteSsorouterplugin({appCode:this.state.code});
-			
+			deleteSsorouterplugin({ appCode: this.state.code });
+
 		})
 	}
 
@@ -403,7 +391,7 @@ class Running extends Component {
 	}
 
 	//应用回调地址input框值修改
-	handleChange = (rule,value,callback) => {
+	handleChange = (rule, value, callback) => {
 		let url = value;
 		if (url) {
 			if (!url.startsWith('http://')) {
@@ -431,27 +419,27 @@ class Running extends Component {
 	}
 	//是否支持https
 	handleHttpChange = (value) => {
-    let id = this.state.appId;
-    let queryParams = {
-      type: '2'
-    }
-    let schema = '';
-    if (value) {
-      schema = 'https'
-    } else {
-      schema = 'http'
-    }
+		let id = this.state.appId;
+		let queryParams = {
+			type: '2'
+		}
+		let schema = '';
+		if (value) {
+			schema = 'https'
+		} else {
+			schema = 'http'
+		}
 
-    let bodyParams = {
-      schema: schema
-    }
-    updateApp(id, queryParams, bodyParams).then(data => {
-      this.loadData();
-    })
-    this.setState({
-      checked: value
-    })
-  }
+		let bodyParams = {
+			schema: schema
+		}
+		updateApp(id, queryParams, bodyParams).then(data => {
+			this.loadData();
+		})
+		this.setState({
+			checked: value
+		})
+	}
 
 	renderOpen = () => {
 		return (
@@ -459,7 +447,7 @@ class Running extends Component {
 				<DescriptionList style={{ marginBottom: 24 }}>
 					<Description term="客户端ID">{this.state.clientId}</Description>
 					<Description term="客户端凭证">{this.state.doSee ? this.state.clientSecret : '******'} <Icon style={{ marginLeft: 8, cursor: 'pointer' }} type={this.state.doSee ? 'eye' : 'eye-o'} onClick={e => this.setState({ doSee: !this.state.doSee })} /></Description>
-					<Description term="应用类型">{this.state.clientType === 1 || this.state.clientType==='1' ? 'web':'app'}</Description>
+					<Description term="应用类型">{this.state.clientType}</Description>
 					<Description term="凭证有效时长(秒)">{this.state.expirein}</Description>
 					<Description term="刷新凭证有效时长(秒)">{this.state.reExpirein}</Description>
 					<Description term="应用安全等级">{this.state.securityLevel}</Description>
@@ -483,9 +471,9 @@ class Running extends Component {
 		});
 	}
 	render() {
-		let { appUpstream,appDatas} = this.state;
+		let { appUpstream, appDatas } = this.state;
 		let action1;
-		if (base.allpermissions.includes('app_editUnifiedCertification')) {
+		if (base.checkPermission('app_editUnifiedCertification')) {
 			action1 = <a style={{ float: "right", fontSize: 14 }} onClick={this.showModal1}>修改</a>;
 		}
 		const action = <a style={{ float: "right", display: this.state.editable ? '' : 'none' }} onClick={this.showModal}>修改</a>
@@ -506,9 +494,9 @@ class Running extends Component {
 			{}</pre>} ><Icon type="info-circle-o" /></Tooltip>应用安全等级</span>
 		return (
 			<div>
-				{base.configs.passEnabled?
+				{base.configs.passEnabled ?
 					<Card bordered={false} style={{ margin: 24 }} title='访问地址'>
-						{base.currentEnvironment.routerSwitch ? <SettingTable appCode={this.state.code} appDatas={appDatas} checked={this.state.checked} />
+						{base.currentEnvironment.routerSwitch ? <SettingTable  appDatas={appDatas} checked={this.state.checked} />
 							: <span>动态路由配置已关闭</span>
 						}
 					</Card> : ""
@@ -517,7 +505,7 @@ class Running extends Component {
 					<SettingClusterList appDatas={appDatas} appUpstream={appUpstream} checked={(e) => this.handleHttpChange(e)} />
 				</Card>
 
-				<Card title={title} style={{ margin: 24 }} bordered={false} extra={this.state.isOpen?action1:''}>
+				<Card title={title} style={{ margin: 24 }} bordered={false} extra={this.state.isOpen ? action1 : ''}>
 					{
 						this.state.isOpen ?
 							this.renderOpen() : this.renderClose()
@@ -539,7 +527,9 @@ class Running extends Component {
 						</div>
 						: null
 				}
-
+				{/* <Card title="黑名单和白名单" style={{ margin: 24 }} bordered={false}> */}
+				<BlackAndWhite appId={this.state.appId} />
+				{/* </Card> */}
 				<Modal
 					title="统一认证配置"
 					visible={this.state.visible1}
@@ -583,9 +573,10 @@ class Running extends Component {
 							// validateStatus={this.state.status}
 							// help={this.state.help}
 							label="应用回调地址">
-							{getFieldDecorator('clinetUrl', { initialValue: this.state.clinetUrl ,
-							rules:[{validator:this.handleChange}]	
-						})(
+							{getFieldDecorator('clinetUrl', {
+								initialValue: this.state.clinetUrl,
+								rules: [{ validator: this.handleChange }]
+							})(
 								<Input placeholder="输入地址" />
 							)}
 						</FormItem>

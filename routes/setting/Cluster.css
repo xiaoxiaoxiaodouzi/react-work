@@ -16,3 +16,31 @@
 .ant-card-actions > li {
   height: 22px;
 }
+
+.cluster-use-card img{
+  float: left;
+  margin-right:10px;
+  width: 90px;
+}
+.cluster-use-card .title{
+  font-size: 24px;
+}
+.cluster-use-card .val{
+  padding-right: 5px;
+}
+.cluster-use-card .val{
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.85);
+  font-weight: bold;
+}
+.cluster-use-card .cluster-progress{
+  width: calc(100% - 162px);
+}
+.cluster-info-title{
+  font-size: 18px;
+}
+.cluster-info-title span{
+  margin: 0 10px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}

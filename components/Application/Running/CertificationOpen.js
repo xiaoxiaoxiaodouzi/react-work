@@ -81,6 +81,7 @@ class CertificationOpenForm extends Component {
 				} else {
 					data.securityLevel = "高安全级"
 				}
+				debugger;
 				this.setState({
 					isOpen: true,
 					clientId: data.clientId,
@@ -438,7 +439,7 @@ class CertificationOpenForm extends Component {
 		return (
 			<div>
 				<DescriptionList style={{ marginBottom: 24 }}>
-					<Description term="客户端ID">{this.state.clientId}</Description>
+					<Description term="客户端ID123123">{this.state.clientId}</Description>
 					<Description term="客户端凭证">{this.state.doSee ? this.state.clientSecret : '******'} <Icon style={{ marginLeft: 8, cursor: 'pointer' }} type={this.state.doSee ? 'eye' : 'eye-o'} onClick={e => this.setState({ doSee: !this.state.doSee })} /></Description>
 					<Description term="应用类型">{this.state.clientType}</Description>
 					<Description term="凭证有效时长(秒)">{this.state.expirein}</Description>
@@ -466,7 +467,7 @@ class CertificationOpenForm extends Component {
 	render() {
 		let { appUpstream,appDatas} = this.state;
 		let action1;
-		if (base.allpermissions.includes('app_editUnifiedCertification')) {
+		if (base.checkPermission('app_editUnifiedCertification')) {
 			action1 = <a style={{ float: "right", fontSize: 14 }} onClick={this.showModal1}>修改</a>;
 		}
 		const action = <a style={{ float: "right", display: this.state.editable ? '' : 'none' }} onClick={this.showModal}>修改</a>

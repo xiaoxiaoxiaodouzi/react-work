@@ -6,10 +6,10 @@ import { base } from '../../services/base';
 import constants from '../../services/constants'
 import PageHeaderLayout from './layouts/PageHeaderLayout'
 import { GlobalHeaderContext } from '../../context/GlobalHeaderContext'
-import {BreadcrumbTitle} from '../../common/SimpleComponents'
+import { BreadcrumbTitle, ClusterDocModal } from '../../common/SimpleComponents'
 import './Cluster.css'
 import Authorized from '../../common/Authorized';
-import {GrafanaModal} from '../../common/SimpleComponents'
+import { GrafanaModal } from '../../common/SimpleComponents'
 
 
 class Cluster extends Component {
@@ -29,7 +29,7 @@ class Cluster extends Component {
     token: '',       //cluster_token
     showPublicCluster: false,
     isPublicCluster: false,
-    grafanaVisible:false,//集群监控模态框显示
+    grafanaVisible: false,//集群监控模态框显示
   }
 
   componentDidMount() {
@@ -167,7 +167,7 @@ class Cluster extends Component {
     this.setState({
       id: item.id
     })
-    getNodes(item.id,item.tenant).then(data => {
+    getNodes(item.id, item.tenant).then(data => {
       this.setState({
         listDatas: data,
         visibleList: true,
@@ -239,7 +239,6 @@ class Cluster extends Component {
     } else {
       message.error('请输入IP')
     }
-
   }
   render() {
     const columns = [
@@ -316,10 +315,10 @@ class Cluster extends Component {
       </div>
     )
 
-    let breadcrumTitle = BreadcrumbTitle([{name:'高级设置'},{name:'集群管理'}]);
+    let breadcrumTitle = BreadcrumbTitle([{ name: '平台管理' }, { name: '集群管理' }]);
     // <Breadcrumb style={{marginTop:6}}>
     //   <Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a",verticalAlign:"text-bottom"}}/>
-    //   <Breadcrumb.Item >高级设置</Breadcrumb.Item>
+    //   <Breadcrumb.Item >平台管理</Breadcrumb.Item>
     //   <Breadcrumb.Item >集群管理</Breadcrumb.Item>
     // </Breadcrumb>;
 
@@ -339,7 +338,7 @@ class Cluster extends Component {
                 <Card className='card' actions={item.public ? (this.state.showPublicCluster ? [<Authorized authority={'cluster_addHost'} noMatch={<a disabled='true' onClick={e => this.handleAddClick(e, item)}>新增主机</a>}><a onClick={e => this.handleAddClick(e, item)}>新增主机</a></Authorized>, <Authorized authority={'cluster_delete'} noMatch={<a disabled='true' onClick={e => this.handleDelete(e, item)}>删除集群</a>}><a onClick={e => this.handleDelete(e, item)}>删除集群</a></Authorized>] : ['']) : [<Authorized authority={'cluster_addHost'} noMatch={<a disabled='true' onClick={e => this.handleAddClick(e, item)}>新增主机</a>}><a onClick={e => this.handleAddClick(e, item)}>新增主机</a></Authorized>, <Authorized authority={'cluster_delete'} noMatch={<a disabled='true' onClick={e => this.handleDelete(e, item)}>删除集群</a>}> <a onClick={e => this.handleDelete(e, item)}>删除集群</a></Authorized>]}>
                   <Card.Meta
                     //avatar={<img alt="" className='cardAvatar' src={item.avatar} />}
-                    title={base.configs.monitEnabled?<a onClick={e=>{this.setState({grafanaVisible:true,clusterId:item.id})}}>{item.public ? '公共集群-' + item.name : '私有集群-' + item.name}</a>:<span>{item.public ? '公共集群-' + item.name : '私有集群-' + item.name}</span>}
+                    title={base.configs.monitEnabled ? <a onClick={e => { this.setState({ grafanaVisible: true, clusterId: item.id }) }}>{item.public ? '公共集群-' + item.name : '私有集群-' + item.name}</a> : <span>{item.public ? '公共集群-' + item.name : '私有集群-' + item.name}</span>}
                     description={
                       <div>
                         <Row gutter={{ md: 8, lg: 24, xl: 48 }} style={{ marginBottom: 5 }}>
@@ -378,8 +377,8 @@ class Cluster extends Component {
             )}
           />
 
-          <GrafanaModal visible={this.state.grafanaVisible} title='集群监控' onCancel={e=>{this.setState({grafanaVisible:false})}} 
-            url={base.configs.globalResourceMonitUrl+constants.GRAFANA_URL.cluster+'&var-cluster='+this.state.clusterId} />
+          <GrafanaModal visible={this.state.grafanaVisible} title='集群监控' onCancel={e => { this.setState({ grafanaVisible: false }) }}
+            url={base.configs.globalResourceMonitUrl + constants.GRAFANA_URL.cluster + '&var-cluster=' + this.state.clusterId} />
           <Modal
             title='新建集群'
             visible={this.state.visibleAdd}
@@ -424,75 +423,7 @@ class Cluster extends Component {
               dataSource={this.state.listDatas}
             />
           </Modal>
-          <Modal
-            style={{ top: 20 }}
-            bodyStyle={{ height: 700, overflow: 'auto' }}
-            title='内网生成集群主机添加'
-            onCancel={this.handelAddCancle}
-            visible={this.state.visibleMaAdd}
-            width='900px'
-            footer={null}
-          >
-            <p>更全面的文档介绍 <a href="https://docs.docker.com/engine/installation/linux/docker-ee/centos/#install-docker-ee">请参考</a>（主机已安装Docker,请跳过） </p>
-            <p>执行以下一条安装脚本即可</p>
-            <pre className='preStyle' >{
-              `curl -sS http://s3.c2cloud.cn/k8s-builder/install-docker.sh | sh -s`} {this.state.masterIP}
-            </pre>
-            <p>配置Docker存储驱动为devicemapper direct-lvm，请在生产环境配置。详细文档<a href="https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/#configure-direct-lvm-mode-for-production">请参考</a></p>
-            <p>1） 磁盘分区</p>
-            <pre className='preStyle'>
-              {`
-  fdisk /dev/vdb#/dev/vdb为新挂载的设备块
-  Command (m for help): n    # n表示新建一个新分区。
-  出现“First cylinder(n-xxx, default m) ：”表示要你输入的分区开始的位置。直接回车选择默认值
-  出现“Last cylinder or +size or +sizeM or +sizeK (n-xxx, default xxx):”表示分区的结束位置。直接回车选择默认值
-  Command (m for help): wq            # 保存信息
-  fdisk -l /dev/vdb                   # 查看硬盘/dev/vdb的信息`}
-            </pre>
-            <p>2） 创建逻辑卷</p>
-            <pre className='preStyle'>
-              {`
-  pvcreate /dev/vdb1 
-  vgcreate docker /dev/vdb1
-  lvcreate --wipesignatures y -n thinpool docker -l 95%VG
-  lvcreate --wipesignatures y -n thinpoolmeta docker -l 1%VG
-  lvconvert -y --zero n -c 512K --thinpool docker/thinpool --poolmetadata docker/thinpoolmeta`}
-            </pre>
-            <p>3） 修改配置文件</p>
-            <pre className='preStyle'>
-              {`
-  vi /etc/lvm/profile/docker-thinpool.profile 
-  activation {
-    thin_pool_autoextend_threshold=80
-    thin_pool_autoextend_percent=20
-  }
-  lvchange --metadataprofile docker-thinpool docker/thinpool        # 添加新的lv profile
-  lvs -o+seg_monitor`}
-            </pre>
-            <p>4）修改Docker启动参数ExecStart，重启Docker</p>
-            <pre className='preStyle'>
-              {`
-  vi /usr/lib/systemd/system/docker.service
-  ExecStart=/usr/bin/dockerd $OPTIONS --bip=192.168.1.1/16 
-    --storage-driver=devicemapper 
-    --storage-opt=dm.thinpooldev=/dev/mapper/docker-thinpool 
-    --storage-opt=dm.use_deferred_remova
-  sudo systemctl restart docker            # Docker重启l=true 
-    --storage-opt=dm.use_deferred_deletion=true`}
-            </pre>
-            <span style={{ marginBottom: 24, marginTop: 24 }}>1）请输入主机IP：<Input style={{ marginBottom: 24, marginTop: 24 }} value={this.state.ip} onChange={e => this.setState({
-              ip: e.target.value
-            })} /></span>
-            <p>2）安装好docker后，请在第一步填写您的主机IP，然后在您的主机上运行命令</p>
-            <pre className='preStyle' style={{ 'white-space': 'pre-wrap' }}>
-              {`curl -sS http://s3.c2cloud.cn/k8s-builder/install.sh | sh -s ${this.state.token} ${this.state.ip} ${this.state.masterIP}`}
-            </pre>
-            <p>
-              3）当看到您的主机输出【 Run 'kubectl get nodes' on the master to see this machine join.】后，
-        点击加入集群按钮，将主机加入内网生产集群。<Button type='primary' onClick={e => this.handleBtnAdd(e)}>加入集群</Button>
-            </p>
-
-          </Modal>
+          <ClusterDocModal masterIP={'this.state.masterIP'} token={'this.state.token'} handleBtnAdd={this.handleBtnAdd} onCancel={() => this.setState({ visibleMaAdd: false })} visibleMaAdd={this.state.visibleMaAdd} />
         </div>
       </PageHeaderLayout>
     )

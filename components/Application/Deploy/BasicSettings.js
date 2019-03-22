@@ -1,14 +1,17 @@
 import React, { PureComponent } from 'react';
-import { Modal, Tooltip, Table, Icon, Radio, InputNumber,Select,message } from 'antd';
+import { Modal, Tooltip, Table, Icon, message } from 'antd';
 import DescriptionList from 'ant-design-pro/lib/DescriptionList';
-import { queryImageVersions, queryContainerConfig } from '../../../services/cce'
+import { queryImageVersions, changeAppExtention } from '../../../services/cce'
 import showConfirmModal from './ShowConfirmModal';
 import ShareLicense from './ShareLicense';
 import HealthCheck from './HealthCheck';
 import moment from 'moment';
 import Authorized from '../../../common/Authorized';
+import QuotaSetting from '../../../common/quotaValue/QuotaSetting'
+import DepolyContext from '../../../context/DepolyContext';
+import { changeAppProperty, updateApp } from '../../../services/aip';
+
 const { Description } = DescriptionList;
-const RadioGroup = Radio.Group;
 /* 部署页面基本信息,props(artifact,version,node,dockerConfig)
  * artifact string 镜像名称
  * version string 版本信息
@@ -28,74 +31,44 @@ class BasicSettings extends PureComponent {
     page: 1,
     rows: 10,
     total: 0,
-    sharedLicense:false,
-    healthChecked:false,
-    customize:false,
-    memory:'1',
-    request:'0.1',
-    limit:'0.1',
+    sharedLicense: false,
+    healthChecked: false,
+    customize: false,
+    memory: '1',
+    request: '0.1',
+    limit: '0.1',
+    cpuLimit: '',
+    memLimit: '',
+    cpuRequest: '',
+    memRequest: '',
   };
   version = this.props.version;
   quotaValue = 0;
 
-  componentDidMount(){
-    this.getContainerConfig();
-  }
- 
   componentWillReceiveProps(nextProps) {
     if (nextProps.artifact !== this.props.artifact || this.props.operationkey !== nextProps.operationkey) {
-      if(nextProps.configs){
-        nextProps.configs.forEach(element=>{
-          if(element.name === 'config-license'){
+      if (nextProps.configs) {
+        nextProps.configs.forEach(element => {
+          if (element.name === 'config-license') {
             this.setState({
-              sharedLicense:true
+              sharedLicense: true
             });
-            
+
           }
         });
       }
-      if(nextProps.probe){
-        this.setState({healthChecked:true});
-      }else{
-        this.setState({healthChecked:false});
+      if (nextProps.probe) {
+        this.setState({ healthChecked: true });
+      } else {
+        this.setState({ healthChecked: false });
       }
 
       const { tenant, artifact, version, node, dockerConfig } = nextProps;
       this.setState({ tenant, artifact, version, node, dockerConfig });
       this.getImageVersions(tenant, artifact);
-      this.getContainerConfig();
     }
   }
-  //获取容器配置选项
-  getContainerConfig = () => {
-    queryContainerConfig().then(data => {
-      let quotaValue = 0;
-      if (Array.isArray(data)) {
-        let flag = false;//记录当前配置是否在选项中
-        let customize = false;
-        data.forEach((element, index) => {
-          let quota = element.cpu + '-' + element.memory + element.memoryUnit;
-          if (quota === this.state.dockerConfig) {
-            quotaValue = index;
-            this.quotaValue = quotaValue;
-            flag = true;
-          }
-        });
-        if(this.state.dockerConfig && !flag){
-          quotaValue = '-1';
-          customize = true;
-          let dockerConfig = this.props.limit + "-" + this.props.memory;
-          this.setState({
-            limit:this.props.limit,
-            request:this.props.request,
-            dockerConfig:dockerConfig,
-            memory:this.props.memory.substring(0,this.props.memory.length - 2)
-          })
-        }
-        this.setState({ quotaList: data, quotaValue,customize });
-      }
-    });
-  }
+
   //获取镜像版本列表
   getImageVersions = (tenant, artifact) => {
     this.setState({ loadingTable: true });
@@ -107,30 +80,54 @@ class BasicSettings extends PureComponent {
     }).catch(err => this.setState({ loadingTable: false }));
   }
 
-  onSelectChange = (e) => {
-    if (e.target.value !== this.state.quotaValue) {
-      
-      if(e.target.value === '-1'){
-        this.setState({
-          customize:true,
-          quotaValue: e.target.value
-        })
-      }else{
-        this.setState({
-          quotaValue: e.target.value,
-          customize:false
-        })
-      }
-    }
+  //应用描述修改
+  onAppDescriptionChangeCommit(value) {
+    changeAppProperty(this.appid, { name: this.state.appname, desc: value })
+      .then((response) => {
+        if(response){
+          message.success('修改描述成功！');
+          this.setState({
+            description: value
+          })
+        }
+      })
+    
   }
 
-  onSelectOk = () =>{
-    if(this.state.request > this.state.limit){
-      message.error("request值不能大于limit");
-    }else{
-      this.showConfirmEdit('quota');
-    }
-    
+  _setReplicas = () => {
+    this.setState({
+      replicasLoading: true
+    })
+    changeAppExtention(this.code, this.inputRelicas).then(data => {
+      if (data) {
+        this.setState({
+          isEditNumber: false,
+          replicas: this.inputRelicas
+        })
+      }
+      this.setState({
+        replicasLoading: false
+      })
+    }).catch(err => {
+      this.setState({
+        replicasLoading: false
+      })
+    })
+  }
+
+  _setInputReplicas = (value) => {
+    this.inputRelicas = value;
+  }
+
+  _onEditHostOk = () =>{
+    updateApp(this.state.appId,{},{host:this.state.host}).then(res=>{
+      message.success('修改访问地址成功！');
+      this.setState({edit:false});
+    })
+  }
+
+  onSelectOk = () => {
+    this.showConfirmEdit('quota');
   }
 
   //显示修改信息后是否重启应用确认modal，调用公用确认组件showConfirmModal,flag = 'version'为修改版本确认，'quota'为容器配置修改确认
@@ -147,21 +144,24 @@ class BasicSettings extends PureComponent {
         this.props.onChangeBasicInfo(version, null, true, false);
         this.setState({ visibleVersion: false });
       } else {
+        let dockerConfig = [];
         let quota = {};
-        if(quotaValue !== '-1'){
+        if (quotaValue !== '-1') {
           quota = quotaList[quotaValue];
-        }else{
+          dockerConfig = [quota.cpu + '-' + quota.memory + quota.memoryUnit, quota.cpu + '-' + quota.memory + quota.memoryUnit]
+        } else {
           // let limit = {cpu: {amount: this.state.limit}, memory: {amount: this.state.memory+"Gi"}};
           // let requests = {cpu: {amount: this.state.request}, memory: {amount: this.state.memory+"Gi"}};
           // quota.limits = limit;
           // quota.requests = requests;
-          quota.cpu = this.state.limit;
-          quota.memory = this.state.memory;
+          quota.cpuLimit = this.state.cpuLimit;
+          quota.memLimit = this.state.memLimit;
+          quota.cpuRequest = this.state.cpuRequest;
+          quota.memRequest = this.state.memRequest;
           quota.memoryUnit = "Gi";
+          dockerConfig = [quota.cpuLimit + '-' + quota.memLimit + quota.memoryUnit, quota.cpuRequest + '-' + quota.memRequest + quota.memoryUnit];
         }
-        
-        let dockerConfig = quota.cpu + '-' + quota.memory + quota.memoryUnit;
-        this.props.onChangeBasicInfo(null, dockerConfig, false, true,this.state.request);
+        this.props.onChangeBasicInfo(null, dockerConfig, false, true, this.state.request);
         this.setState({ dockerConfig, editDockerConfig: false });
       }
     }, () => {
@@ -176,10 +176,14 @@ class BasicSettings extends PureComponent {
       });
   }
 
+  submitData = (value) => {
+    this.setState({ ...value })
+  }
+
   showTotal = () => `共 ${this.state.total} 条记录  第 ${this.state.page}/${Math.ceil(this.state.total / this.state.rows)} 页 `;
 
   render() {
-    const { node, dockerConfig, version, versionList, artifact, quotaList, quotaValue } = this.state;
+    const { node, dockerConfig, version, versionList, artifact } = this.state;
     const columns = [{
       title: '版本号',
       dataIndex: 'tag',
@@ -218,22 +222,22 @@ class BasicSettings extends PureComponent {
             <Tooltip title={this.props.image} overlayStyle={{ wordWrap: 'break-word' }}>{artifact}</Tooltip>
           </Description>
           <Description term="版本">
-            <Authorized authority={this.props.type==='web'?'app_release':'middlewares_release'} noMatch={<span>{version}</span>}>
-            <span className='hover-editor'><span>{version}</span>
-              <a style={{ marginLeft: 8 }} onClick={() => {
-                this.version = this.state.version;
-                this.setState({ page: 1, rows: 10 }, () => this.getImageVersions(this.props.tenant, this.props.artifact));
-                this.setState({ visibleVersion: true });
-              }} ><Icon type='edit' /></a></span>
-              </Authorized>
+            <Authorized authority={this.props.type === 'web' ? 'app_release' : 'middlewares_release'} noMatch={<span>{version}</span>}>
+              <span className='hover-editor'><span>{version}</span>
+                <a style={{ marginLeft: 8 }} onClick={() => {
+                  this.version = this.state.version;
+                  this.setState({ page: 1, rows: 10 }, () => this.getImageVersions(this.props.tenant, this.props.artifact));
+                  this.setState({ visibleVersion: true });
+                }} ><Icon type='edit' /></a></span>
+            </Authorized>
           </Description>
           <Description term="主机">
             {node ? node : '--'}
           </Description>
-          
+
           <Description term="容器配置">
-          <Authorized authority={this.props.type==='middleware'?'middlewares_container':'app_container'} noMatch={'未指定'}>
-            {/* {this.state.editDockerConfig ?
+            <Authorized authority={this.props.type === 'middleware' ? 'middlewares_container' : 'app_container'} noMatch={'未指定'}>
+              {/* {this.state.editDockerConfig ?
               <div style={{ display: 'flex' }}>
                 <Select style={{ flex: '1 1 auto' }} value={quotaValue} placeholder="选择版本"
                   onChange={this.onSelectChange}>
@@ -254,109 +258,75 @@ class BasicSettings extends PureComponent {
                 }} ><Icon type='edit' /></a>
               </span>
             } */}
-             <span className='hover-editor'>
-                {dockerConfig.indexOf('-') > 0 ? `${dockerConfig.split('-')[0]} 核CPU ${dockerConfig.split('-')[1]} 内存` : '未限制'}
+              <span className='hover-editor'>
+                {dockerConfig[0]?dockerConfig[0].indexOf('-') > 0 ? `${dockerConfig[0].split('-')[0]} 核CPU ${dockerConfig[0].split('-')[1]} 内存` : '未限制':'未限制'}
                 <a style={{ marginLeft: 8 }} onClick={() => {
-                  this.getContainerConfig();
                   this.setState({ editDockerConfig: true })
                 }} ><Icon type='edit' /></a>
               </span>
-             </Authorized>
+            </Authorized>
           </Description>
-         
+
           <Description term="健康检查">
-          <Authorized authority={this.props.type==='middleware'?'middlewares_healthExamination':'app_healthExamination'} noMatch={<HealthCheck
+            <Authorized authority={this.props.type === 'middleware' ? 'middlewares_healthExamination' : 'app_healthExamination'} noMatch={<HealthCheck
               disabled='true'
               probe={this.props.probe}
               container={this.props.operationkey}
               onChangeProbe={this.props.onChangeProbe}
             />}>
-            <HealthCheck
-              probe={this.props.probe}
-              container={this.props.operationkey}
-              onChangeProbe={this.props.onChangeProbe}
-            />
+              <HealthCheck
+                probe={this.props.probe}
+                container={this.props.operationkey}
+                onChangeProbe={this.props.onChangeProbe}
+              />
             </Authorized>
           </Description>
           <Description term="共享许可">
-          
-          <Authorized authority={this.props.type==='middleware'?'middlewares_sharedLicense':'app_sharedLicense'} noMatch={<ShareLicense
+
+            <Authorized authority={this.props.type === 'middleware' ? 'middlewares_sharedLicense' : 'app_sharedLicense'} noMatch={<ShareLicense
               disabled='true'
               appCode={this.props.appCode}
               operationkey={this.props.operationkey}
               configs={this.props.configs}
               onChangeShareLicense={this.props.onChangeShareLicense}
             />}>
-            <ShareLicense
-              appCode={this.props.appCode}
-              operationkey={this.props.operationkey}
-              configs={this.props.configs}
-              onChangeShareLicense={this.props.onChangeShareLicense}
-            />
-          </Authorized>
+              <ShareLicense
+                appCode={this.props.appCode}
+                operationkey={this.props.operationkey}
+                configs={this.props.configs}
+                onChangeShareLicense={this.props.onChangeShareLicense}
+              />
+            </Authorized>
           </Description>
         </DescriptionList>
         <Modal style={{ top: 20 }}
           title="选择镜像版本" onCancel={() => this.setState({ visibleVersion: false })}
           visible={this.state.visibleVersion} footer={null} >
-          <Table size='middle' loading={this.state.loadingTable} dataSource={versionList} columns={columns} pagination={pagination} rowKey='tag'/>
+          <Table size='middle' loading={this.state.loadingTable} dataSource={versionList} columns={columns} pagination={pagination} rowKey='tag' />
         </Modal>
-        <Modal visible={this.state.editDockerConfig}
-        onCancel={()=>{this.setState({editDockerConfig:false})}}
-        onOk={this.onSelectOk}
-        title='容器配置'>
-          <RadioGroup onChange={this.onSelectChange} value={quotaValue}>
-            {
-              quotaList.map((element, index) =>{
-                return <Radio style={{
-                height: '30px',
-                width:'40%'}} key={index} value={index}>{`${element.cpu} 核CPU ${element.memory + element.memoryUnit} 内存`}</Radio>
-              })
-            }
-            <Radio key="-1" style={{
-                height: '30px',
-                width:'40%'}} value="-1">自定义</Radio>            
-          </RadioGroup>
-          <div style={{marginTop:8}}>
-            {this.state.customize?
-            <div>
-              <DescriptionList col={1}>
-                <Description term="CPU限制"><div><Select disabled={true} style={{width:100,marginRight:5}} value='request'><Select.Option value='request'>request</Select.Option></Select>
-                                                <InputNumber defaultValue={this.state.request} precision={1} onChange={
-                                                  (value)=>{
-                                                    if(value>this.state.limit){
-                                                      message.info("request值不能大于limit！")
-                                                    }else{
-                                                      this.setState({request:value});
-                                                    }
-                                                }} 
-                                                style={{width:'50%'}} min={0.1} max={this.state.limit} step={0.1}/> 核</div>
-                                            <div style={{marginTop:5}}><Select disabled={true} style={{width:100,marginRight:5}} value='limit'><Select.Option value='limit'>limit</Select.Option></Select>
-                                            <InputNumber defaultValue={this.state.limit} precision={1} 
-                                            onChange={(value)=>{
-                                              if(value<this.state.request){
-                                                message.info("request值不能大于limit！")
-                                              }else{
-                                                this.setState({limit:value});
-                                              }
-                                            }} 
-                                            style={{width:'50%'}} min={this.state.request} step={0.1}/> 核</div>
-                                            <div style={{marginTop:5,color:'rgb(190,190,190)'}}>request只用于资源分配调度，不限制实际使用</div>
-                                            <div style={{color:'rgb(190,190,190)'}}>limit与资源调度无关，表示资源的最大使用上限</div>
-                </Description>                     
-              </DescriptionList> 
-              <DescriptionList style={{marginTop:10}} col={1}>
-                <Description term="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;内存"><InputNumber defaultValue={this.state.memory} onChange={(value)=>this.setState({memory:value})} style={{width:'76%'}} min={1} max={32}/> Gi
-                                          <div style={{marginTop:5,color:'rgb(190,190,190)'}}>内存限制默认rquest=limit</div>
-                </Description>
-              </DescriptionList>
-           </div>
-            :"" 
-            }
-          </div>
+
+        <Modal 
+          width='840px'
+          visible={this.state.editDockerConfig}
+          onCancel={() => { this.setState({ editDockerConfig: false }) }}
+          onOk={this.onSelectOk}
+          title='配额配置'
+          destroyOnClose>
+          <QuotaSetting dockerConfig={this.state.dockerConfig}
+            cpuLimit={this.props.cpuLimit}
+            memLimit={this.props.memLimit.indexOf('Mi') > 0 ? 0.5 : this.props.memLimit.substring(0, this.props.memLimit.length - 2)}
+            cpuRequest={this.props.cpuRequest}
+            memRequest={this.props.memRequest.indexOf('Mi') > 0 ? 0.5 : this.props.memRequest.substring(0, this.props.memRequest.length - 2)}
+            submitData={this.submitData}
+            quotaList={(data) => this.setState({ quotaList: data })}
+          />
         </Modal>
       </div>
     );
   }
 }
-export default BasicSettings;
+export default props => (
+  <DepolyContext.Consumer>
+    {context => <BasicSettings {...props} {...context} />}
+  </DepolyContext.Consumer>
+);

@@ -303,6 +303,7 @@ class UserSelectModal extends React.Component {
 						value={this.state.org}
 						onChange={this._onOrgChange}
 						ref="orgSelectTree"
+						showDefault={true}
 						/>
 					</Col>
 					<Col><label>姓名:</label></Col>

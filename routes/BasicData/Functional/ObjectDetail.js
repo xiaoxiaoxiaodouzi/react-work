@@ -16,7 +16,7 @@ import InputInline from '../../../common/Input'
 import TreeHelp from '../../../utils/TreeHelp'
 import { base } from '../../../services/base';
 import Authorized from '../../../common/Authorized';
-
+import Link from 'react-router-dom/Link';
 
 const { Description } = DescriptionList;
 const tabList = [
@@ -26,27 +26,46 @@ const tabList = [
 ];
 const confirm = Modal.confirm;
 class FunctionalDetail extends React.Component {
-  state = {
-    tabActiveKey: 'permission',
-    tags: [],
-    allTags: [],
-    appId: this.props.match.params.appid,
-    id: this.props.match.params.id,
-    resourceId: '',
-    appName: '',
-    isDelete: '',
-    isPublic: '',
-    desc: '',
-    data: {},
-    datas: [],   //应用下的所有资源 树结构
-    roleList: [],            //角色集合数据
-    userCollections: [],     //用户集合数据
-    visible: false,          //编辑模态框开关
-    oriData: [],       //所有资源 LIST结构
-    roleListChange: (roleList) => {
-      this.setState({ roleList })
+
+  constructor(props){
+    super(props);
+
+    let {url,params} = props.match;
+    let breadcrumbList = [];
+    if(url.startsWith('/functions'))breadcrumbList.push({title:<Link to='/funcs'>功能权限与导航</Link>});
+    if(url.startsWith('/applications')){
+      breadcrumbList.push(
+        {title:<Link to='/apps'>应用列表</Link>},
+        {title:<Link to={`/apps/${params.appid}/resource`}>权限</Link>},
+      );
+    }
+    breadcrumbList.push({title:'功能详情'});
+
+    this.state = {
+      tabActiveKey: 'permission',
+      breadcrumbList,
+      tags: [],
+      allTags: [],
+      appId: this.props.match.params.appid,
+      id: this.props.match.params.id,
+      resourceId: '',
+      appName: '',
+      isDelete: '',
+      isPublic: '',
+      desc: '',
+      data: {},
+      datas: [],   //应用下的所有资源 树结构
+      roleList: [],            //角色集合数据
+      userCollections: [],     //用户集合数据
+      visible: false,          //编辑模态框开关
+      oriData: [],       //所有资源 LIST结构
+      roleListChange: (roleList) => {
+        this.setState({ roleList })
+      }
     }
   }
+
+  
 
   componentDidMount() {
     if (this.props.permissions) base.allpermissions = this.props.permissions;
@@ -130,7 +149,9 @@ class FunctionalDetail extends React.Component {
     return (
       <div>
         <DescriptionList size="small" col="2">
-          <Description term="所属应用">{this.state.appName ? this.state.appName : '无'}</Description>
+          <Description term="所属应用">{this.state.appName ? 
+            <Link style={{ marginRight: 8 }} to={`/apps/${this.state.appId}`}>{this.state.appName}</Link>           
+             : '无'}</Description>
           {/* <Description term="是否删除">{this.state.isDelete ? this.state.isDelete : '无'}</Description> */}
           <Description term="是否默认收藏">{this.state.isPublic ? this.state.isPublic : '否'}</Description>
           <Description term="最近修改时间">{moment(new Date()).format('YYYY-MM-DD HH:mm')}</Description>    
@@ -169,6 +190,7 @@ class FunctionalDetail extends React.Component {
       <div style={{ margin: '-24px -24px 0' }}>
         <PageHeader
           title={title}
+          breadcrumbList={this.state.breadcrumbList}
           action={action}
           logo={<img alt="" src={constants.PIC.service} />}
           content={this.renderconstDescription()}

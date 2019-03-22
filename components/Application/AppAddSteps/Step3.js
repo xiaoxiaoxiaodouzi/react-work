@@ -4,6 +4,7 @@ import Result from 'ant-design-pro/lib/Result';
 import Link from 'react-router-dom/Link';
 import { queryAppInfo } from '../../../services/cce';
 import { base } from '../../../services/base';
+import CreateAppContext from '../../../context/CreateAppContext';
 
 /* function ExtraText(props) {
     return (
@@ -86,4 +87,8 @@ class Step3 extends React.Component {
     }
 }
 
-export default Step3;
+export default props=>(
+    <CreateAppContext.Consumer>
+        {context=><Step3 {...props} {...context}/>}
+    </CreateAppContext.Consumer>
+);

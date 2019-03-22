@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import {  Modal } from 'antd';
 import DynamicFormEditor from './DynamicFormEditor';
+import constants from '../../services/constants';
 
 
 /**
@@ -34,7 +35,7 @@ class FormEditorModal extends Component {
     return (
       <Modal
         title={this.props.title} maskClosable={false} width={this.props.width} confirmLoading={this.props.confirmLoading}
-        visible={this.props.visible} bodyStyle={{maxHeight:360,overflow:'auto'}} destroyOnClose={true}
+        visible={this.props.visible} bodyStyle={{maxHeight:constants.MODAL_STYLE.BODY_HEIGHT,overflow:'auto'}} destroyOnClose={true}
         onOk={this.onOk}
         onCancel={this.props.onCancel}>
         <DynamicFormEditor items={this.props.items} data={this.props.data} getForm={form=>this.dynamicForm=form} footer={null}/>

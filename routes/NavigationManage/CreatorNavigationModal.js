@@ -6,7 +6,6 @@ import TreeHelp from '../../utils/TreeHelp';
 import constants from '../../services/constants';
 import { getNavigations } from './../../services/aip'
 
-
 const FormItem = Form.Item;
 
 class CreatorNavigationModal extends React.PureComponent {
@@ -17,11 +16,11 @@ class CreatorNavigationModal extends React.PureComponent {
     menusTree:[]
   }
 
-  componentWillReceiveProps(nextProps) {
-    if (nextProps.visible && nextProps.visible !== this.props.visible) {
-      let data = nextProps.data;
+  componentDidUpdate(provProps,provState){
+    if (this.props.visible && provProps.visible !== this.props.visible) {
+      let data = this.props.data;
       this.setState({data});
-      getNavigations({catalogAndResourceType:nextProps.catalogAndResourceType}).then(datas => {
+      getNavigations({catalogAndResourceType:this.props.catalogAndResourceType}).then(datas => {
         let allMenuNodes = datas.filter(d => d.type === constants.NAVIGATION_TYPE.catalog);
         allMenuNodes.push({id:'0',pid:'',name:'根目录'});
         this.setState({menusTree:TreeHelp.toChildrenStruct( allMenuNodes)})
@@ -83,6 +82,7 @@ class CreatorNavigationModal extends React.PureComponent {
         destroyOnClose width={600}
         onOk={this.onOk}
         onCancel={this.props.onCancel}
+        bodyStyle={{maxHeight:constants.MODAL_STYLE.BODY_HEIGHT,overflow:'auto'}}
       >
         <Form>
           {/* {

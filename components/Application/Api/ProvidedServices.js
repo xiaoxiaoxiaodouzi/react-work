@@ -54,7 +54,6 @@ class ProvidedServices extends React.Component {
 
 	constructor(props) {
 		super(props);
-
 		this.state = {
 			visible: false,
 			loading: false,
@@ -98,7 +97,6 @@ class ProvidedServices extends React.Component {
 	getTags = (groupId) => {
 		queryAppTags(groupId)
 			.then((response) => {
-				console.log('objectres', response);
 				response.forEach(element => {
 					element.name = element.desc;
 				})
@@ -106,6 +104,7 @@ class ProvidedServices extends React.Component {
 				this.setState({ treeData })
 			})
 	}
+
 	getAllTags = (tenant) => {
 		queryAllGroups(tenant).then(data => {
 			this.data = data.slice();
@@ -176,7 +175,7 @@ class ProvidedServices extends React.Component {
 			key: 'name',
 			render: (text, record) => {
 				return (
-					<Link to={`/apis/${record.id}`}><Ellipsis style={{ margingLeft: 5 }} lines={1} tooltip={true}>{text}</Ellipsis></Link>
+					<Link to={this.props.appId?`/applications/${this.props.appId}/apis/${record.id}`:`/apis/${record.id}`}><Ellipsis style={{ margingLeft: 5 }} lines={1} tooltip={true}>{text}</Ellipsis></Link>
 				)
 			}
 		}, {
@@ -224,11 +223,11 @@ class ProvidedServices extends React.Component {
 			key: 'options',
 			width: '150px',
 			render: (text, record) => {
-				let disabled = !base.allpermissions.includes('service_delete') && !record.owned
+				let disabled = !base.checkPermission('service_delete') && !record.owned
 				const menu = (
 					<Menu>
 						<Menu.Item>
-							<Link to={`/apis/${record.id}`}>配置</Link>
+							<Link to={this.props.appId?`/applications/${this.props.appId}/apis/${record.id}`:`/apis/${record.id}`}>配置</Link>
 						</Menu.Item>
 						<Menu.Divider />
 						<Menu.Item disabled={disabled} onClick={() => {
@@ -534,6 +533,7 @@ class ProvidedServices extends React.Component {
 					groups={this.data.filter(element => element.isParent === true)}
 					editable={this.props.editable}
 					appId={this.props.appId}
+					appData={this.props.appData}
 					tenant={this.props.tenant}
 					onCloseModal={this.onCloseModal}
 					isServerAddModalShow={this.state.isServerAddModalShow} />
@@ -552,7 +552,7 @@ class ProvidedServices extends React.Component {
 						<Authorized authority='service_synchronize' noMatch={null}>
 							<Button onClick={() => this.showModal()} loading={this.state.synLoading} style={{ marginLeft: 8 }}>同步</Button>
 						</Authorized>
-						{this.props.appId?<Popconfirm title="是否确定当前应用下的所有服务？" onConfirm={this.clearAllApis}><Button loading={this.state.clearAllLoading} style={{ marginLeft: 8 }}>清空所有服务</Button></Popconfirm>:""}
+						{this.props.appId?<Popconfirm title="是否确定清空当前应用下的所有服务？" onConfirm={this.clearAllApis}><Button loading={this.state.clearAllLoading} style={{ marginLeft: 8 }}>清空所有服务</Button></Popconfirm>:""}
 						
 						<Modal
 							title="文档预览"
@@ -612,6 +612,6 @@ class ProvidedServices extends React.Component {
 
 export default props => (
 	<GlobalHeaderContext.Consumer>
-		{context => <ProvidedServices {...props} tenant={context.tenant} environment={context.environment} />}
+		{context => <ProvidedServices tenant={context.tenant} {...props}  environment={context.environment} />}
 	</GlobalHeaderContext.Consumer>
 );

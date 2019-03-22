@@ -79,7 +79,7 @@ export default class AppTable extends React.Component {
         };
         
         //如果类型参数，则获取中间件列表
-        if (this.props.type) {
+        if (this.props.type === 'middleware') {
             params.type = this.props.type;
         }
         params.page = page;
@@ -105,7 +105,7 @@ export default class AppTable extends React.Component {
                 return;
             }
         }
-        if(base.isAdmin)params.withOutAuthorize = true;
+        if(base.isAmpAdmin)params.withOutAuthorize = true;
         this.setState({
             loading: true
         })
@@ -335,7 +335,6 @@ export default class AppTable extends React.Component {
         if(!base.configs.APMEnabled){
             columns.splice(2,1);
         }
-        console.log(this.state.allStatus);
         return (
             <Card bordered={false} style={{ margin: 24 }}>
                 <SearchInput

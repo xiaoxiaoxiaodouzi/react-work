@@ -218,8 +218,6 @@ class Storages extends PureComponent {
     });
   }
   render() {
-    //console.log('123',this.props.type==='middleware'?'middlewares_addStorageVolume':'app_addStorageVolume',base.allpermissions.includes('middlewares_addStorageVolume'),base.allpermissions);
-    //console.log("xxxx",...base.allpermissions);
     const { data,mountableVolumes,visibleModal,storage,storageValue } = this.state;
     const { getFieldDecorator } = this.props.form;
     const formItemLayout = {

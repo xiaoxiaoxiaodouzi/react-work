@@ -7,10 +7,12 @@ import { addAppEnvs } from '../../services/cce'
 import { addServerGroup, updateApp, addAppBasicInfo, deleteAppBasicInfo } from '../../services/aip'
 import { base } from '../../services/base'
 import { doUpstream } from '../../services/amp'
+import CreateAppContext from '../../context/CreateAppContext';
 
 const Step = Steps.Step;
 class AddApp extends React.Component {
   state = {
+    tenant:base.tenant,
     type: this.props.location.search.substring(1) === 'middleware' ? 'middleware' : 'app',
     current: 0,
     displayStep1: true,
@@ -26,7 +28,6 @@ class AddApp extends React.Component {
       deployMode: 'k8s',//默认应用部署类型
       tenant: base.tenant
     },
-
     deployment: {
       metadata: {
         labels: {
@@ -134,77 +135,23 @@ class AddApp extends React.Component {
         }
       },
       data: {}
-    }
-  }
-  submitStep1 = (values, selectedTags) => {
-    const newDeployment = { ...this.state.deployment };
-    newDeployment.metadata.annotations.name = values.name;
-    newDeployment.metadata.labels.application = values.id;
-    newDeployment.metadata.name = values.id;
+    },
 
-    const newAppInfo = { ...this.state.appInfo };
-    newAppInfo.name = values.name;
-    newAppInfo.code = values.id;
-
-    if (this.state.type === "middleware") {
-      newAppInfo.type = "middleware";
-    } else {
-      newAppInfo.type = values.type;
+    stateChange:(state)=>{
+      this.setState({
+        ...state
+      })
     }
 
-    newAppInfo.tags = selectedTags;
-    newAppInfo.enviroment = values.enviroment;
-
-    this.setState({
-      appInfo: newAppInfo,
-      current: 1,
-      displayStep1: false,
-      displayStep2: true,
-      displayStep3: false,
-      deployment: newDeployment
-    })
   }
 
   submitstep2 = (values, containers) => {
-    const newDeployment = { ...this.state.deployment };
-    newDeployment.metadata.labels.cluster = values.cluster;
-    newDeployment.spec.replicas = values.replicas;
-    if (containers.length > 0) {
-      newDeployment.spec.template.spec.containers = containers;
-
-      let clusterPorts = this.state.clusterService.spec.ports;
-      let nodePortPorts = this.state.nodePortService.spec.ports;
-      nodePortPorts = [];
-      containers.forEach(c => {
-        c.ports.forEach(p => {
-          let clusterPort = { port: p.conhostPort ? p.conhostPort : p.containerPort, protocol: p.protocol, targetPort: { IntVal: p.containerPort }, name: c.name, nodePort: p.nodePort }
-          //if(p.conhostPort)clusterPorts.push({...clusterPort});
-          //clusterPort.port = p.nodePort;
-
-          //如果填写了集群外地址，才将数据加入到nodePortService里面
-          if (p.nodePort) nodePortPorts.push(clusterPort);
-          //如果填了集群内地址，才将数据加入到clusterService里面
-          if (p.conhostPort) clusterPorts.push(clusterPort);
-        })
-        c.config.forEach(c => {
-          // eslint-disable-next-line
-          this.state.configMap.data[c.key] = c.contents;
-        })
-      })
-    } else {
-      message.error("请先添加容器！");
-      return;
-    }
-    this.setState({
-      deployment: newDeployment
-    })
-
     //应用管理添加应用
     addAppBasicInfo(this.state.appInfo,{'AMP-ENV-ID':this.state.appInfo.enviroment}).then(newAppInfo => {
       //部署平台添加应用
-      addAppDeployInfo({ deployment: newDeployment, configMap: this.state.configMap, clusterService: this.state.clusterService, nodePortService: this.state.nodePortService }).then(data => {
+      addAppDeployInfo({ deployment: this.state.deployment, configMap: this.state.configMap, clusterService: this.state.clusterService, nodePortService: this.state.nodePortService }).then(data => {
         //保存为已生效环境变量
-        let appContainers = newDeployment.spec.template.spec.containers;
+        let appContainers = this.state.deployment.spec.template.spec.containers;
         appContainers.forEach(c => {
           let containerName = c.name;
           c.env.forEach(e => {
@@ -350,15 +297,15 @@ class AddApp extends React.Component {
               </Steps>
             </Col>
             <Col span={20}>
-              <Step1 submitstep1={this.submitStep1} display={this.state.displayStep1}
-                type={this.state.type} />
+            <CreateAppContext.Provider value={this.state}>
+              <Step1 />
               <Step2 stepback={this.stepBack}
-                submitstep2={this.submitstep2} display={this.state.displayStep2}
-                otherSubmitstep2={this.otherSubmitstep2}
-                type={this.state.type} tenant={base.tenant}
-              />
+                submitstep2={this.submitstep2}
+                otherSubmitstep2={this.otherSubmitstep2} />
+                
               <Step3 display={this.state.displayStep3} appinfo={this.state.newAppInfo} type={this.state.type}
                 status={this.state.status} />
+            </CreateAppContext.Provider>
             </Col>
           </Row>
         </Card>

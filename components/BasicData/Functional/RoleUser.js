@@ -104,7 +104,7 @@ class UserForm extends Component {
         title: '所属用户集合',
         dataIndex: 'userCollections',
         render: (value, record) => {
-          return value.length > 0 ? value.map(u => {
+          return value && value.length > 0 ? value.map(u => {
             return <Fragment key={u.userCollectionId}><span style={{ marginRight: 5, whiteSpace: 'nowrap' }}>[{constants.functionResource.userCollectionType[u.userCollectionType]}]{u.userCollectionName}</span> </Fragment>;
           }) : '--';
         }

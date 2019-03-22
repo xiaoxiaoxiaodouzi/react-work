@@ -30,6 +30,7 @@ const cleanTreeNodeActive = (nodes) => {
     if (node.children) cleanTreeNodeActive(node.children);
   })
 }
+
 //数组位置替换
 const arraySort = (array, sourcePosition, targetPosition) => {
   const sortNode = array[sourcePosition];
@@ -81,7 +82,7 @@ class NavigationManage extends React.PureComponent {
   loadData = (search) => {
      this.setState({ tableLoading: true })
     let params = {};
-    if (base.isAdmin) params.withOutAuthorize = true;
+    if (base.isAmpAdmin) params.withOutAuthorize = true;
     params.catalogAndResourceType = this.catalogAndResourceType;
     search = Object.assign({}, search, params);
     getNavigations(search).then(data => {
@@ -272,7 +273,7 @@ class NavigationManage extends React.PureComponent {
       keys = data.filter(d => d.type === constants.NAVIGATION_TYPE.catalog && d.pid==='0').map(d => d.dataIndex);
     }else{//全部展开
       window.localStorage.navigationExpandState = '2';
-      keys = data.filter(d => d.type === constants.NAVIGATION_TYPE.catalog ).map(d => d.dataIndex);;
+      keys = data.filter(d => d.type === constants.NAVIGATION_TYPE.catalog ).map(d => d.dataIndex);
     }
 
     this.setState({expandedRowKeys:keys});
@@ -400,7 +401,7 @@ class NavigationManage extends React.PureComponent {
         <Affix>
           <div style={{ backgroundColor: 'white', paddingBottom: 10,paddingTop:10 ,display:'flex'}}>
             <Authorized authority='create_directory' noMatch={null}>
-            {this.state.activeNode.type === constants.NAVIGATION_TYPE.function ? "":<Button type="primary" style={{ margin: '0px 5px 10px 0' }} icon="plus" onClick={e => { this.setState({ menuModelVisible: true, menuModelTitle: '创建菜单目录', menuModelData: { pid: this.state.activeNode.id ? this.state.activeNode.id : '0', pname: this.state.activeNode.name ? this.state.activeNode.name : '根目录' } }) }}>创建目录</Button>}
+            {this.state.activeNode.type === constants.NAVIGATION_TYPE.function ? "":<Button type="primary" style={{ margin: '0px 5px 10px 0' }} icon="plus" onClick={e => { this.setState({ menuModelVisible: true, menuModelTitle: '创建菜单目录', menuModelData: { pid: this.state.activeNode.id ? this.state.activeNode.id : '0', pname: this.state.activeNode.name ? this.state.activeNode.name : '根目录' } }) }}>创建菜单</Button>}
             </Authorized>
             <Authorized authority='relation_functional' noMatch={null}>
               <Button type="primary" style={{ margin: '0px 5px 10px 0' }} icon="menu-fold" onClick={this.openDrawer}>{drawerButtonTitle}</Button>

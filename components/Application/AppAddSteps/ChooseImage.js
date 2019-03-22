@@ -3,11 +3,13 @@ import { Select,Alert, List, Input, Button, Radio, Avatar, Dropdown, Menu, Toolt
 import { queryImages, queryImageVersions, queryLatestVersion, queryImagePath, queryCategorys } from '../../../services/cce'
 import DataFormate from '../../../utils/DataFormate';
 import {base} from '../../../services/base'
+import AddContainerContext from "../../../context/AddContainerContext";
+import CreateAppContext from "../../../context/CreateAppContext";
 
 const Search = Input.Search;
 const Option = Select.Option;
 
-export default class ChooseImage extends Component {
+class ChooseImage extends Component {
     state = {
         imagePath:"",//镜像地址
         searchValue:"",
@@ -121,13 +123,43 @@ export default class ChooseImage extends Component {
     //点击选择按钮时跳转
     handleButtonClick = (item) => {
         queryLatestVersion(this.state.buttonValue, item.name).then(data => {
-            this.props.afterchoose(item, data[0].tag,this.state.buttonValue,this.state.imagePath);
+            this.afterchoose(item,data[0].tag);
         })
     }
     //选择下拉菜单项时跳转
     handleMenuClick = (e) => {
-        this.props.afterchoose(this.state.onDropDownItem, e.key,this.state.buttonValue,this.state.imagePath)
+        this.afterchoose(this.state.onDropDownItem, e.key)
     }
+
+    //统一将镜像处理在组件内处理 然后传给父组件
+    afterchoose=(item, version)=>{
+        //组装镜像信息
+        let imageInfo = null;
+        let imageTenant=this.state.buttonValue;
+        let imagePath=this.state.imagePath;
+        if (imagePath.endsWith('/')) imagePath = imagePath.substring(0, imagePath.length - 1);
+        if (!this.props.check) {
+            if (imageTenant === "c2cloud") {
+                imageInfo = imagePath + "/c2cloud/" + item.name + ":" + version;
+            } else if (imageTenant === "custom") {
+                imageInfo = item.imagePath
+            } else {
+                imageInfo = imagePath + "/" + base.tenant + "/" + item.name + ":" + version;
+            }
+        }
+        this.props.containerStateChange({
+            imageTenant,
+            imageInfo,
+            chooseItem: item,
+            chooseVersion: version,
+            current: 1,
+            displayChoose: false,
+            displayDeploy: true,
+            displayAdvance: false,
+        })
+    }
+
+
     //获取镜像地址
     getImagePath = () => {
         queryImagePath().then(data => {
@@ -160,7 +192,7 @@ export default class ChooseImage extends Component {
         if(this.state.buttonValue==='custom' && !deployPath){
             message.error('请填写镜像地址')
         }else{
-            this.props.afterchoose({imagePath:this.state.deployPath}, '',this.state.buttonValue,this.state.imagePath);
+            this.afterchoose({imagePath:this.state.deployPath}, '');
         }
     }
     //镜像地址输入框的值改变后修改deployPath状态
@@ -192,7 +224,7 @@ export default class ChooseImage extends Component {
             this.state.buttonValue==='c2cloud'?{marginLeft:150}:{marginLeft:460,display:'inline-flex'}
         )
         return (
-            <span style={{ display: this.props.display ? 'block' : 'none' }}>
+            <span style={{ display: this.props.displayChoose ? 'block' : 'none' }}>
                 <span>
                     <Radio.Group value={this.state.buttonValue}
                         onChange={this.handleButtonChange} >
@@ -276,7 +308,12 @@ export default class ChooseImage extends Component {
                             />
                             {
                                 this.props.isStepBack?
-                                <Button onClick={this.props.stepto2}
+                                <Button onClick={()=>this.props.containerStateChange({
+                                    current: 1,
+                                    displayChoose: false,
+                                    displayDeploy: true,
+                                    displayAdvance: false,
+                                })}
                                     type="primary"
                                     style={{margin:'40px 0 0 450px'}}>下一步</Button>
                                 :""
@@ -287,3 +324,13 @@ export default class ChooseImage extends Component {
         )
     }
 }
+
+export default props=>(
+    <CreateAppContext.Consumer>
+        {appContext=>
+        <AddContainerContext.Consumer>
+          {containerContext=> <ChooseImage  {...appContext} {...props} {...containerContext}/>}
+        </AddContainerContext.Consumer>
+        }
+    </CreateAppContext.Consumer>
+)

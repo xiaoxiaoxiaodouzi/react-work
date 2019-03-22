@@ -8,21 +8,23 @@ import { base } from '../../services/base';
 
 class AppLog extends React.PureComponent {
 
-  render(){
-    const params = this.props.match.params;
+  render() {
+    const appData = this.props.appData;
+    let deployMode = this.props.appData ? this.props.appData.deployMode : this.props.deployMode;
+    let appCode = this.props.appData ? this.props.appData.code : this.props.appCode;
     return (
       <div>
-        {this.props.deployMode === 'k8s' && this.props.appCode && base.configs.passEnabled?<Card bordered={false} style={{margin:24}} title='运行日志'>
-          <LogHeader appid={params.id} />
-        </Card>:''}
-        <Card bordered={false} style={{margin:24}} title='变更日志'>
-          <LogTable id={params.id} type='web' readyable={true}/> 
+        {deployMode === 'k8s' && appCode && base.configs.passEnabled ? <Card bordered={false} style={{ margin: 24 }} title='运行日志'>
+          <LogHeader appData={this.props.appData} />
+        </Card> : ''}
+        <Card bordered={false} style={{ margin: 24 }} title='变更日志'>
+          <LogTable id={appData.id} type='web' readyable={true} />
         </Card>
-        {this.props.deployMode === 'k8s' && this.props.appCode && base.configs.passEnabled?
-        <Card bordered={false} style={{margin:24}} title='事件'>
-            <EventsTable appCode={this.props.appCode} />
-        </Card>
-        :""}
+        {deployMode === 'k8s' && appCode && base.configs.passEnabled ?
+          <Card bordered={false} style={{ margin: 24 }} title='事件'>
+            <EventsTable appCode={appCode} />
+          </Card>
+          : ""}
 
         {/* <Card bordered={false} style={{margin:24}}>
           UrlId:{params.id} 日志
@@ -32,7 +34,7 @@ class AppLog extends React.PureComponent {
           UrlId:{params.id} 日志
         </Card> */}
       </div>
-      
+
     )
   }
 }

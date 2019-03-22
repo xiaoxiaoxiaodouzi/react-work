@@ -2,19 +2,23 @@ import C2Fetch from '../utils/Fetch';
 import { message } from "antd";
 // import constants from './constants';
 
-let proxy = 'proxy/';
 export let base = {
-  currentUser:null,
+  currentUser:{},
   environments:[],
   currentEnvironment:{},
   tenant:null,
+  tenants:[],
   environment:'1',
   configs:{},
   menus:[],
   isAdmin:false,
+  isAmpAdmin:false,
   safeMode:false,
   isRoleManager:false,
   allpermissions:[],
+  checkPermission:(permission)=>{
+    return this.base.isAdmin || this.base.allpermissions.includes(permission);
+  },
   getCurrentUser:()=>{
     const url=`ws/getSubject`;
     return C2Fetch.get(url,null,"获取当前用户信息失败");
@@ -54,19 +58,6 @@ export let base = {
       stop:{name:'停止',color:'red'}
     }
     return stateMap[stateCode];
-  },
-  getEnvironments:(params)=>{
-    let url = 'amp/v1/envs';
-    return C2Fetch.get(url,params,"获取环境信息失败");
-  },
-  getEnvironmentsByTenant:(code)=>{
-    let url = 'amp/v1/envTenant/tenant/'+code;
-    if(code === 'admin')url = 'amp/v1/envs';
-    return C2Fetch.get(url,null,"根据租户获取环境信息失败");
-  },
-  getAllPermissons:(params)=>{
-    let url=proxy+`aip/v1/allpermissions`
-    return C2Fetch.get(url,params,'查询角色下的资源失败',{'AMP-ENV-ID':1});
   },
   //过滤到PASS租户
   filterTenantData:(tenantData)=>{

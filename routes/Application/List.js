@@ -20,6 +20,11 @@ class AppList extends React.Component {
   componentDidMount() {
     this.loadData(this.props.tenant);
   }
+  componentDidUpdate(prevProps,prevState){
+    if (this.props.tenant !== prevProps.tenant || this.props.environment !== prevProps.environment) {
+      this.loadData(this.props.tenant);
+    }
+  }
 
   loadData = (tenant) => {
     this.setState({ loading: true })
@@ -58,11 +63,7 @@ class AppList extends React.Component {
     }
     
   }
-  componentWillReceiveProps(nextProps) {
-    if (this.props.tenant !== nextProps.tenant || this.props.environment !== nextProps.environment) {
-      this.loadData(nextProps.tenant);
-    }
-  }
+  
   onStatusChange = (status) => {
     this.setState({ status });
   }
@@ -72,7 +73,7 @@ class AppList extends React.Component {
       <div style={{ margin: '-24px -24px 0' }}>
         <PageHeaderBreadcrumb breadcrumbList={[{name:'应用管理'}]} action={<GlobalEnvironmentChange/>}/>
        {base.configs.monitEnabled? <AppState normal={succeededCount} unknown={unknownCount} abnormal={failedCount} onStatusChange={this.onStatusChange} loading={loading}/>:""}
-        <AppTable allStatus={this.state.allStatus} appStateMap={this.state.appStateMap} loading={loading} status={status} onStatusChange={this.onStatusChange} tenant={this.props.tenant} environment={this.props.environment} />
+        <AppTable allStatus={this.state.allStatus} appStateMap={this.state.appStateMap} loading={loading} status={status} onStatusChange={this.onStatusChange} tenant={this.props.tenant} environment={this.props.environment} type='app' />
       </div>
     );
   }

@@ -307,7 +307,7 @@ class ImageDetailsForm extends Component{
      }
 
      const title = <Breadcrumb style={{marginTop:6}}>
-                <Breadcrumb.Item><Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a","verticalAlign":"text-bottom"}}/> 高级设置</Breadcrumb.Item>
+                <Breadcrumb.Item><Divider type="vertical"  style={{width:"2px",height:"15px",backgroundColor:"#15469a","verticalAlign":"text-bottom"}}/> 平台管理</Breadcrumb.Item>
                 <Breadcrumb.Item><a href="/#/setting/images">镜像管理</a></Breadcrumb.Item>
                 <Breadcrumb.Item>镜像详情</Breadcrumb.Item>
                 <Breadcrumb.Item>{this.state.artifact}</Breadcrumb.Item>

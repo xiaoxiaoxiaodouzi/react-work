@@ -65,8 +65,8 @@ export default class SiderMenu extends React.PureComponent {
         collapsible
         collapsed={this.props.collapsed}
         onCollapse={this.menuCollapsed}
-        width={256}
-        className='sider'
+        width={this.props.collapsed?80:256}
+        className='menu-sider'
       >
         <div className='logo' key="logo">
           <Link to="/">
@@ -74,7 +74,7 @@ export default class SiderMenu extends React.PureComponent {
             <h1>{constants.PROJECT_TITLE}</h1>
           </Link>
         </div>
-        <Menu theme="dark" mode="inline" openKeys={this.state.menuOpenKeys} selectedKeys={this.state.menuSelectedKeys} onSelect={this.menuSelect} onOpenChange={this.menuOpen}>
+        <Menu theme="dark" mode="inline" openKeys={this.state.menuOpenKeys} selectedKeys={this.state.menuSelectedKeys} onSelect={this.menuSelect} onOpenChange={this.menuOpen} style={{paddingBottom:48}}>
           {menus.map(menu => menu.children ?
             <SubMenu key={menu.id} title={<span><Icon type={menu.icon} /><span>{menu.name}</span></span>}>
               {menu.children.map(submenu =>

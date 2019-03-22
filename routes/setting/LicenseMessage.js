@@ -202,7 +202,7 @@ class LicenseMessage extends PureComponent {
       },
       fileList:this.state.fileList,
     }
-    const title = BreadcrumbTitle([{name:'高级设置'},{name:'许可信息'}]);
+    const title = BreadcrumbTitle([{name:'平台管理'},{name:'许可信息'}]);
     return (
       <PageHeaderLayout
         title={title}

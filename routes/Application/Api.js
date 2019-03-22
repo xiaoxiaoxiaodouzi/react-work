@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card, Row, Col, Tooltip, message, Icon, Form, Modal, Input, Popconfirm } from 'antd';
 import Clipboard from 'copy-to-clipboard';
-import { getApiGatewayInfo, getApiGatewayUrl, resetApiKey,getApp } from '../../services/aip'
+import { getApiGatewayInfo, getApiGatewayUrl, resetApiKey } from '../../services/aip'
 import ProvidedServices from '../../components/Application/Api/ProvidedServices';
 import AccessibilityServer from '../../components/Application/Api/AccessibilityServer';
 import { base } from '../../services/base'
@@ -26,7 +26,7 @@ class AppApi extends React.PureComponent {
       springcloud: false,  //是否是springcloud应用
       eurekaServerUrls: '',      //当前环境注册中心地址
     }
-    this.appCode = this.props.appCode;
+    this.appCode = this.props.appData ? this.props.appData.code : this.props.appCode;
     this.appid = props.match.params.id;
     this.apiKey = '';
     this.apikeyHide = '******';
@@ -41,17 +41,16 @@ class AppApi extends React.PureComponent {
     this._pullData();
   }
   _pullData() {
-    getApp(this.appid).then(res => {
-      if (res.springcloud) {
-        let envId = base.currentEnvironment.id;
-        queryEnvById(envId).then(response => {
-          this.setState({
-            eurekaServerUrls: response.eurekaServerUrls,
-            springcloud: res.springcloud
-          })
+    let res=this.props.appData
+    if (res.springcloud) {
+      let envId = base.currentEnvironment.id;
+      queryEnvById(envId).then(response => {
+        this.setState({
+          eurekaServerUrls: response.eurekaServerUrls,
+          springcloud: res.springcloud
         })
-      }
-    })
+      })
+    }
 
     Promise.all([getApiGatewayInfo(this.appid), getApiGatewayUrl()])
       .then((response) => {
@@ -81,18 +80,18 @@ class AppApi extends React.PureComponent {
         this.securityKeyHide = '******';
         message.success('重置凭证成功');
 
-        if(base.configs.passEnabled){
+        if (base.configs.passEnabled) {
           //获取容器信息
           queryBaseConfig(this.appCode).then((bases) => {
             if (bases && bases.length > 0) {
-              
+
               //查出环境变量c2_sso_proxy_apigateway_apikey
-              existEnvs(this.appCode,bases[0].name,"c2_sso_proxy_apigateway_apikey").then(data =>{
-                if(data ){
+              existEnvs(this.appCode, bases[0].name, "c2_sso_proxy_apigateway_apikey").then(data => {
+                if (data) {
                   let params = data;
                   params.value = response.key;
-                  editEnvs(this.appCode,bases[0].name,params,params.id).then(env => {//更新環境變量
-                    if(env){
+                  editEnvs(this.appCode, bases[0].name, params, params.id).then(env => {//更新環境變量
+                    if (env) {
                       console.log("修改环境变量c2_sso_proxy_apigateway_apikey成功！");
                     }
                   })
@@ -101,7 +100,7 @@ class AppApi extends React.PureComponent {
             }
           });
         }
-                
+
         this.setState({
           apiKey: '******',
           securityKey: '******',
@@ -270,7 +269,7 @@ class AppApi extends React.PureComponent {
           </Modal>
         </Card>
         <Card title={'对外提供的服务'} bordered={false} style={{ margin: 24 }}>
-          <ProvidedServices editable={true} appId={this.appid} apiKey={this.apiKey} upstream={this.props.upstream} />
+          <ProvidedServices editable={true} appId={this.appid} apiKey={this.apiKey} upstream={this.props.upstream} appData={this.props.appData}/>
         </Card>
         <Card title={'可调用的外部服务'} bordered={false} style={{ margin: 24 }}>
           <AccessibilityServer appId={this.appid} apiKey={this.apiKey} />

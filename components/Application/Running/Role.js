@@ -1,17 +1,19 @@
 import React, { Fragment, Component } from 'react';
-import { Table, Form, Button, Modal, message, Divider,Upload } from 'antd';
+import { Table, Form, Button, Modal, message,Upload,Dropdown, Menu ,Icon } from 'antd';
 import AuthorizedUserUnion from '../../BasicData/Functional/AuthorizedUserUnion'
 import { ObjectDetailContext } from '../../../context/ObjectDetailContext'
-import { getRolesByCode,addRole,getRoles,importPreviewRoles,getRoleResources,exportRoles,getRoleUserCollection,updateUserCollection,updateRoleResource, updateRole  } from '../../../services/aip'
+import { getRolesByCode,addRole,getRoles,importPreviewRoles,getRoleResources,exportRoles,roleManagerUsers,getRoleUserCollection,updateUserCollection,updateRoleResource, updateRole,getRoleManagerUsers  } from '../../../services/aip'
 import PropTypes from 'prop-types'
 import BaseTree from '../../../common/BaseTree'
 import Link from 'react-router-dom/Link';
 import Authorized from '../../../common/Authorized';
-import debounce from "throttle-debounce/debounce";
+import debounce from 'lodash-decorators/debounce';
 import ResourcePreviewModal from './ResourcePreviewModal';
 import AuthorizeRoleModal from '../../../common/FunctionalSelectModal/AuthorizeRoleModal'
 import {DynamicFormEditorModal} from 'c2-antd-plus';
 import Ellipsis from 'ant-design-pro/lib/Ellipsis';
+import { base } from '../../../services/base';
+import constants from '../../../services/constants';
 class RoleForm extends Component {
   static propTypes = {
     prop: PropTypes.object,
@@ -36,9 +38,11 @@ class RoleForm extends Component {
       fileList:[],
       previewData:[],
       previewVisible:false,
-      confirmLoading:false
+      confirmLoading:false,
+      title:'',
+      type:0
     }
-    this.validateParams = this.validateParams.bind(this)
+    this.validateParams = this.validateParams.bind(this);
   }
 
   componentDidMount() {
@@ -182,17 +186,37 @@ class RoleForm extends Component {
     getRoleUserCollection(this.props.appId, roleId,  {}).then(datas=>{
       this.setState({
         selectedKeys: datas,
-        authorizeVisible:true
+        authorizeVisible:true,
+        title:'将功能角色授权给用户',
+        type:0
       });
+    })
+  }
+
+  authorizedManager = (roleId) =>{
+    this.setState({roleId:roleId});
+    getRoleManagerUsers(this.props.appId,roleId).then(datas => {
+      this.setState({
+        selectedKeys: datas,
+        authorizeVisible:true,
+        title:'设置功能角色管理员',
+        type:1
+      })
     })
   }
 
    //处理功能授权modal回调，flag=true为点击确定，返回选择的功能集合数据，flag=false为点击取消，关闭modal
    handleAuthorizeModal = (flag, selectedValues) => {
     if (flag) {
-      updateUserCollection(this.props.appId, this.state.roleId, selectedValues).then(data => {
-        message.success('修改授权用户集合成功')
-      })
+      if(this.state.type){
+        roleManagerUsers(this.props.appId, this.state.roleId, selectedValues).then(data => {
+          message.success('角色授权管理员用户集合成功')
+        })
+       }else{
+        updateUserCollection(this.props.appId, this.state.roleId, selectedValues).then(data => {
+          message.success('修改授权用户集合成功')
+        })
+       }
     }
     this.setState({ authorizeVisible: false })
   }
@@ -241,7 +265,20 @@ class RoleForm extends Component {
     }
   })
 
-  
+  setRole=(role)=>{
+    this.role = role;
+  }
+
+  menuSelect = (item, key, selectedKeys)=>{
+    if(item.key === 'function'){
+      this.showFunction(this.role)
+    }else if(item.key === 'user'){
+      this.authorizedUser(this.role.id);
+    }else if(item.key === 'manager'){
+      this.authorizedManager(this.role.id);
+    }
+    this.setState({ selectedKeys: [] })
+  }
 
   render() {
     const props = {
@@ -285,7 +322,21 @@ class RoleForm extends Component {
       className: 'upload-list-inline',
   }
     const { current, total, pageSize } = this.state;
-
+    const menu = (
+			<Menu onClick={this.menuSelect} selectedKeys={this.state.selectedKeys}>
+				<Menu.Item key="function" disabled={base.allpermissions &&base.allpermissions.length > 0 ?!base.allpermissions.includes('app_role_relationFunction'):false}>
+					关联功能
+				</Menu.Item>
+        <Menu.Divider />
+				<Menu.Item key="user">
+					授权用户
+				</Menu.Item>
+				<Menu.Divider />
+				<Menu.Item key="manager">
+					授权管理员
+				</Menu.Item>
+			</Menu>
+		);
     const columns = [
       {
         title: '名称',
@@ -319,19 +370,26 @@ class RoleForm extends Component {
       }, */
       {
         title: '操作',
-        width: '240px',
+        width: '150px',
         render: (text, record) => {
           return (
             <Fragment>
-              <Authorized authority='app_role_relationFunction' noMatch={<a disabled='true' onClick={() => { this.showFunction(record) }}>关联功能</a>}>
+              {/* <Authorized authority='app_role_relationFunction' noMatch={<a disabled='true' onClick={() => { this.showFunction(record) }}>关联功能</a>}>
                 <a onClick={() => { this.showFunction(record) }}>关联功能</a>
               </Authorized>
-              <Divider type='vertical' />
+              <Divider type='vertical' /> */}
               <Authorized authority='app_editRole' noMatch={<a disabled="true" onClick={() => { this.EditRole(record) }}>编辑</a>}>
                 <a onClick={() => { this.EditRole(record) }}>编辑</a>
               </Authorized>
-              <Divider type='vertical' />
+              {/* <Divider type='vertical' />
               <a onClick={()=>{this.authorizedUser(record.id)}}>授权用户</a>
+              <Divider type='vertical' />
+              <a onClick={()=>{this.authorizedUser(record.id)}}>授权管理员</a> */}
+              <Dropdown overlay={menu} trigger={["click"]} width="220">
+                <a style={{ marginLeft: 10 }} className="ant-dropdown-link" onClick={() => this.setRole(record)}>
+                  更多 <Icon type="down" />
+                </a>
+							</Dropdown>
             </Fragment>
           )
         }
@@ -378,7 +436,7 @@ class RoleForm extends Component {
           loading={this.state.loading}
         />
         <Modal
-          width='800px' style={{ top: 20 }} bodyStyle={{ maxHeight: 600, overflowY: 'auto' }}
+          width='800px' style={{ top: 20 }} bodyStyle={{ maxHeight: constants.MODAL_STYLE.BODY_HEIGHT, overflowY: 'auto' }}
           title='已授权用户集合'
           visible={this.state.visible}
           onOk={() => { this.setState({ visible: false }) }}
@@ -419,8 +477,9 @@ class RoleForm extends Component {
 
         <AuthorizeRoleModal 
           visible={this.state.authorizeVisible}
-          title='功能角色授权' isOffset={true}
+          title={this.state.title} isOffset={true}
           selectedKeys={this.state.selectedKeys}
+          // disableSelectedKeys={this.state.selectedKeys}
           handleModal={(flag, data) => this.handleAuthorizeModal(flag, data)}/>
       </div>
 

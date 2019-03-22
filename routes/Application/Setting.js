@@ -1,32 +1,53 @@
 import React, { Component } from 'react'
-import { Card, Alert, Button, message, Switch, Modal, Input, Checkbox } from 'antd';
+import { Card, Alert, Button, message, Switch, Modal, Input, Checkbox, Tooltip, InputNumber} from 'antd';
 import constants from '../../services/constants'
-import { deleteApp,delServerGroup,getApp,updateApp, getAppByMiddleware  } from '../../services/aip'
-import { addAppEnvs, deleteAppEnvs } from '../../services/cce'
+import { deleteApp, delServerGroup, updateApp, getAppByMiddleware, getAppManager, changeAppManager, changeAppProperty } from '../../services/aip'
+import { addAppEnvs, deleteAppEnvs, changeAppCluster, changeAppExtention } from '../../services/cce'
 import { appStart, queryBaseConfig, deleteVolumes, existEnvs, editEnvs, deleteAppDeploy, queryAppVolumns } from '../../services/cce'
 import { base } from '../../services/base'
 import Authorized from '../../common/Authorized';
-import { deleteRouters,getRouters,deleteUpstream,queryEnvById,getConfigs} from '../../services/amp'
+import { deleteRouters, getRouters, deleteUpstream, queryEnvById, getConfigs } from '../../services/amp'
 import { ErrorComponentCatch } from '../../common/SimpleComponents';
-
+import DescriptionList from 'ant-design-pro/lib/DescriptionList';
+import Description from 'ant-design-pro/lib/DescriptionList/Description';
+import UserSelectModal from '../../common/UserSelectModal';
+import InputInline from '../../common/Input';
+import ClusterSelectModal from '../../common/ClusterSelectModal';
 
 class AppSetting extends Component {
-  state = {
-    name: '',      //应用名称
-    visible: false,
-    checked: '',
-    APMChecked: false,            //APM地址是否开启
-    APM_URL: '',     //APM地址
-    config: '',       //环境code_应用code
-    visibleDel: false,    //删除应用模态框
-    isK8s: true,         //应用部署方式是否为K8S
-    appDatas: {},  //应用数据
-    hasVolumes: false,     //是否有存储卷
-    isDeleteVolumes: false,
-    springCloud: false,     //是否开启springcloud
-    eurekaServerUrls: '',        //注册中心地址
-    type: '',
-    appNames: '',
+  constructor(props) {
+    super(props)
+    this.state = {
+      name: '',      //应用名称
+      host: '',
+      ctx: '',
+      visible: false,
+      checked: '',
+      APMChecked: false,            //APM地址是否开启
+      APM_URL: '',     //APM地址
+      config: '',       //环境code_应用code
+      visibleDel: false,    //删除应用模态框
+      isK8s: true,         //应用部署方式是否为K8S
+      appDatas: {},  //应用数据
+      hasVolumes: false,     //是否有存储卷
+      isDeleteVolumes: false,
+      springCloud: false,     //是否开启springcloud
+      eurekaServerUrls: '',        //注册中心地址
+      type: '',
+      appNames: '',
+      systemManager: [],
+      clusterVisible: false,
+      isEditNumber: false,
+      replicas: '',
+      description: ''
+    }
+    this.onAppDescriptionChangeCommit = this.onAppDescriptionChangeCommit.bind(this);
+  }
+
+  componentDidUpdate(props, state) {
+    if (props.deployInfo && props.deployInfo.replicas !== state.replicas) {
+      this.setState({ replicas: props.deployInfo.replicas })
+    }
   }
 
   componentDidMount() {
@@ -46,7 +67,7 @@ class AppSetting extends Component {
       const configs = base.currentEnvironment.code + '_' + code;
       this.setState({
         config: configs,
-        code:code
+        code: code
       })
     }
     let id = this.props.appId;
@@ -55,56 +76,60 @@ class AppSetting extends Component {
       //需要想办法 让这个方法先执行再执行下面的
       this.loadData(id);
     }
-    if(base.configs.passEnabled){
+    if (base.configs.passEnabled) {
       queryAppVolumns(this.props.appCode).then(response => {
         this.volumes = response;
         this.setState({ hasVolumes: !!response.length });
       });
     }
-    
+    getAppManager(id, 'SYSTEM_MANAGER', this.props.appCode).then(data => {
+      this.setState({ systemManager: data });
+    })
+
   }
 
   loadData = (id) => {
     let envId = base.currentEnvironment.id;
+    let data = this.props.appData;
     queryEnvById(envId).then(res => {
       this.setState({ eurekaServerUrls: res.eurekaServerUrls })
     })
 
-    if(!base.safeMode){
-      getApp(id).then(data => {
-        getConfigs().then(data1 => {
-          if (data1) {
-            //将APM_URL地址
-            if (data1[constants.CONFIG_KEY.APM_URL]) {
-              this.setState({
-                APM_URL: data1[constants.CONFIG_KEY.APM_URL].split(":")[0],
-              })
-            }
-  
-          }
-        })
-        this.setState({
-          APMChecked: !!data.apm,
-          name: data.name,
-          appType: data.type,
-          appDatas: data,
-          type: data.type === 'middleware' ? '中间件' : '应用',
-          springCloud: data.springcloud ? true : false,
-          isK8s: data.deployMode==='k8s'?true:false
-        })
-        //如果应用的部署方式是K8S才去调CCE接口
-        if (data.type === 'middleware') {
-          getAppByMiddleware(id).then(data => {
-            let appNames = [];
-            data.forEach(element => {
-              appNames.push(element.name)
+    if (!base.safeMode) {
+      getConfigs().then(data1 => {
+        if (data1) {
+          //将APM_URL地址
+          if (data1[constants.CONFIG_KEY.APM_URL]) {
+            this.setState({
+              APM_URL: data1[constants.CONFIG_KEY.APM_URL].split(":")[0],
             })
-            this.setState({ appNames: appNames.join(',') })
-          })
+          }
+
         }
       })
+      this.setState({
+        APMChecked: !!data.apm,
+        name: data.name,
+        appType: data.type,
+        appDatas: data,
+        host: data.host,
+        ctx: data.ctx,
+        description: data.desc,
+        type: data.type === 'middleware' ? '中间件' : '应用',
+        springCloud: data.springcloud ? true : false,
+        isK8s: data.deployMode === 'k8s' ? true : false
+      })
+      //如果应用的部署方式是K8S才去调CCE接口
+      if (data.type === 'middleware') {
+        getAppByMiddleware(id).then(data => {
+          let appNames = [];
+          data.forEach(element => {
+            appNames.push(element.name)
+          })
+          this.setState({ appNames: appNames.join(',') })
+        })
+      }
     }
-    
   }
 
 
@@ -118,7 +143,7 @@ class AppSetting extends Component {
       deleteAppDeploy(appCode).then(data => {
         this.deleteRouters(appid);
       }).catch(e => {
-        base.ampMessage("删除应用部署失败" );
+        base.ampMessage("删除应用部署失败");
       });
     } else {
       this.deleteRouters(appid);
@@ -156,9 +181,72 @@ class AppSetting extends Component {
     }
   }
 
+  _onManagerChange(type, users) {
+    var usersId = [];
+    users.forEach((element) => {
+      usersId.push(element.id);
+    })
+    changeAppManager(this.props.appData.id, type, usersId)
+      .then((response) => {
+        message.success('管理员修改成功！')
+        if (type === "SYSTEM_MANAGER") {
+          this.setState({
+            systemManager: users
+          })
+        } else if (type === "BUSINESS_MANAGER") {
+          this.setState({
+            businessManager: users
+          })
+        } else if (type === 'AUDIT_MANAGER') {
+          this.setState({
+            auditManager: users
+          })
+        }
+      })
+      .catch((e) => {
+      })
+  }
+
+  clusterOnOk = (cluster, clusterName, th) => {
+    if (cluster) {
+      changeAppCluster(this.props.appData.code, cluster).then(data => {
+        if (data) {
+          message.success("应用迁移成功！");
+          this.setState({
+            clusterVisible: false,
+            clusterName: clusterName,
+            clusterId: cluster
+          });
+
+          th.setState({
+            loading: false
+          });
+        }
+      }).catch(err => {
+        th.setState({
+          loading: false
+        });
+      });
+    } else {
+      message.error("请选择集群！");
+    }
+  }
+
+  clusterOnCancel = () => {
+    this.setState({
+      clusterVisible: false
+    })
+  }
+
+  _clusterVisible = () => {
+    this.setState({
+      clusterVisible: true
+    });
+  }
+
   //删除域名
   deleteRouters = (appid) => {
-    if(base.currentEnvironment.routerSwitch){
+    if (base.currentEnvironment.routerSwitch) {
       //先删除域名
       getRouters(this.state.code).then(datas => {
         let allDoms = [];
@@ -166,16 +254,16 @@ class AppSetting extends Component {
           datas.forEach(data => {
             allDoms.push(deleteRouters(data.id));
           });
-        } 
-        if(allDoms.length > 0){
-          Promise.all(allDoms).then(res =>{
+        }
+        if (allDoms.length > 0) {
+          Promise.all(allDoms).then(res => {
             this.deleteApp(appid);
           })
-        }else{
+        } else {
           this.deleteApp(appid);
         }
       })
-    }else{
+    } else {
       this.deleteApp(appid);
     }
   }
@@ -201,15 +289,10 @@ class AppSetting extends Component {
         }
       })
     }).catch(e => {
-      base.ampMessage(`删除${this.state.type}失败` );
+      base.ampMessage(`删除${this.state.type}失败`);
       this.setState({ deleteLoading: false });
     });
   }
-
-  /* handleClickPush = () => {
-    const { history } = this.props
-    history.push({ pathname: '/setting/syssetting' })
-  } */
 
   _handleClick = () => {
     this.setState({
@@ -232,16 +315,16 @@ class AppSetting extends Component {
       let APM_URL = this.state.APM_URL;
       let ary = [
         {
-          key: constants.APMENABLE_KEY[1],
-          value: configs,
-          source: 1,
-          desc: '开启监控用到的应用名'
-        },
-        {
           key: constants.APMENABLE_KEY[0],
           value: APM_URL,
           source: 1,
           desc: '性能监控地址',
+        },
+        {
+          key: constants.APMENABLE_KEY[1],
+          value: configs,
+          source: 1,
+          desc: '开启监控用到的应用名'
         },
       ];
       let bodyParams = {};
@@ -314,24 +397,15 @@ class AppSetting extends Component {
                 /* appStart(code).then(data=>{
                 }) */
               }).catch((e) => {
-                base.ampMessage('环境变量操作失败' )
+                base.ampMessage('环境变量操作失败')
               })
               this.setState({
                 visible: false
               })
             }
           }).catch((e) => {
-            base.ampMessage('查询环境变量存在出错' )
+            base.ampMessage('查询环境变量存在出错')
           })
-        } else {
-          //遍历所有的容器名，然后调新增接口
-          for (let i = 0; i < ary.length; i++) {
-            containers.forEach(items => {
-              if (ary[i]) {
-                pro.push(addAppEnvs(code, items, ary[i]))
-              }
-            })
-          }
         }
       })
     } else {
@@ -362,63 +436,63 @@ class AppSetting extends Component {
         desc: '注册中心地址(启用SpringCloud特性支持)'
       }]
       this.setState({ eurekaServerUrls: res.eurekaServerUrls })
-      if(base.configs.passEnabled){
+      if (base.configs.passEnabled) {
         queryBaseConfig(code).then(data => {
-        let pro = [];
-        let pros = [];
-        let containers = [];//用于将容器名存储以便后面做新增接口调用
-       
-        if (data.length > 0) {
-          data.forEach(item => {
-            //先调查询接口，如果数据存在，则调删除接口，否则不处理
-            pros.push(existEnvs(code, item.name, constants.SPRING_CLOUD_KEY[0]));
-            pros.push(existEnvs(code, item.name, constants.SPRING_CLOUD_KEY[1]));
-            containers.push(item.name);
-          })
-          Promise.all(pros).then(response => {
-            response.forEach((item, i) => {
-              //如果是开启状态
-              if (this.state.springCloud) {
-                if (item) {
-                  pro.push(deleteAppEnvs(code, item.name, item.id))
-                }
-              } else {
-                //如果是关闭状态
-                if (item) {
-                  //如果数据存在则修改环境变量
-                  if (item.key === constants.SPRING_CLOUD_KEY[0]) {
-                    pro.push(editEnvs(code, item.containerName, params[0], item.id));
-                  }
-                  if (item.key === constants.SPRING_CLOUD_KEY[1]) {
-                    pro.push(editEnvs(code, item.containerName, params[1], item.id));
+          let pro = [];
+          let pros = [];
+          let containers = [];//用于将容器名存储以便后面做新增接口调用
+
+          if (data.length > 0) {
+            data.forEach(item => {
+              //先调查询接口，如果数据存在，则调删除接口，否则不处理
+              pros.push(existEnvs(code, item.name, constants.SPRING_CLOUD_KEY[0]));
+              pros.push(existEnvs(code, item.name, constants.SPRING_CLOUD_KEY[1]));
+              containers.push(item.name);
+            })
+            Promise.all(pros).then(response => {
+              response.forEach((item, i) => {
+                //如果是开启状态
+                if (this.state.springCloud) {
+                  if (item) {
+                    pro.push(deleteAppEnvs(code, item.name, item.id))
                   }
                 } else {
-                  containers.forEach(items => {
-                    pro.push(addAppEnvs(code, items, params[i]))
-                  })
+                  //如果是关闭状态
+                  if (item) {
+                    //如果数据存在则修改环境变量
+                    if (item.key === constants.SPRING_CLOUD_KEY[0]) {
+                      pro.push(editEnvs(code, item.containerName, params[0], item.id));
+                    }
+                    if (item.key === constants.SPRING_CLOUD_KEY[1]) {
+                      pro.push(editEnvs(code, item.containerName, params[1], item.id));
+                    }
+                  } else {
+                    containers.forEach(items => {
+                      pro.push(addAppEnvs(code, items, params[i]))
+                    })
+                  }
                 }
-              }
-            })
-            //当有存在的key才去调接口
-            Promise.all(pro).then(response => {
-              let queryParams = {
-                type: '2'
-              }
-              let bodyParams = {
-                springcloud: !this.state.springCloud
-              }
-              this.setState({
-                springCloud: !this.state.springCloud,
               })
-              message.success('环境变量更改成功！')
-              updateApp(this.state.appDatas.id, queryParams, bodyParams).then(data => {
-                message.success(`修改${this.state.type}成功`)
+              //当有存在的key才去调接口
+              Promise.all(pro).then(response => {
+                let queryParams = {
+                  type: '2'
+                }
+                let bodyParams = {
+                  springcloud: !this.state.springCloud
+                }
+                this.setState({
+                  springCloud: !this.state.springCloud,
+                })
+                message.success('环境变量更改成功！')
+                updateApp(this.state.appDatas.id, queryParams, bodyParams).then(data => {
+                  message.success(`修改${this.state.type}成功`)
+                })
               })
             })
-          })
-        }
-      })
-      }else{
+          }
+        })
+      } else {
         let queryParams = {
           type: '2'
         }
@@ -433,16 +507,183 @@ class AppSetting extends Component {
           message.success(`修改${this.state.type}成功`)
         })
       }
-      
+
     })
+  }
+
+  //第一个参数为新增的环境变量参数，第二个参数为环境变量KEY ：constants.SPRING_CLOUD_KEY,应用code
+  checkEnvVar = (params, key, code) => {
+    queryBaseConfig(code).then(data => {
+      let pro = [];
+      let pros = [];
+      let containers = [];//用于将容器名存储以便后面做新增接口调用
+      if (data.length > 0) {
+        data.forEach(item => {
+          //先调查询接口，如果数据存在，则调删除接口，否则不处理
+          pros.push(existEnvs(code, item.name, key[0]));
+          pros.push(existEnvs(code, item.name, key[1]));
+          containers.push(item.name);
+        })
+        Promise.all(pros).then(response => {
+          response.forEach((item, i) => {
+            //如果是开启状态
+            if (this.state.springCloud) {
+              if (item) {
+                pro.push(deleteAppEnvs(code, item.name, item.id))
+              }
+            } else {
+              //如果是关闭状态
+              if (item) {
+                //如果数据存在则修改环境变量
+                if (item.key === key[0]) {
+                  pro.push(editEnvs(code, item.containerName, params[0], item.id));
+                }
+                if (item.key === key[1]) {
+                  pro.push(editEnvs(code, item.containerName, params[1], item.id));
+                }
+              } else {
+                containers.forEach(items => {
+                  pro.push(addAppEnvs(code, items, params[i]))
+                })
+              }
+            }
+          })
+          //当有存在的key才去调接口
+          Promise.all(pro).then(response => {
+            let queryParams = {
+              type: '2'
+            }
+            let bodyParams = {
+              springcloud: !this.state.springCloud
+            }
+            this.setState({
+              springCloud: !this.state.springCloud,
+            })
+            message.success('环境变量更改成功！')
+            updateApp(this.state.appDatas.id, queryParams, bodyParams).then(data => {
+              message.success(`修改${this.state.type}成功`)
+            })
+          })
+        })
+      }
+    })
+  }
+
+  _onEditHostOk = () => {
+    let ctx = this.state.ctx;
+    let host = this.state.host;
+    if (!constants.reg.host.test(host)) {
+      message.info('访问地址必须是http https://xxx.xxx.xxx格式')
+      return
+    }
+    if (ctx && !ctx.startsWith('/')) {
+      message.info('上下文必须以/开头');
+      return
+    }
+    if ((ctx && ctx.startsWith('/')) || ctx === '') {
+      updateApp(this.props.appId, {}, { host: host, ctx: ctx }).then(res => {
+        message.success('修改访问地址成功！');
+        this.setState({ edit: false });
+      })
+    }
+  }
+
+  _setReplicas = () => {
+    this.setState({
+      replicasLoading: true
+    })
+    changeAppExtention(this.state.code, this.state.replicas).then(data => {
+      this.setState({
+        isEditNumber: false,
+        replicasLoading: false
+      })
+    }).catch(err => {
+      this.setState({
+        replicasLoading: false
+      })
+    })
+  }
+
+  //应用描述修改
+  onAppDescriptionChangeCommit(value) {
+    changeAppProperty(this.props.appId, { name: this.state.name, desc: value })
+      .then((response) => {
+        if (response) {
+          message.success('修改描述成功！');
+          this.setState({
+            description: value
+          })
+        }
+      })
   }
 
   render() {
     const { appDatas } = this.state;
+    const { deployInfo } = this.props;
+    var manager = this.state.systemManager.map(m => m.userName).join(',');
     return (
       <div>
-        {base.safeMode?"":
-        base.configs.APMEnabled?<Card bordered={false} style={{ margin: 24 }} title='性能监控' id='APMChecked'>
+        <Card title='基础信息' bordered={false} style={{ margin: 24 }}>
+          <DescriptionList style={{ marginBottom: 16 }} col="2">
+            {base.configs.passEnabled ?
+              <Description term="所属集群">
+                <Authorized authority={this.state.appTypeName === "中间件" ? 'middleware_migrate' : 'app_migrate'} noMatch={deployInfo.clusterName}>
+                  <Tooltip title="点击迁移应用" onClick={this._clusterVisible}>{deployInfo.clusterName}</Tooltip>
+                </Authorized>
+              </Description> : ""
+            }
+            {base.configs.passEnabled ?
+              <Description term="应用副本">
+                {
+                  this.state.isEditNumber ?
+                    <div><InputNumber min={1} max={5} value={this.state.replicas} onChange={e => this.setState({ replicas: e })} />
+                      <Button style={{ marginLeft: 8 }} type="primary" onClick={this._setReplicas} loading={this.state.replicasLoading}>确定</Button><Button style={{ marginLeft: 8 }} onClick={() => { this.setState({ isEditNumber: false }) }}>取消</Button></div>
+                    :
+                    <Authorized authority={this.state.type === "middleware" ? "middlewares_edit" : "app_edit"} noMatch={this.state.replicas}>
+                      <Tooltip title="点击修改副本数" onClick={() => { if (!this.state.isEditNumber) { this.setState({ isEditNumber: true }) } }}>
+                        {this.state.replicas ? this.state.replicas : '--'}
+                      </Tooltip>
+                    </Authorized>
+                }
+              </Description>
+              : ""
+            }
+
+          </DescriptionList>
+          <DescriptionList col={1}>
+            <Description term='访问地址'>
+              {this.state.edit ?
+                <span>
+                  <Input style={{ width: 200 }} value={this.state.host} onChange={e => { this.setState({ host: e.target.value }) }} />
+                  <Input style={{ width: 100, marginLeft: 5 }} value={this.state.ctx ? this.state.ctx : '/'} onChange={e => { this.setState({ ctx: e.target.value }) }} />
+                  <Button style={{ marginLeft: 3 }} type='primary' onClick={this._onEditHostOk}>确定</Button>
+                  <Button style={{ marginLeft: 3 }} onClick={() => { this.setState({ edit: false }) }} >取消</Button>
+                </span> :
+                <Tooltip title="点击修改访问地址" onClick={() => { this.setState({ edit: true }) }}>
+                  {this.state.host + this.state.ctx ? this.state.host + this.state.ctx : '--'}
+                </Tooltip>
+              }
+            </Description>
+            <Description term="系统管理员">
+              <Authorized authority={this.state.appTypeName === "中间件" ? 'moddleware_managerSetting' : 'app_managerSetting'} noMatch={this.state.systemManager.length === 0 ? '未指定' : manager}>
+                <UserSelectModal
+                  title={'设置系统管理员'}
+                  mark='系统管理员'
+                  description=''
+                  selectedUsers={this.state.systemManager}
+                  disabledUsers={this.state.systemManager}
+                  dataIndex={{ dataIdIndex: 'USERID', dataNameIndex: 'userName' }}
+                  onOk={(users) => { this._onManagerChange('SYSTEM_MANAGER', users) }} />
+              </Authorized>
+            </Description>
+
+            <Description>
+              <InputInline title={'描述'} value={this.state.description} onChange={this.onAppDescriptionChangeCommit} dataType={'TextArea'} mode={'inline'} defaultNullValue={'空'} width={600} />
+            </Description>
+          </DescriptionList>
+        </Card>
+        {base.safeMode ? "" :
+          base.configs.APMEnabled ? <Card bordered={false} style={{ margin: 24 }} title='性能监控' id='APMChecked'>
             <div style={{ marginBottom: 24 }}>
               <span>启用性能监控: </span>
               <Authorized authority={appDatas.type === 'middleware' ? 'middleware_performance' : 'app_performanceMonitor'}
@@ -451,12 +692,12 @@ class AppSetting extends Component {
               </Authorized>
               <p style={{ marginTop: 24 }}>  如果需要开启性能监控地址的话请联系管理员 {/* 请点击 <a onClick={this.handleClickPush}>这里</a>来修改性能监控地址 */}</p>
             </div>
-        </Card>:"" }
-       
-          {base.safeMode?"":<Card bordered={false} style={{ margin: 24 }} title='Spring  Cloud'>
-            <span>接入注册中心: </span> <Authorized authority={appDatas.type === 'middleware' ? 'middleware_springCloud' : 'app_springCloud'} noMatch={<Switch style={{ marginLeft: 24 }} checked={this.state.springCloud} onClick={this.handleSpringCloud} disabled='true' />}> <Switch style={{ marginLeft: 24 }} checked={this.state.springCloud} onClick={this.handleSpringCloud}/> </Authorized>
-            {this.state.springCloud ? <p style={{ marginTop: 24 }}>注册中心地址：{this.state.eurekaServerUrls}</p> : ''}
-          </Card>}
+          </Card> : ""}
+
+        {base.safeMode ? "" : <Card bordered={false} style={{ margin: 24 }} title='Spring  Cloud'>
+          <span>接入注册中心: </span> <Authorized authority={appDatas.type === 'middleware' ? 'middleware_springCloud' : 'app_springCloud'} noMatch={<Switch style={{ marginLeft: 24 }} checked={this.state.springCloud} onClick={this.handleSpringCloud} disabled='true' />}> <Switch style={{ marginLeft: 24 }} checked={this.state.springCloud} onClick={this.handleSpringCloud} /> </Authorized>
+          {this.state.springCloud ? <p style={{ marginTop: 24 }}>注册中心地址：{this.state.eurekaServerUrls}</p> : ''}
+        </Card>}
 
         <Card bordered={false} style={{ margin: 24 }} title={appDatas.type === 'middleware' ? '中间件删除' : '应用删除'} >
           <Alert message={`删除${this.state.type}时，${this.state.type}相关的所有资源都会被删除，此操作不能够撤销 !`} type="error" style={{ marginBottom: 10 }} />
@@ -498,6 +739,13 @@ class AppSetting extends Component {
           {this.state.hasVolumes &&
             <Checkbox style={{ marginTop: 16 }} onChange={(e) => this.setState({ isDeleteVolumes: e.target.checked })}>是否删除{this.state.type}挂载存储卷</Checkbox>}
         </Modal>
+        <ClusterSelectModal
+          visible={this.state.clusterVisible}
+          clusterName={deployInfo.clusterName}
+          clusterId={deployInfo.clusterId}
+          onOk={this.clusterOnOk}
+          onCancel={this.clusterOnCancel}
+        />
       </div>
     )
   }

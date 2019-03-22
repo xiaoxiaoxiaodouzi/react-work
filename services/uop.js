@@ -69,16 +69,6 @@ export function getCollectionUsers(queryParam){
 	return C2Fetch.get(url,queryParam,'查询用户集合下的用户出错')
 }
 
-
-
-/* 
-export async function setRoleMangage(){
-	let x  = await this.setRoleMangage()
-	xxx.setRoleMangage
-	return 
-} */
-
-
 //获取用户详情
 export function getUserInfos(id){
   const url=proxy+`uop/v1/users/${id}`;

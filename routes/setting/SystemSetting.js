@@ -1,17 +1,17 @@
-import React, { Fragment, Component } from 'react';
+import React, { Component } from 'react';
 import PageHeaderLayout from './layouts/PageHeaderLayout';
-import DescriptionList from 'ant-design-pro/lib/DescriptionList';
-import { Card, message, Form, Tooltip} from 'antd';
-import EnvSetting from '../../components/Setting/EnvSetting';
+import { message, Form } from 'antd';
 import { updateConfigs } from '../../services/amp'
 import constants from '../../services/constants'
 import { base } from '../../services/base'
 import { getUsersByGroup, putUsersByGroup } from '../../services/uop';
-import SystemBasicForm from '../../components/Setting/SystemBasicForm'
-import Authorized from '../../common/Authorized';
-import {BreadcrumbTitle} from '../../common/SimpleComponents';
+import { Route } from 'react-router-dom';
+import { BreadcrumbTitle } from '../../common/SimpleComponents';
+import PlatForm from './PlatForm'
+import SystemBasicSetting from '../../components/Setting/SystemBasicSetting';
+import EnvSettingNew from '../../components/Setting/EnvSettingNew';
 
-const { Description } = DescriptionList;
+const basePath = 'setting/syssetting'
 class SystemSettingForm extends Component {
   state = {
     systemManager: [],
@@ -22,31 +22,34 @@ class SystemSettingForm extends Component {
     managers: [],
     userVisible: false,
     adminNames: '',
-    globalResourceMonitUrl:'',
-    openOrClose:base.configs.passEnabled?'关闭cce权限':'打开cce权限'
+    globalResourceMonitUrl: '',
+    openOrClose: base.configs.passEnabled ? '关闭cce权限' : '打开cce权限',
+    tabActiveKey: 'basic',
+    Updatedisabled: true,    //子表单的按钮disabled属性
   };
   componentDidMount() {
+    let path = window.location.href.split(basePath + '/');
+    if (path.length > 0) {
+      this.setState({ tabActiveKey: path[1] })
+    }
     this.loadData();
   }
 
   loadData = () => {
     this.setState({
-
       paasManageUrl: base.configs[constants.CONFIG_KEY.PASS_MANAGE_URL],
       APMServerUrl: base.configs[constants.CONFIG_KEY.APM_URL],
       manageTenantCode: base.configs[constants.CONFIG_KEY.MANAGE_TENANT_CODE],
       globalResourceMonitUrl: base.configs[constants.CONFIG_KEY.GLOBAL_RESOURCE_MONIT_URL],
-      passEnabled:base.configs.passEnabled,
-      errorMessage:base.configs.errorMessage,
-      messageBell:base.configs.messageBell,
-      APMEnabled:base.configs.APMEnabled,
-      monitEnabled:base.configs.monitEnabled
+      passEnabled: base.configs.passEnabled,
+      APMEnabled: base.configs.APMEnabled,
+      monitEnabled: base.configs.monitEnabled
     })
     this._getUserGroup();
   }
 
   _getUserGroup = () => {
-    getUsersByGroup("adminGroup",{ 'AMP-ENV-ID':1}).then(data => {
+    getUsersByGroup("adminGroup", { 'AMP-ENV-ID': 1 }).then(data => {
       let names = []
       data.forEach(man => {
         names.push(man.name);
@@ -58,43 +61,24 @@ class SystemSettingForm extends Component {
     })
   }
 
-  //开启平台设置模态框
-  OpenModal = () => {
-    let form = this.props.form;
-    //给模态框设置初始值
-    form.setFieldsValue({
-      paasManageUrl: "",
-      APMServerUrl: this.state.APMServerUrl,
-      manageTenantCode: this.state.manageTenantCode,
-    })
-    this.setState({
-      visibleSet: true,
-    })
-  }
-
-  _handleCancle = () => {
-    this.setState({
-      visibleSet: false
-    })
-  }
 
   _handleOk = (values) => {
     updateConfigs(values).then(data => {
       if (data) {
         message.success('修改成功')
-             
-        if(values.passEnabled !== this.state.passEnabled){
-          window.location.reload();
-        } 
 
-        if(values.monitEnabled !== this.state.monitEnabled){
+        if (values.passEnabled !== this.state.passEnabled) {
+          window.location.reload();
+        }
+
+        if (values.monitEnabled !== this.state.monitEnabled) {
           window.location.reload();
         }
         this.setState({
           visibleSet: false,
           ...data
         })
-        base.configs = data; 
+        base.configs = data;
       }
     })
   }
@@ -112,61 +96,52 @@ class SystemSettingForm extends Component {
     });
   }
 
+  onTabChange = (key) => {
+    let { history } = this.props;
+    history.push({ pathname: `/${basePath}/${key}` })
+    this.setState({ tabActiveKey: key })
+  }
+
   render() {
-    const breadcrumbTitle = BreadcrumbTitle([{name:'高级设置'},{name:'系统设置'}]);
+    const breadcrumbTitle = BreadcrumbTitle([{ name: '平台管理' }, { name: '系统设置' }]);
+
+    const tabList = [{
+      key: 'basic',
+      tab: '基础设置',
+    }, {
+      key: 'platform',
+      tab: '平台引擎',
+    }, {
+      key: 'env',
+      tab: '业务环境',
+    }];
+
     return (
       <PageHeaderLayout
         title={breadcrumbTitle}
         content="应用管理平台系统设置界面，提供全局参数、系统环境相关配置"
+        tabList={tabList}
+        tabActiveKey={this.state.tabActiveKey}
+        onTabChange={this.onTabChange}
       >
-        <Card bordered={false} title='平台设置' style={{marginBottom:24}}
-          extra={<Fragment><Authorized authority={'systemset_editPlatformSetting'} noMatch={<a disabled='true' onClick={() => this.OpenModal()}>编辑</a>}><a onClick={() => this.OpenModal()}>编辑</a></Authorized></Fragment>}
-        >
-          <DescriptionList col={3} size="large">
-            <Description term="管理租户CODE">
-              {this.state.manageTenantCode}
-            </Description>
-            <Description term="错误消息提示">
-              {this.state.errorMessage?'开启':'关闭'}
-            </Description>
-            <Description term="消息铃铛">
-              {this.state.messageBell?'开启':'关闭'}
-            </Description>
-            <Description term="PAAS部署">
-              {this.state.passEnabled?<Tooltip title={'部署内网地址\n'+this.state.paasManageUrl}>已启用</Tooltip>:"已关闭"}
-            </Description>
-            <Description term="性能监控">
-              {this.state.APMEnabled?<Tooltip title={'性能监控地址\n'+this.state.APMServerUrl}>已启用</Tooltip>:"已关闭"}
-            </Description>
-            <Description term="资源监控">
-              {this.state.monitEnabled?<Tooltip title={'资源监控地址\n'+this.state.globalResourceMonitUrl}>已启用</Tooltip>:"已关闭"}
-            </Description>
-          </DescriptionList>
-          <DescriptionList col={1} size="large" style={{ marginTop: 16 }}>
-            <Description term="管理员">
-              {this.state.adminNames}
-            </Description>
-          </DescriptionList>
-        </Card>
-
-        <EnvSetting history={this.props.history}/>
-
-        <SystemBasicForm visibleSet={this.state.visibleSet}
-          _handleOk={this._handleOk}
-          _handleCancle={this._handleCancle}
-          _putUsersByGroup={users => this._putUsersByGroup(users)}
-          globalResourceMonitUrl={this.state.globalResourceMonitUrl}
-          manageTenantCode={this.state.manageTenantCode}
-          paasManageUrl={this.state.paasManageUrl}
-          APMServerUrl={this.state.APMServerUrl}
-          APMEnabled={this.state.APMEnabled}
-          monitEnabled={this.state.monitEnabled}
-          errorMessage={this.state.errorMessage}
-          passEnabled={this.state.passEnabled}
-          messageBell={this.state.messageBell}
-          managers={this.state.managers}
-          />
-
+        <Route path={`/${basePath}/basic`}
+          render=
+          {props =>
+            <SystemBasicSetting
+              _putUsersByGroup={users => this._putUsersByGroup(users)}
+              managers={this.state.managers}
+            />}
+        />
+        <Route path={`/${basePath}`}
+          render=
+          {props =>
+            <SystemBasicSetting
+              _putUsersByGroup={users => this._putUsersByGroup(users)}
+              managers={this.state.managers}
+            />}
+          exact />
+        <Route path={`/${basePath}/platform`} component={PlatForm} exact />
+        <Route path={`/${basePath}/env`} render={props => <EnvSettingNew history={this.props.history} />} exact />
       </PageHeaderLayout>
     );
   }

@@ -1,6 +1,6 @@
 import React from 'react'
-import { Card, Divider, message, Spin ,Tooltip,Icon} from 'antd';
-import {base as ampBase} from '../../services/base';
+import { Card, Divider, message, Spin, Tooltip, Icon } from 'antd';
+import { base as ampBase } from '../../services/base';
 import {
   BasicSettings,
   EnvVariables,
@@ -10,10 +10,11 @@ import {
   Storages
 } from '../../components/Application/Deploy';
 
-import { deleteNetworkConfig,addNetworkConfig,queryNetwork, queryBaseConfig, queryRoutes, putBaseConfig, putConfigs, changeProbe } from '../../services/cce'
-import { getAppInfo } from '../../services/aip';
+import { deleteNetworkConfig, addNetworkConfig, queryNetwork, queryBaseConfig, queryRoutes, putBaseConfig, putConfigs, changeProbe, queryChartBaseConfig } from '../../services/cce'
 import { ErrorComponentCatch } from '../../common/SimpleComponents';
 import constants from '../../services/constants';
+import DepolyContext from '../../context/DepolyContext';
+import { quotaFormat, quotaMiFormat } from '../../utils/utils';
 
 
 class AppDeploy extends React.Component {
@@ -31,18 +32,25 @@ class AppDeploy extends React.Component {
     type: ''     //应用类型  apps  /middleware
   }
   componentDidMount() {
-    const appId = this.props.appId;
-    if(!ampBase.safeMode){
-      getAppInfo(appId).then((data) => {
-        this.setState({ appCode: data.code, appId: data.id, type: data.type }, () => this.getNetworkInfo());
-        this.getBasicInfo(data.code);
-      });
-    }else{
-      const appCode = this.props.appCode;
+    const appData = this.props.appData;
+    let appId = appData ? appData.id : this.props.appId;
+    let appCode = appData ? appData.code : '';
+    let type = appData ? appData.type : '';
+    if (!ampBase.safeMode) {
+      if (this.props.type === 'chart') {
+        this.setState({ appCode: appId, type: 'chart' }, () => {
+          /* this.getNetworkInfo(); */
+        })
+        this.getBasicInfo(appId);
+      } else {
+          this.setState({ appCode: appCode, appId: appId, type: type }, () => this.getNetworkInfo());
+          this.getBasicInfo(appCode);
+      }
+    } else {
       this.setState({ appCode: appCode, type: "apps" }, () => this.getNetworkInfo());
       this.getBasicInfo(appCode);
     }
-    
+
   }
   //容器页签切换
   onOperationTabChange = (key) => {
@@ -52,7 +60,7 @@ class AppDeploy extends React.Component {
   }
   //获取网络配置信息
   getNetworkInfo = () => {
-    
+
     let queryNetwork1 = queryNetwork(this.state.appCode, { page: 1, rows: 1000 });
     let queryRoutes1 = queryRoutes(this.state.appCode);
     Promise.all([queryNetwork1, queryRoutes1]).then(([networks, routes]) => {
@@ -73,26 +81,39 @@ class AppDeploy extends React.Component {
         networkConfigs.push(networkConfig);
       });
       this.setState({ networkConfigs, flag: Math.random(), networkLoading: false });
-    }).catch(err=>{
-      this.setState({ networkConfigs:[], flag: Math.random(), networkLoading: false });
+    }).catch(err => {
+      this.setState({ networkConfigs: [], flag: Math.random(), networkLoading: false });
     });
 
   }
   //获取应用部署信息
   getBasicInfo = (application) => {
-    queryBaseConfig(application).then((bases) => {
-      this.setState({loading:false});
-      if (bases) {
-        this.setState({
-          bases,
-        }, () => {
-          if(bases.length>0)this.onOperationTabChange(bases[0].name);
-        });
-      }
-    });
+    if (this.props.type === 'chart') {
+      queryChartBaseConfig(application, { env: this.props.env }).then((bases) => {
+        this.setState({ loading: false });
+        if (bases) {
+          this.setState({
+            bases,
+          }, () => {
+            if (bases.length > 0) this.onOperationTabChange(bases[0].name);
+          });
+        }
+      })
+    } else {
+      queryBaseConfig(application).then((bases) => {
+        this.setState({ loading: false });
+        if (bases) {
+          this.setState({
+            bases,
+          }, () => {
+            if (bases.length > 0) this.onOperationTabChange(bases[0].name);
+          });
+        }
+      });
+    }
   }
   //基本配置修改
-  onChangeBasicInfo = (version, dockerConfig, isVersionChange, isDockerConfigChange,request) => {
+  onChangeBasicInfo = (version, dockerConfig, isVersionChange, isDockerConfigChange, request) => {
     let bases = this.state.bases.slice();
     const { appCode, operationkey } = this.state;
     bases.forEach((base) => {
@@ -103,24 +124,24 @@ class AppDeploy extends React.Component {
             this.getBasicInfo(appCode);
             message.success('容器版本修改成功');
           }).catch((e) => {
-            ampBase.ampMessage('容器版本修改失败' );
+            ampBase.ampMessage('容器版本修改失败');
             this.getBasicInfo(appCode);
           });
         }
         if (isDockerConfigChange) {
           base.reSource.limits = {
-            cpu: { amount: dockerConfig.split('-')[0] },
-            memory: { amount: dockerConfig.split('-')[1] }
+            cpu: { amount: dockerConfig[0].split('-')[0] },
+            memory: { amount: quotaMiFormat(dockerConfig[0].split('-')[1]) }
           }
           base.reSource.requests = {
-            cpu: { amount: request },
-            memory: { amount: dockerConfig.split('-')[1] }
+            cpu: { amount: dockerConfig[1].split('-')[0] },
+            memory: { amount: quotaMiFormat(dockerConfig[1].split('-')[1]) }
           }
           putBaseConfig(appCode, operationkey, 'resource', base).then(() => {
             this.getBasicInfo(appCode);
             message.success('容器配置修改成功');
           }).catch((e) => {
-            ampBase.ampMessage('容器配置修改失败' );
+            ampBase.ampMessage('容器配置修改失败');
             this.getBasicInfo(appCode);
           });
         }
@@ -167,7 +188,7 @@ class AppDeploy extends React.Component {
           this.getNetworkInfo();
         }
       }).catch((e) => {
-        ampBase.ampMessage('添加网络配置失败' )
+        ampBase.ampMessage('添加网络配置失败')
         this.getNetworkInfo();
         this.setState({ networkLoading: false })
       });
@@ -184,7 +205,7 @@ class AppDeploy extends React.Component {
             this.setState({ networkLoading: false })
             this.getNetworkInfo();
           }).catch((e) => {
-            ampBase.ampMessage('添加网络配置失败' )
+            ampBase.ampMessage('添加网络配置失败')
             this.getNetworkInfo();
             this.setState({ networkLoading: false })
           });
@@ -194,7 +215,7 @@ class AppDeploy extends React.Component {
           this.getNetworkInfo();
         }
       }).catch((e) => {
-        ampBase.ampMessage('添加网络配置失败' )
+        ampBase.ampMessage('添加网络配置失败')
         this.getNetworkInfo();
         this.setState({ networkLoading: false })
       });
@@ -220,7 +241,7 @@ class AppDeploy extends React.Component {
         this.setState({ networkLoading: false })
         this.getNetworkInfo();
       }).catch((e) => {
-        ampBase.ampMessage('添加集群外地址失败' )
+        ampBase.ampMessage('添加集群外地址失败')
         this.setState({ networkLoading: false });
         this.getNetworkInfo();
       });
@@ -233,7 +254,7 @@ class AppDeploy extends React.Component {
         this.setState({ networkLoading: false });
         this.getNetworkInfo();
       }).catch((e) => {
-        ampBase.ampMessage('删除集群外地址失败' )
+        ampBase.ampMessage('删除集群外地址失败')
         this.setState({ networkLoading: false });
         this.getNetworkInfo();
       });
@@ -269,7 +290,7 @@ class AppDeploy extends React.Component {
                 message.success("删除网络配置成功");
                 this.getNetworkInfo();
               }).catch((e) => {
-                ampBase.ampMessage('删除网络配置失败' )
+                ampBase.ampMessage('删除网络配置失败')
                 this.getNetworkInfo();
                 this.setState({ networkLoading: false })
               });
@@ -280,13 +301,13 @@ class AppDeploy extends React.Component {
                 message.success("删除网络配置成功");
                 this.getNetworkInfo();
               }).catch((e) => {
-                ampBase.ampMessage('删除网络配置失败' )
+                ampBase.ampMessage('删除网络配置失败')
                 this.getNetworkInfo();
                 this.setState({ networkLoading: false })
               });
             }
           }).catch((e) => {
-            ampBase.ampMessage('删除网络配置失败' )
+            ampBase.ampMessage('删除网络配置失败')
             this.getNetworkInfo();
             this.setState({ networkLoading: false })
           });
@@ -298,7 +319,7 @@ class AppDeploy extends React.Component {
               message.success("删除网络配置成功");
               this.getNetworkInfo();
             }).catch((e) => {
-              ampBase.ampMessage('删除网络配置失败' )
+              ampBase.ampMessage('删除网络配置失败')
               this.getNetworkInfo();
               this.setState({ networkLoading: false })
             });
@@ -309,7 +330,7 @@ class AppDeploy extends React.Component {
               message.success("删除网络配置成功");
               this.getNetworkInfo();
             }).catch((e) => {
-              ampBase.ampMessage('删除网络配置失败' )
+              ampBase.ampMessage('删除网络配置失败')
               this.getNetworkInfo();
               this.setState({ networkLoading: false })
             });
@@ -366,12 +387,12 @@ class AppDeploy extends React.Component {
               message.success('配置文件修改成功');
             }
           }).catch((e) => {
-            ampBase.ampMessage('配置文件修改失败' );
+            ampBase.ampMessage('配置文件修改失败');
             this.getBasicInfo(appCode);
             this.setState({ settingFileLoading: false });
           });
         }).catch((e) => {
-          ampBase.ampMessage('配置文件修改失败' );
+          ampBase.ampMessage('配置文件修改失败');
           this.getBasicInfo(appCode);
           this.setState({ settingFileLoading: false });
         });
@@ -390,7 +411,7 @@ class AppDeploy extends React.Component {
           this.setState({ storageLoading: false });
           message.success('存储卷修改成功');
         }).catch((e) => {
-          ampBase.ampMessage('存储卷修改失败' );
+          ampBase.ampMessage('存储卷修改失败');
           this.getBasicInfo(appCode);
           this.setState({ storageLoading: false });
         });
@@ -410,7 +431,7 @@ class AppDeploy extends React.Component {
             this.getBasicInfo(appCode);
             message.success('启动命令修改成功');
           }).catch((e) => {
-            ampBase.ampMessage('启动命令修改失败' );
+            ampBase.ampMessage('启动命令修改失败');
             this.getBasicInfo(appCode);
           });
         } else {
@@ -420,7 +441,7 @@ class AppDeploy extends React.Component {
             this.getBasicInfo(appCode);
             message.success('启动命令修改成功');
           }).catch((e) => {
-            ampBase.ampMessage('启动命令修改失败' );
+            ampBase.ampMessage('启动命令修改失败');
             this.getBasicInfo(appCode);
           });
         }
@@ -441,7 +462,7 @@ class AppDeploy extends React.Component {
               this.getBasicInfo(appCode);
               message.success('健康检查开启成功');
             }).catch(e => {
-              ampBase.ampMessage('健康检查开启失败' );
+              ampBase.ampMessage('健康检查开启失败');
               this.getBasicInfo(appCode);
             })
           } else {
@@ -451,7 +472,7 @@ class AppDeploy extends React.Component {
               this.getBasicInfo(appCode);
               message.success('健康检查开启成功');
             }).catch(e => {
-              ampBase.ampMessage('健康检查开启失败' );
+              ampBase.ampMessage('健康检查开启失败');
               this.getBasicInfo(appCode);
             })
           }
@@ -462,7 +483,7 @@ class AppDeploy extends React.Component {
             this.getBasicInfo(appCode);
             message.success('健康检查关闭成功');
           }).catch(e => {
-            ampBase.ampMessage('健康检查关闭成功' );
+            ampBase.ampMessage('健康检查关闭成功');
             this.getBasicInfo(appCode);
           })
         }
@@ -520,25 +541,28 @@ class AppDeploy extends React.Component {
         base = element;
       }
     });
-    let dockerConfig = '';
-    let cpu = "";
-    let limit = '0.1';
-    let memory = "";
-    let request = "0.1";
-    if (base.reSource&&base.reSource.limits) {
-      cpu = base.reSource.limits.cpu?base.reSource.limits.cpu.amount+"":'0';
-      if(cpu.indexOf('m') !== -1){
-        limit = parseInt(cpu.substring(0,cpu.length-1),10)/1000;
+    let dockerConfig = [];
+    let cpuLimit = "";
+    let cpuRequest = '0.1';
+    let memLimit = "";
+    let memRequest = "0.1";
+    if (base.reSource && base.reSource.limits) {
+      cpuLimit = base.reSource.limits.cpu ? base.reSource.limits.cpu.amount + "" : '0';
+      if (cpuLimit.indexOf('m') !== -1) {
+        cpuLimit = parseInt(cpuLimit.substring(0, cpuLimit.length - 1), 10) / 1000;
       }
-      memory = base.reSource.limits.memory?base.reSource.limits.memory.amount:'0';
-      dockerConfig = cpu + '-' + memory;
-      if(base.reSource.requests && base.reSource.requests.cpu){
-        let amount= base.reSource.requests.cpu.amount + "";
-        if(amount.indexOf('m') !== -1){
-          request = parseInt(amount.substring(0,amount.length-1),10)/1000;
-        }else{
-          request = amount;
+      memLimit = base.reSource.limits.memory ? quotaFormat(base.reSource.limits.memory.amount) : '0';
+      dockerConfig.push(cpuLimit + '-' + memLimit);
+      if (base.reSource.requests && base.reSource.requests.cpu) {
+        let amount = base.reSource.requests.cpu.amount + "";
+        if (amount.indexOf('m') !== -1) {
+          cpuRequest = parseInt(amount.substring(0, amount.length - 1), 10) / 1000;
+        } else {
+          cpuRequest = amount;
         }
+      }
+      if (base.reSource.requests && base.reSource.requests.memory) {
+        memRequest = quotaFormat(base.reSource.requests.memory.amount);
       }
     }
     return (
@@ -555,10 +579,10 @@ class AppDeploy extends React.Component {
           operationkey={operationkey}
           probe={base.probe}
           configs={base.configs}
-          cpu={cpu}
-          limit={limit}
-          request={request}
-          memory={memory}
+          cpuLimit={cpuLimit}
+          cpuRequest={cpuRequest}
+          memRequest={memRequest}
+          memLimit={memLimit}
           onChangeProbe={this.onChangeProbe}
           onChangeShareLicense={this.onChangeShareLicense}
           onChangeBasicInfo={this.onChangeBasicInfo} />
@@ -582,7 +606,7 @@ class AppDeploy extends React.Component {
           envChange={e => this.props.envChange(e)}
         />
         <Divider style={{ marginBottom: 32, marginTop: 32 }} />
-        {ampBase.safeMode?"":<Middleware
+        {ampBase.safeMode ? "" : <Middleware
           type={this.state.type}
           operationkey={operationkey}
           appId={appId} />}
@@ -618,23 +642,24 @@ class AppDeploy extends React.Component {
       operationTabList.push({ key: baseConfig.name, tab: baseConfig.name });
       contentList[baseConfig.name] = this.renderTabContent(baseConfig.name);
     });
-    
+
     return (
       <Spin spinning={loading}>
-        {this.state.bases && this.state.bases.length>0?<Card
-          bordered={false}
-          tabList={operationTabList}
-          onTabChange={this.onOperationTabChange}
-          style={{ margin: 24, minHeight: 1000 }}>
-          {contentList[operationkey]}
-        </Card>:
-        <Card style={{ margin: 24, minHeight: 1000 }}>
-           <div style={{float:'right'}}>
-          <Tooltip title={"无容器基本配置信息"}><Icon type="info-circle-o" theme="twoTone" twoToneColor={constants.WARN_COLOR.warn}/></Tooltip></div>
-        <div style={{color:'#d4d4d4',textAlign:'center',fontSize:16,marginTop:48}}>暂无数据</div>
-        </Card>
-        
-      }
+        <DepolyContext.Provider value={this.state}>
+          {this.state.bases && this.state.bases.length > 0 ? <Card
+            bordered={false}
+            tabList={operationTabList}
+            onTabChange={this.onOperationTabChange}
+            style={{ margin: 24, minHeight: 1000 }}>
+            {contentList[operationkey]}
+          </Card> :
+            <Card style={{ margin: 24, minHeight: 1000 }}>
+              <div style={{ float: 'right' }}>
+                <Tooltip title={"无容器基本配置信息"}><Icon type="info-circle-o" theme="twoTone" twoToneColor={constants.WARN_COLOR.warn} /></Tooltip></div>
+              <div style={{ color: '#d4d4d4', textAlign: 'center', fontSize: 16, marginTop: 48 }}>暂无数据</div>
+            </Card>
+          }
+        </DepolyContext.Provider>
       </Spin>
     )
   }

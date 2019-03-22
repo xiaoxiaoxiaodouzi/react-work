@@ -43,7 +43,7 @@ class AppList extends React.Component {
     const { status,succeededCount,exceptionCount,failedCount } = this.state;
     return (
       <div style={{ margin: '-24px -24px 0' }}>
-        <PageHeaderBreadcrumb breadcrumbList={[{name:'中间件管理'}]} action={<GlobalEnvironmentChange/>}/>
+        <PageHeaderBreadcrumb breadcrumbList={[{name:'平台管理'},{name:'中间件管理'}]} action={<GlobalEnvironmentChange/>}/>
         <AppState normal={succeededCount} warm={exceptionCount} abnormal={failedCount} onStatusChange={this.onStatusChange} />
         <AppTable status={status} onStatusChange={this.onStatusChange} tenant={this.props.tenant} environment={this.props.environment} type="middleware" />
       </div>

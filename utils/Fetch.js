@@ -1,5 +1,6 @@
 import isoFetch from "isomorphic-fetch";
-import { base } from '../services/base'
+import { base } from '../services/base';
+import _ from 'lodash';
 
 
 //覆盖原生的fetch方法，解决mock不生效的问题
@@ -19,7 +20,11 @@ const getQueryParams = params => {
                 value.forEach(v => {
                     queryParams.push(key + "=" + v);
                 })
-            } else if (value !== undefined && value !== "") queryParams.push(key + "=" + params[key]);
+            } else if (value !== undefined && value !== null){
+                if(_.isString(value)){
+                    if(value.trim()!=='')queryParams.push(key + "=" + value.trim());
+                }else queryParams.push(key + "=" + value);
+            } 
         }
     }
     return queryParams
@@ -61,11 +66,11 @@ const remoteErrorHandle = (errorMessage, response, defaultMessage) => {
                 window.location.href = '#/login';
             }else{
                 let loginUrl = response.headers.get('loginurl');
-                // if(window.location.href.endsWith('#/')){
-                //     window.location.reload();
-                // }else{
-                    window.location.href = loginUrl
-                // }
+                if(loginUrl){
+                    window.location.href = loginUrl;
+                }else{
+                    window.location.reload(true);
+                }
             }
         } else {
             if (errorMessage === undefined) errorMessage = true;
@@ -99,7 +104,7 @@ const getSafeMode = ()=>{
 }
 const getHttpHeader = (headers)=>{
     let baseHttpHeaders = { 'accept': 'application/json','Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'AMP-ENV-ID': getAmpEnvId()};
-    if(!baseHttpHeaders['Safe-Mode']&&getSafeMode())baseHttpHeaders['Safe-Mode'] = true;
+    if(getSafeMode())baseHttpHeaders['Safe-Mode'] = true;
     let httpHeaders = Object.assign(baseHttpHeaders,headers);
     // if(!httpHeaders['AMP-ENV-ID'])message.warning('没有选中任何环境！');
     return httpHeaders;
@@ -131,12 +136,12 @@ class C2Fetch {
             body: JSON.stringify(bodyParams)
         }).then(response => responseHandle(response, errorMessage));
     }
-    static delete(url, params, errorMessage) {
+    static delete(url, params, errorMessage, headers) {
         let queryParams = getQueryParams(params);
         let queryUrl = queryParams.length > 0 ? "?" + queryParams.join("&") : "";
         return fetch(this.urlBase + url + queryUrl, {
             method: "DELETE", credentials: "include",
-            headers: getHttpHeader()
+            headers: getHttpHeader(headers)
         }).then(response => responseHandle(response, errorMessage));
     }
 
@@ -156,7 +161,7 @@ class C2Fetch {
      * @param {String} fileName 下载的文件名称
      */
     static download(url,fileName,errorMessage){
-        fetch(url,{headers:getHttpHeader()}).then(res=>{
+        fetch(url,{headers:getHttpHeader(), credentials: "include"}).then(res=>{
             if(res.ok){
                 res.blob().then(blob=>{
                     var link = document.createElement('a');

@@ -1,5 +1,5 @@
 import React, { PureComponent } from 'react';
-import { Button, Table, Alert, Popconfirm, Divider, Input, message, Select, Badge, Modal, Row, Col } from 'antd';
+import { Button, Table, Alert, Popconfirm, Divider, Input, message, Select, Badge, Modal, Row, Col, Tooltip } from 'antd';
 import { appStart, queryEnvs, batchAddEnvs, editEnvs, resetEnv } from '../../../services/cce';
 import { addAppEnvs, deleteAppEnvs } from '../../../services/cce';
 import Authorized from '../../../common/Authorized';
@@ -432,7 +432,7 @@ export default class EnvVariables extends PureComponent {
     const columns = [{
       title: '键',
       dataIndex: 'name',
-      width: '20%',
+      width:280,
       render: (text, record) => {
         if (record.isNew) {
           return (
@@ -443,13 +443,13 @@ export default class EnvVariables extends PureComponent {
             />
           );
         }
-        return text;
+        return <Tooltip title={record.desc}>{text}</Tooltip>;
       },
     }, {
       title: '值',
       dataIndex: 'value',
-      width: '20%',
       render: (text, record) => {
+        let value = '';
         if (record.editable) {
           return (
             <Input
@@ -459,19 +459,20 @@ export default class EnvVariables extends PureComponent {
             />
           );
         } else if (record.operateWay === 'add' || record.operateWay === 'effect') {
-          return record.value;
+          value = record.value;
         } else if (record.operateWay === 'delete') {
-          return record.oldValue;
+          value = record.oldValue;
         } else if (record.operateWay === 'update') {
-          return record.oldValue + ' ==> ' + record.value;
+          value = record.oldValue + ' ==> ' + record.value;
         } else {
-          return record.value;
+          value = record.value;
         }
+        return <Ellipsis tooltip lines={1}>{value}</Ellipsis>
       },
     }, {
       title: '来源',
       dataIndex: 'source',
-      width: '10%',
+      width: 100,
       render: (text, record) => {
         if (record.editable) {
           return (
@@ -485,25 +486,25 @@ export default class EnvVariables extends PureComponent {
         }
         return sourceList[text];
       },
-    }, {
-      title: '描述',
-      dataIndex: 'desc',
-      render: (text, record) => {
-        if (record.editable) {
-          return (
-            <Input
-              value={text} disabled={(!record.isNew && record.source !== '0') ? true : false}
-              onChange={e => this.handleFieldChange(e, 'desc', record.key)}
-              placeholder="描述"
-            />
-          );
-        }
-        return <Ellipsis tooltip lines={1} length={150}>{text}</Ellipsis>;
-      },
+    // }, {
+    //   title: '描述',
+    //   dataIndex: 'desc',
+    //   render: (text, record) => {
+    //     if (record.editable) {
+    //       return (
+    //         <Input
+    //           value={text} disabled={(!record.isNew && record.source !== '0') ? true : false}
+    //           onChange={e => this.handleFieldChange(e, 'desc', record.key)}
+    //           placeholder="描述"
+    //         />
+    //       );
+    //     }
+    //     return <Ellipsis tooltip lines={1} length={150}>{text}</Ellipsis>;
+    //   },
     }, {
       title: '操作状态',
       dataIndex: 'operateWay',
-      width: 110,
+      width: 100,
       render: (text, record) => {
         return <Badge status={statusMap[record.operateWay]} text={statusList[statusMap[record.operateWay]]} />
         //return statusList[text];
@@ -511,7 +512,7 @@ export default class EnvVariables extends PureComponent {
     }, {
       title: '操作',
       dataIndex: 'handle',
-      width: '15%',
+      width: 160,
       render: (text, record) => {
         if (record.editable) {
           if (record.isNew) {
@@ -589,10 +590,11 @@ export default class EnvVariables extends PureComponent {
         }
       },
     }];
+    
     const simpColumns = [{
       title: '键',
+      width:280,
       dataIndex: 'name',
-      width: '20%',
       render: (text, record) => {
         if (record.isNew) {
           return (
@@ -603,12 +605,11 @@ export default class EnvVariables extends PureComponent {
             />
           );
         }
-        return text;
+        return <Tooltip title={record.desc}>{text}</Tooltip>;
       },
     }, {
       title: '值',
       dataIndex: 'value',
-      width: '20%',
       render: (text, record) => {
         if (record.editable) {
           return (
@@ -629,25 +630,24 @@ export default class EnvVariables extends PureComponent {
         }
       },
     }, {
-      title: '描述',
-      dataIndex: 'desc',
-      width: '25%',
-      render: (text, record) => {
-        if (record.editable) {
-          return (
-            <Input
-              value={text}
-              onChange={e => this.handleFieldChange(e, 'desc', record.key)}
-              placeholder="描述"
-            />
-          );
-        }
-        return text;
-      },
-    }, {
+    //   title: '描述',
+    //   dataIndex: 'desc',
+    //   render: (text, record) => {
+    //     if (record.editable) {
+    //       return (
+    //         <Input
+    //           value={text}
+    //           onChange={e => this.handleFieldChange(e, 'desc', record.key)}
+    //           placeholder="描述"
+    //         />
+    //       );
+    //     }
+    //     return text;
+    //   },
+    // }, {
       title: '操作',
       dataIndex: 'handle',
-      width: '15%',
+      width: 160,
       render: (text, record) => {
         if (record.editable) {
           if (record.isNew) {

@@ -3,7 +3,7 @@ import { Modal, Form, Input, Alert, Radio, message, Select } from 'antd';
 import QueryParamsTable from './QueryParamsTable';
 import TagManager from '../../../common/TagManager';
 
-import { getApp,queryAppTags, createTags, addService, addTag, queryAllServices, getAppInfo } from '../../../services/aip';
+import { queryAppTags, createTags, addService, addTag, queryAllServices, getAppInfo } from '../../../services/aip';
 
 
 const Option = Select.Option;
@@ -30,11 +30,10 @@ class ServerAddModal extends PureComponent {
   tableDataFlag = 0;
   componentDidMount() {
     if (this.props.editable) {
-      getApp(this.props.appId).then((appInfo) => {
-        this.upstream = appInfo.upstream;
-        this.setState({
-          appName: appInfo.name,
-        });
+      let appInfo = this.props.appData;
+      this.upstream = appInfo.upstream;
+      this.setState({
+        appName: appInfo.name,
       });
 
       this.setState({ groupId: this.props.appId });
@@ -195,7 +194,9 @@ class ServerAddModal extends PureComponent {
   onCheckService = () => {
     let name = this.props.form.getFieldValue('name');
     let path = this.props.form.getFieldValue('path');
-    queryAllServices('', '', '', '', '', name, path,this.props.tenant).then(data => {
+    let method = this.props.form.getFieldValue('method');
+    debugger;
+    queryAllServices('', '', '', '', method, name, path, this.props.tenant).then(data => {
       if (data.contents && data.contents.length > 0) {
         this.setState({
           validatePath: 'error',
@@ -229,9 +230,9 @@ class ServerAddModal extends PureComponent {
         onOk={this.handleOk}
         onCancel={this.handleCancel} >
         <Form>
-          <FormItem {...formItemLayout} style={{ marginBottom: 0 }} label={this.props.editable?'应用':'应用'}>
+          <FormItem {...formItemLayout} style={{ marginBottom: 0 }} label={this.props.editable ? '应用' : '应用'}>
             {!this.props.editable ?
-              <Select 
+              <Select
                 showSearch
                 value={this.state.groupId}
                 filterOption={(input, option) => option.props.children.indexOf(input) >= 0}
@@ -248,7 +249,7 @@ class ServerAddModal extends PureComponent {
           </FormItem>
           <FormItem {...formItemLayout} style={{ marginBottom: 0 }} label="服务名称">
             {getFieldDecorator('name', {
-              rules: [{ required: true, message: '请输入服务名称' },{max:54,message:'服务名称过长'}],
+              rules: [{ required: true, message: '请输入服务名称' }, { max: 54, message: '服务名称过长' }],
             })(
               <Input placeholder="请输入" />
             )}

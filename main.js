@@ -1,4 +1,4 @@
-import FunctionalList from './components/BasicData/Functional/FunctionalList'
+import FunctionalList from './routes/FuncNavigation/FuncNavigation'
 import ObjectDetail from './routes/BasicData/Functional/ObjectDetail'
 import RoleDetail from './routes/BasicData/Functional/RoleDetail'
 import NavigationList from './routes/NavigationManage/NavigationList'

@@ -8,7 +8,6 @@ import { base } from '../../services/base';
 import AddEnvSetting from './AddEnvSetting'
 import Authorized from '../../common/Authorized';
 import FormEditorModal from '../../common/DynamicForm/FormEditorModal'
-import EnvStatus from './EnvStatus'
 import EnviromentForm from './EnviromentForm';
 import constants from '../../services/constants'
 
@@ -31,7 +30,7 @@ class EnvSetting extends React.Component {
   };
 
   //是否具有环境编辑权限
-  envEditAuth = base.allpermissions.includes('systemset_editEnviromentConfig');
+  envEditAuth = base.checkPermission('systemset_editEnviromentConfig');
 
   componentWillMount(){
     this.queryAllEnvs();
@@ -161,8 +160,8 @@ class EnvSetting extends React.Component {
 
     //环境卡片的操作
     const envCardExtra = (env)=>{
-      const canEdit = base.allpermissions.includes('systemset_editEnviromentConfig');
-      const canDelete = base.allpermissions.includes('systemset_deleteEnviromentConfig');
+      const canEdit = base.checkPermission('systemset_editEnviromentConfig');
+      const canDelete = base.checkPermission('systemset_deleteEnviromentConfig');
       let actions = [];
       //查看环境状态
       actions.push(<a onClick={e=>this.openEnvStateModal(env)}>查看状态</a>);
@@ -258,7 +257,7 @@ class EnvSetting extends React.Component {
             footer={null}
             onCancel={() => this.handleCancel()}
           >
-            <EnvStatus code={this.state.code} history={this.props.history} id={this.state.id} onCancel={() => this.handleCancel()}/>
+            {/* <EnvStatus code={this.state.code} history={this.props.history} id={this.state.id} onCancel={() => this.handleCancel()}/> */}
           </Modal>
 
         </div>

@@ -12,6 +12,7 @@ const FormItem = Form.Item;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 const TabPane = Tabs.TabPane;
+const defaultRangePickerValue = [moment().subtract(3,'hours'),moment()];
 
 class Components extends React.PureComponent {
   state = {
@@ -19,11 +20,12 @@ class Components extends React.PureComponent {
     data: [],
     loading: false,
     selectedRows: [],
-    rangePickerValue: [],
+    rangePickerValue: defaultRangePickerValue,
     loadingSwitch: false,
   };
   componentDidMount() {
-    this.beforeLoadData();
+    let params = {from:moment(this.state.rangePickerValue[0]).format('x'),to:moment(this.state.rangePickerValue[1]).format('x') };
+    this.beforeLoadData(params);
   }
   //当时间范围变化时重新获取数据
   componentWillReceiveProps(nextProps) {
@@ -100,7 +102,7 @@ class Components extends React.PureComponent {
       queryParams.mode = 'aggre';
     }
     this.setState({ loading: true, loadingSwitch: true });
-    getTransactionInfo(base.environment+"_"+appCode, queryParams).then(data => {
+    getTransactionInfo(base.currentEnvironment.code+"_"+appCode, queryParams).then(data => {
       this.setState({ loading: false, loadingSwitch: false });
       if (data && data.length) {
         data.forEach(element => {
@@ -168,7 +170,7 @@ class Components extends React.PureComponent {
   handleFormReset = () => {
     const { resetFields } = this.props.form;
     resetFields();
-    this.setState({ rangePickerValue: [] });
+    this.setState({ rangePickerValue: defaultRangePickerValue });
     this.beforeLoadData();
   }
   //聚合模式和普通模式切换
@@ -195,7 +197,7 @@ class Components extends React.PureComponent {
     if (this.props.type === 'pie') {
       return (
         <Form >
-          <Row style={{ marginBottom: 24, marginLeft: 12 }} gutter={{ md: 4, lg: 12, xl: 18 }}>
+          <Row gutter={{ md: 4, lg: 12, xl: 18 }}>
             <Col span={8}>
               <FormItem {...formItemLayout} label="路径" >
                 {getFieldDecorator('path')(
@@ -224,7 +226,7 @@ class Components extends React.PureComponent {
               </FormItem>
             </Col>
           </Row>
-          <Row style={{ marginBottom: 24, marginLeft: 12 }} gutter={{ md: 4, lg: 12, xl: 18 }}>
+          <Row gutter={{ md: 4, lg: 12, xl: 18 }}>
             <Col span={8}>
               {!this.state.checkedValue ?
                 <FormItem {...formItemLayout} label="客户端IP">
@@ -232,8 +234,6 @@ class Components extends React.PureComponent {
                     <Input placeholder="不限" />
                   )}
                 </FormItem> : ''}
-            </Col>
-            <Col md={8} sm={24}>
             </Col>
             <Col span={8}>
               <span>
@@ -247,7 +247,7 @@ class Components extends React.PureComponent {
     } else if (this.props.type === 'rect') {
       return (
         <Form >
-          <Row style={{ marginBottom: 24, marginLeft: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
+          <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
             <Col md={8} sm={24} style={{ paddingLeft: 48 }}>
               <FormItem label="耗时">
                 {getFieldDecorator('elapsed')(
@@ -282,7 +282,7 @@ class Components extends React.PureComponent {
               </FormItem>
             </Col>
           </Row>
-          <Row style={{ marginBottom: 24, marginLeft: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
+          <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
             <Col md={8} sm={24}>
               {!this.state.checkedValue ?
                 <FormItem label="客户端IP">
@@ -290,8 +290,6 @@ class Components extends React.PureComponent {
                     <Input placeholder="不限" />
                   )}
                 </FormItem> : ''}
-            </Col>
-            <Col md={8} sm={24}>
             </Col>
             <Col md={8} sm={24}>
               <span>
@@ -305,7 +303,7 @@ class Components extends React.PureComponent {
     } else if (this.props.type === 'dot') {
       return (
         <Form >
-          <Row style={{ marginBottom: 24, marginLeft: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
+          <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
             <Col md={8} sm={24} style={{ paddingLeft: 48 }}>
               <FormItem label="路径">
                 {getFieldDecorator('path')(
@@ -335,7 +333,7 @@ class Components extends React.PureComponent {
               </FormItem>
             </Col>
           </Row>
-          <Row style={{ marginBottom: 24, marginLeft: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
+          <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
             <Col md={8} sm={24}>
               {!this.state.checkedValue ?
                 <FormItem label="客户端IP">
@@ -370,7 +368,7 @@ class Components extends React.PureComponent {
       if (!this.state.checkedValue) {
         return (
           <Form >
-            <Row style={{ marginBottom: 24, marginLeft: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
+            <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
               <Col md={8} sm={24} style={{ paddingLeft: 24 }}>
                 <FormItem label="路径">
                   {getFieldDecorator('path')(
@@ -400,7 +398,7 @@ class Components extends React.PureComponent {
                 </FormItem>
               </Col>
             </Row>
-            <Row style={{ marginBottom: 24, marginLeft: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
+            <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
               <Col md={8} sm={24}>
                 <FormItem label="时间">
                   <RangePicker
@@ -432,7 +430,7 @@ class Components extends React.PureComponent {
                 </FormItem>
               </Col>
             </Row>
-            <Row style={{ marginBottom: 24, marginLeft: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
+            <Row gutter={{ md: 8, lg: 24, xl: 48 }} style={{marginBottom:24}}>
               <Col md={8} sm={24}>
               </Col>
               <Col md={8} sm={24}>
@@ -449,7 +447,7 @@ class Components extends React.PureComponent {
       } else {
         return (
           <Form>
-            <Row style={{ marginBottom: 24, marginLeft: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
+            <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
               <Col md={8} sm={24} style={{ paddingLeft: 48 }}>
                 <FormItem label="路径">
                   {getFieldDecorator('path')(
@@ -478,7 +476,7 @@ class Components extends React.PureComponent {
                 </FormItem>
               </Col>
             </Row>
-            <Row style={{ marginBottom: 24, marginLeft: 12 }} gutter={{ md: 8, lg: 24, xl: 48 }}>
+            <Row gutter={{ md: 8, lg: 24, xl: 48 }}>
               <Col md={8} sm={24}>
                 <FormItem label="开始时间">
                   <RangePicker

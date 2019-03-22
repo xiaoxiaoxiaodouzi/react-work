@@ -1,8 +1,8 @@
 import React, { PureComponent } from 'react';
 import {Form, Icon, Input, Button} from 'antd';
-import loginService from './services/login';
 import {base} from './services/base';
 import constants from './services/constants'
+import { safeLogin } from './services/amp';
 
 const FormItem = Form.Item;
 
@@ -11,7 +11,7 @@ class login extends PureComponent {
     e.preventDefault();
     this.props.form.validateFields((err, values) => {
       if (!err) {
-        loginService.safeLogin(values.userName,values.password).then(()=>{
+        safeLogin(values.userName,values.password).then(()=>{
           base.safeMode = true;
           window.localStorage[constants.WINDOW_LOCAL_STORAGE.SAFEMODEL] = true;
           this.props.history.push('/');

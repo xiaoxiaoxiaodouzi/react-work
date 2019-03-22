@@ -2,7 +2,8 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import BaseTree from '../../../common/BaseTree'
 import { Modal,message } from 'antd'
-import { getResourceTree,getRoleResources,updateRoleResource } from '../../../services/aip'
+import { getResourceTree,getRoleResources,updateRoleResource } from '../../../services/aip';
+
 class FunctionRoleModal extends Component {
 	static propTypes = {
 		role: PropTypes.string,

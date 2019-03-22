@@ -24,7 +24,6 @@ class GlobalEnvironmentChange extends React.Component {
                 currentEnvironmentId:base.currentEnvironment?base.currentEnvironment.id:null
             })
         }
-   
     }
     onChange = (env) => {
         this.setState({ currentEnvironmentId: env.id });

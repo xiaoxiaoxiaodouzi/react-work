@@ -62,8 +62,6 @@ class PermissionCardForm extends React.Component {
 				}
 				obj.responseDataSource = httpRsp;
 				this.setState(obj);
-				console.log(obj);
-				console.log(this.state);
 			})
 	}
 
@@ -181,7 +179,7 @@ class PermissionCardForm extends React.Component {
 		return (
 			<div style={{ margin: 24 }}>
 				<Card bordered={false} title={'基本信息'} style={{ marginBottom: 24 }}>
-					<DescriptionList size="small" col="2" title={base.allpermissions.includes('service_edit') && this.state.owned?action:''}>
+					<DescriptionList size="small" col="2" title={(base.checkPermission('service_edit')) && this.state.owned?action:''}>
 						{/* <Description term="HTTP Method">{this.state.httpMethod}</Description>
 									<Description term="请求路径">{this.state.uri}</Description> */}
 						<Description term="开放等级">{grade[this.state.visibility]}</Description>

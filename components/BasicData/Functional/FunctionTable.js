@@ -69,13 +69,12 @@ export default class FunctionTable extends Component {
 		}
 
 		this.setState({ selectedRowKeys: selectedRowKeys, selectedRows: selectedRows })
-		console.log(`selectedRowKeys: ${selectedRowKeys}`, 'selectedRows: ', selectedRows);
 	}
 
 	render() {
 		const columns = [
 			{
-				title: '名称', dataIndex: 'name', key: 'name',width:'20%', render: (text, record) => {
+				title: '名称', dataIndex: 'name', key: 'name',render: (text, record) => {
 					if (record.parentId === '0') {
 						return (<Link to={`/applications/${record.appId}/functional/${record.id}`}>{text}</Link>)
 					} else {
@@ -83,16 +82,16 @@ export default class FunctionTable extends Component {
 					}
 				}
 			},
-			{ title: 'URL', dataIndex: 'uri', key: 'uri',width:'10%' },
+			{ title: 'URL', dataIndex: 'uri', key: 'uri'},
 			/* { title: '标签', dataIndex: 'tag', key: 'tag' }, */
 			{
-				title: '图标', dataIndex: 'fontIcon', key: 'fontIcon',width:'7%', render: (text) => {
+				title: '图标', dataIndex: 'fontIcon', key: 'fontIcon',width:60, render: (text) => {
 					return <Icon type={text} />
 				}
 			},
 			{ title: '编码', dataIndex: 'code', key: 'code'},
 			{
-				title: '关联角色', dataIndex: 'roleList',width:200, key: 'roleList', render: (text, record) => {
+				title: '关联角色', dataIndex: 'roleList',key: 'roleList', render: (text, record) => {
 					let ary = [];
 					if (record.roleList && record.roleList.length > 0) {
 						record.roleList.forEach(i => {
@@ -103,12 +102,12 @@ export default class FunctionTable extends Component {
 				}
 			},
 			{
-				title: '资源类型', dataIndex: 'type', key: 'type',width:'9%', render: (value, record) => {
+				title: '资源类型', dataIndex: 'type', key: 'type',width:100, render: (value, record) => {
 					return constants.functionResource.type[value]
 				}
 			},
 			{
-				title: '操作', key: 'operation',width:'20%', render: (record, text) =>
+				title: '操作', key: 'operation',width:135, render: (record, text) =>
 					<Fragment>
 						<Authorized authority='app_addFunction' noMatch={<a disabled="true" onClick={e => this.props.ModalVisible('addResource', record)} > 新增</a>}>
 							<a onClick={e => this.props.ModalVisible('addResource', record)} > 新增</a>

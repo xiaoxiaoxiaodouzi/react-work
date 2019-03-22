@@ -1,10 +1,10 @@
 import React from 'react'
 import { Form, Input, Button, Icon, Upload, message, Select } from 'antd';
-import { getCurrentUser } from '../../services/images'
 import { getImageCategorys, getList, updateImages, getDockerfileByArtifact, getDockerfileByType, getLogs } from '../../services/cce';
 import { base } from '../../services/base'
 import PropTypes from 'prop-types';
 import constants from '../../services/constants'
+import { getCurrentUser } from '../../services/amp';
 
 const TextArea = Input.TextArea;
 const FormItem = Form.Item;
@@ -155,7 +155,8 @@ class ImagesUploadForm extends React.Component {
                   name: values.imageName,
                   namespace: tenant
                 }
-                this.props.onOk(item, values.imageTag, tenant, constants.MIRROR_ADDRESS_BASE);
+                if(this.props.containerStateChange) this.afterchoose(item, values.imageTag);
+                this.props.onOk();
               }
               message.success('编译镜像成功')
               let bodyParams = {
@@ -180,6 +181,35 @@ class ImagesUploadForm extends React.Component {
       })
     })
   }
+
+  //统一将镜像处理在组件内处理 然后传给父组件
+  afterchoose = (item, version) => {
+    //组装镜像信息
+    let imageInfo = null;
+    let imageTenant = this.state.tenant;
+    let imagePath = constants.MIRROR_ADDRESS_BASE;
+    if (imagePath.endsWith('/')) imagePath = imagePath.substring(0, imagePath.length - 1);
+    if (!this.props.check) {
+      if (imageTenant === "c2cloud") {
+        imageInfo = imagePath + "/c2cloud/" + item.name + ":" + version;
+      } else if (imageTenant === "custom") {
+        imageInfo = item.imagePath
+      } else {
+        imageInfo = imagePath + "/" + base.tenant + "/" + item.name + ":" + version;
+      }
+    }
+    this.props.containerStateChange({
+      imageTenant,
+      imageInfo,
+      chooseItem: item,
+      chooseVersion: version,
+      current: 1,
+      displayChoose: false,
+      displayDeploy: true,
+      displayAdvance: false,
+    })
+  }
+
   render() {
     const { getFieldDecorator } = this.props.form;
     const props = {
@@ -277,7 +307,6 @@ class ImagesUploadForm extends React.Component {
 }
 const ImagesForm = Form.create()(ImagesUploadForm)
 export default ImagesForm;
-
 ImagesForm.PropTypes = {
   tenant: PropTypes.string.isRequired,       //租户code
   artifact: PropTypes,       //镜像名称

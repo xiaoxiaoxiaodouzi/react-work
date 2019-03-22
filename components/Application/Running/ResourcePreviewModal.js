@@ -55,13 +55,13 @@ class ResourcePreviewModal extends Component{
             if(element.checkState === 'success'){
                 //将资源和角色的id转换为名称
                 
-                element.resourceName = res[0].name;
-                element.roleName = role[0].name;
+                element.resourceName = res.length>0?res[0].name:element.resourceId;
+                element.roleName = role.length>0?role[0].name:element.roleId;
                 element.errorType = '资源权限';
                 permissions.push(element);
             }else{
                 element.errorType = '资源权限';
-                element.name = res[0].name + "-" + role[0].name;
+                element.name = res.length>0&&role.length>0?res[0].name + "-" + role[0].name:element.resourceId+'/'+element.roleId;
                 errors.push(element);
             }
         });

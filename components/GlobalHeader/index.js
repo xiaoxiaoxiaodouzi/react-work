@@ -1,12 +1,12 @@
 import React, { PureComponent } from 'react';
-import { Layout, Menu, Icon, Spin, Dropdown, Avatar, message,Tooltip } from 'antd';
+import { Layout, Menu, Icon, Spin, Dropdown, Avatar, message, Tooltip } from 'antd';
 import NoticeIcon from 'ant-design-pro/lib/NoticeIcon';
 // import userIcon from '../../assets/defaultUser.png';
 import { base } from '../../services/base'
-import loginServer from '../../services/login'
 import constants from '../../services/constants'
 import './index.less';
-import {Link} from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { safeLogout } from '../../services/amp';
 
 const { Header } = Layout;
 const { SubMenu } = Menu;
@@ -16,24 +16,24 @@ export default class GlobalHeader extends PureComponent {
     currentUser: {},
     currentTenant: {},
     tenants: [],
-    errorMessages:[],
-    loading:false
+    errorMessages: [],
+    loading: false
   }
 
-  componentWillReceiveProps(nextProps){
-    if(nextProps.user!==this.props.user){
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.user !== this.props.user) {
       // nextProps.user.avatar = userIcon;
-      let currentTenant;
-      nextProps.tenants.forEach(t=>{
-        if(t.code === nextProps.tenantCode)currentTenant = t;
+      let currentTenant={};
+      nextProps.tenants.forEach(t => {
+        if (t.code === nextProps.tenantCode) currentTenant = t;
       });
-      this.setState({currentUser:nextProps.user,tenants:nextProps.tenants,currentTenant,loading:false});
+      this.setState({ currentUser: nextProps.user, tenants: nextProps.tenants, currentTenant, loading: false });
     }
-    if(nextProps.messages !== this.props.messages){
+    if (nextProps.messages !== this.props.messages) {
       // nextProps.messages.forEach(meg=>{
       //   meg.title = <span><Icon type="close-circle" style={{color:'red',marginRight:10}}/>{meg.title}</span>
       // })
-      this.setState({errorMessages:nextProps.messages});
+      this.setState({ errorMessages: nextProps.messages });
     }
   }
 
@@ -45,17 +45,17 @@ export default class GlobalHeader extends PureComponent {
 
   menuClick = ({ item, key, keyPath }) => {
     if (key === 'logout') {//登出，跳转到登录页面
-      if(base.safeMode){
-        loginServer.safeLogout().then(()=>{
+      if (base.safeMode) {
+        safeLogout().then(() => {
           base.safeMode = false;
           window.localStorage.removeItem(constants.WINDOW_LOCAL_STORAGE.SAFEMODEL);
           base.loginOut().then(data => {
             window.location.href = data.result;
-          }).catch(()=>{
+          }).catch(() => {
             window.location.href = '/';
           })
         });
-      }else{
+      } else {
         base.loginOut().then(data => {
           window.location.href = data.result;
         })
@@ -92,7 +92,7 @@ export default class GlobalHeader extends PureComponent {
   }
 
   render() {
-    let { currentUser, currentTenant,loading } = this.state;
+    let { currentUser, currentTenant, loading } = this.state;
     const menu = (
       <Menu className='menu' selectedKeys={[]} onClick={this.menuClick}>
         <SubMenu title={<span><Icon type="user" />切换租户</span>}>
@@ -103,6 +103,7 @@ export default class GlobalHeader extends PureComponent {
         <Menu.Item key="logout"><span><Icon type="logout" />退出登录</span></Menu.Item>
       </Menu>
     );
+
     return (
       <Header className="gloabl-header header" >
         {this.props.isMobile && (
@@ -122,29 +123,32 @@ export default class GlobalHeader extends PureComponent {
               <Icon type="question-circle-o" />
             </Link>
           </Tooltip>
-          {base.configs.messageBell && 
-          <NoticeIcon count={this.state.errorMessages.length} className="action" onClear={this.props.cleanMessage} clearClose={true}>
-            <NoticeIcon.Tab
-              title='错误信息'
-              emptyText="页面运行良好"
-              list={this.state.errorMessages}
-            />
-            <NoticeIcon.Tab
-              title='监控告警'
-              emptyText="系统运行良好"
-              list={[]}
-            />
-          </NoticeIcon>
+          {base.configs.messageBell &&
+            <NoticeIcon count={this.state.errorMessages.length} className="action" onClear={this.props.cleanMessage} clearClose={true}>
+              <NoticeIcon.Tab
+                title='错误信息'
+                emptyText="页面运行良好"
+                list={this.state.errorMessages}
+              />
+              <NoticeIcon.Tab
+                title='监控告警'
+                emptyText="系统运行良好"
+                list={[]}
+              />
+            </NoticeIcon>
           }
-          {loading ? 
+          {loading ?
             <Spin size="small" style={{ marginLeft: 8, marginRight: 200 }} /> :
-            (<Dropdown overlay={menu} trigger={['hover']} placement="bottomRight">
+            (<Dropdown
+              overlay={menu}
+              trigger={['hover']}
+              placement="bottomRight">
               <span className="action account">
                 <Avatar size="small" className="avatar" src={currentUser.avatar} icon="user" />
                 <span className="name"> {currentUser.realname} | {currentTenant.name} </span>
               </span>
             </Dropdown>
-          )}
+            )}
         </div>
       </Header>
     );

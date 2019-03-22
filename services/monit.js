@@ -36,9 +36,10 @@ export function allClusterInfo(){
   const url=proxy+`monit/v1/simple/clusterinfo`;
   return C2Fetch.get(url,null,'获取集群信息出错');
 }
+
 //获取入口配置
 export function getClusterNode(nodeName){
-  const url=proxy+`monit/v1/clusterinfo/nodedetail/${nodeName}`;
+  const url=proxy+`monit/v1/clusterinfo/nodedetail/${nodeName}?tenant=${base.tenant}`;
   return C2Fetch.get(url,null,'获取入口配置信息出错');
 }
   
@@ -92,6 +93,11 @@ export function onlinenum(appId){
 export function highestonlinenum(appId){
   const url = proxy + `monit/v1/apps/${appId}/highestonlinenum`;
   return C2Fetch.get(url,null,'查询应用最高在线人数失败')
+}
+
+export function getClusterDetail(queryParams){
+  const url=proxy+'monit/v2/clusters';
+  return C2Fetch.get(url,queryParams,'查询集群信息失败')
 }
 
 

@@ -101,7 +101,7 @@ class appDetail extends React.Component{
         let  tabActiveKey='';
         tabList.forEach((t, i) => {
           //权限控制
-          //if (base.allpermissions.includes(t.resourceId)) {
+          //if (base.checkPermission(t.resourceId)) {
             newAry.push(t)
           //}
           if (this.pathname.indexOf(t.key) > 0) tabActiveKey = t.key;

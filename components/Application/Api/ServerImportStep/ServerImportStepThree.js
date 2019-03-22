@@ -73,7 +73,7 @@ export default class ServerImportStepTwo extends React.Component {
         requests.push(updateServers(this.props.appId, this.state.updateServer, this.props.swaggertext));
         requests.push(addServers(this.props.appId, this.props.upstream, this.state.importServer, this.props.swaggertext, this.state.grade));
         Promise.all(requests).then(responses =>{
-           
+            this.props.hasChange && this.props.hasChange();
             this.setState({importLoading:false,importDisabled:true})
             this.props.onNextSetp && this.props.onNextSetp(this.state.updateServer.length,this.state.importServer.length);
            // message.success('导入成功');

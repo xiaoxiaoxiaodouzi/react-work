@@ -23,11 +23,30 @@
     font-weight: 600;
   }
 }
-.sider {
-  min-height: 100vh;
+.menu-sider {
   box-shadow: 2px 0 6px rgba(0, 21, 41, .35);
-  position: relative;
   z-index: 10;
+  overflow: auto;
+  height: 100vh;
+  left: 0;
+  &.ant-layout-sider{
+    position: fixed;
+  }
+  /* 滚动槽 */
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    border-radius: 3px;
+    background: #001529;
+  }
+  /* 滚动条滑块 */
+  &::-webkit-scrollbar-thumb {
+    border-radius: 3px;
+    background: #15469A;
+  }
+  
 }
 :global {
   .drawer .drawer-content {

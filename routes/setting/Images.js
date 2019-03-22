@@ -34,7 +34,7 @@ class ImagesForm extends Component{
   }
   render(){
     const {history}=this.props;
-    let title = BreadcrumbTitle([{name:"高级设置"},{name:"镜像管理"}]);
+    let title = BreadcrumbTitle([{name:"平台管理"},{name:"镜像管理"}]);
     return (
       <PageHeaderLayout
       title={title}

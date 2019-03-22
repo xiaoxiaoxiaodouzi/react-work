@@ -203,7 +203,7 @@ class Storage extends Component {
   };
 
   render() {
-    const title = BreadcrumbTitle([{name:'高级设置'},{name:'存储卷管理'}]);
+    const title = BreadcrumbTitle([{name:'平台管理'},{name:'存储卷管理'}]);
     return (
       <PageHeaderLayout
       title={title}

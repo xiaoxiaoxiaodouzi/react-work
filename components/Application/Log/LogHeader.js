@@ -2,8 +2,6 @@ import React, { Component } from 'react'
 import { Form, Select, Checkbox, Row, Col } from 'antd'
 import './LogHeader.css'
 import { getApplicationBase, getApplicationLog, getApplicationsInfo } from '../../../services/cce';
-import { getAppInfo } from '../../../services/aip'
-
 
 const { Option } = Select;
 const FormItem = Form.Item;
@@ -20,8 +18,8 @@ class LogForm extends Component {
 	}
 
 	componentDidMount() {
-		const appId = this.props.appid;
-		getAppInfo(appId).then((data) => {
+		const data = this.props.appData;
+		if (data) {
 			getApplicationsInfo(data.code).then(datas => {
 				if (datas) {
 					this.setState({
@@ -30,7 +28,7 @@ class LogForm extends Component {
 				}
 			})
 			getApplicationBase(data.code).then(datas => {
-				if (datas.length>0) {
+				if (datas.length > 0) {
 					let podArray = [];
 					let nameArray = [];
 					datas[0].podNameList.forEach(pods => {
@@ -47,8 +45,7 @@ class LogForm extends Component {
 					this.handleClick(true);
 				}
 			})
-		});
-
+		}
 	}
 	componentWillUnmount() {
 		this.state.intervals.forEach(item => {

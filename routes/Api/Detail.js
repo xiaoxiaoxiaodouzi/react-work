@@ -11,9 +11,11 @@ import { getServicesApi, queryAppTags, changeApiProperty, createTag, removeServi
 import constants from '../../services/constants'
 import Ellipsis from 'ant-design-pro/lib/Ellipsis';
 import { getupstream } from '../../services/amp';
+import Link from 'react-router-dom/Link';
 
 import { base } from '../../services/base';
 import ApiMonitor from '../../components/Application/ApiDetail/ApiMonitor';
+import { breadcrumbDataGenerate } from '../../common/SimpleComponents';
 
 const { Description } = DescriptionList;
 
@@ -57,6 +59,8 @@ class ApiDetail extends React.Component {
 
     this.appId = '0';
     this.apiId = props.match.params.apiId;
+
+    this.breadcrumbList = breadcrumbDataGenerate(this.props.match,'api');
 
     this._onTabChange = this._onTabChange.bind(this);
     this._onTagsManagerChange = this._onTagsManagerChange.bind(this);
@@ -147,7 +151,7 @@ class ApiDetail extends React.Component {
   //*************************************************************************** */
   _onTabChange(key) {
     let { history } = this.props;
-    history.push({ pathname: `/apis/${this.apiId}/${key}` });
+    history.push({ pathname: `${this.props.match.url}/${key}` });
     this.setState({ tabActiveKey: key });
   }
 
@@ -279,7 +283,7 @@ class ApiDetail extends React.Component {
   renderconstDescription() {
     return (
       <DescriptionList size="small" col="2">
-        <Description term="所属应用">{this.state.appName}</Description>
+        <Description term="所属应用"><Link style={{ marginRight: 8 }} to={`/apps/${this.appId}`}>{this.state.appName}</Link></Description>
         <Description term="上下文">{this.state.ctx?this.state.ctx:'/'}</Description>
         <Description term="HTTP Method">{this.state.httpMethod}</Description>
         <Description term="所属集群">{this.state.clustersName || '--'}</Description>
@@ -297,7 +301,7 @@ class ApiDetail extends React.Component {
           editing={this.state.editing}
           value={this.state.apiName}
           dataType={'Input'}
-          mode={ base.allpermissions.includes('service_edit') ?'inline':'common'}
+          mode={ base.checkPermission('service_edit') ?'inline':'common'}
           defaultNullValue={'暂无'}
           rule={{ required: true }}
           renderExtraContent={() => {
@@ -316,25 +320,25 @@ class ApiDetail extends React.Component {
     const action = <div>
       <Popconfirm title="确认删除?" onConfirm={() => this._delete()}><Button type="danger">删除</Button></Popconfirm>
     </div>
-    const breadcrumbList = [{title:'服务列表',href:'#/apis'},{title:'服务详情'}];
+    
     return (
       <div style={{ margin: '-24px -24px 0' }}>
         <PageHeader
           title={this.renderTitle()}
           logo={<img alt="" src={constants.PIC.service} />}
-          action={base.allpermissions.includes('service_delete') && this.state.owned ? action : ''}
+          action={base.checkPermission('service_delete') && this.state.owned ? action : ''}
           content={this.renderconstDescription()}
           extraContent={this.renderExtra()}
           tabList={this.tabList}
-          breadcrumbList={breadcrumbList}
+          breadcrumbList={this.breadcrumbList}
           tabActiveKey={this.state.tabActiveKey}
           onTabChange={this._onTabChange}
         />
 
-        <Route path="/apis/:apiId" render={() => <ParamsCard obj={this.state.obj} appId={this.appId} apiId={this.apiId} />} exact />
-        <Route path="/apis/:apiId/params" render={() => <ParamsCard obj={this.state.obj} appId={this.appId} apiId={this.apiId} />} />
-        <Route path="/apis/:apiId/permission" render={() => <PermissionCard appId={this.appId} apiId={this.apiId} />} />
-        <Route path="/apis/:apiId/monitor" render={() => <ApiMonitor apiMethod={this.state.obj.httpMethod} apiPath={this.state.obj.uri} code={this.state.obj.code} />} />
+        <Route path={`${this.props.match.path}`} render={() => <ParamsCard obj={this.state.obj} appId={this.appId} apiId={this.apiId} />} exact />
+        <Route path={`${this.props.match.path}/params`} render={() => <ParamsCard obj={this.state.obj} appId={this.appId} apiId={this.apiId} />} />
+        <Route path={`${this.props.match.path}/permission`} render={() => <PermissionCard appId={this.appId} apiId={this.apiId} />} />
+        <Route path={`${this.props.match.path}/monitor`} render={() => <ApiMonitor apiMethod={this.state.obj.httpMethod} apiPath={this.state.obj.uri} code={this.state.obj.code} />} />
       </div>
     )
   }

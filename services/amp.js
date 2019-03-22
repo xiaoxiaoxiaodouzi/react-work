@@ -67,17 +67,21 @@ export function deleteUpstream(upstreamCode){
  }
 
  //获取所有环境
-export function queryAllEnvs(){
+export function queryAllEnvs(headers){
   const url = `amp/v1/envs`;
-  return C2Fetch.get(url,null,"获取容器基本配置信息出错！");
+  return C2Fetch.get(url,null,"获取环境信息出错！",headers);
 }
-
-
 
 //获取指定环境下的租户
 export function queryTenantByEnv(envId){
   const url=`amp/v1/envtenants`;
   return C2Fetch.get(url,{environmentId:envId},'获取环境下的租户失败');
+}
+
+export function getEnvironmentsByTenant(code){
+  let url = 'amp/v1/envTenant/tenant/'+code;
+  if(code === 'admin')url = 'amp/v1/envs';
+  return C2Fetch.get(url,null,"根据租户获取环境信息失败");
 }
 
 export function deleteEnvTenant(id){
@@ -110,9 +114,9 @@ export function updateEnv(id,params){
 }
 
 //获取全局系统设置
-export function getConfigs(){
+export function getConfigs(headers){
   const url =`amp/v1/configs`;
-  return C2Fetch.get(url,null,'获取系统设置失败')
+  return C2Fetch.get(url,null,'获取系统设置失败',headers)
 }
 
 //修改全局动态路由
@@ -138,4 +142,27 @@ export function deleteSsorouterplugin(params){
   const url = `amp/v1/ssorouterplugin`;
   return C2Fetch.delete(url, params, '删除路由认证插件失败')
 }
+//获取当前用户
+export function getCurrentUser(){
+  const url=`ws/getSubject`;
+  return C2Fetch.get(url,null,'获取当前用户出错');
+}
+
+//安全模式登录
+export function safeLogin(account,password){
+  const url = 'safemode/login';
+  return C2Fetch.post(url,{account,password},null,true,{'Safe-Mode':true});
+}
+//安全模式登出
+export function safeLogout(){
+  const url = 'safemode/logout';
+  return C2Fetch.post(url,null,null,'安全模式登录异常',{'Safe-Mode':true});
+}
+
+//测试数据库连接是否成功
+export function getDatabase(bodyParams){
+  const url='amp/v1/databse';
+  return C2Fetch.post(url,bodyParams,null,'数据库连接测试失败！')
+}
+
 

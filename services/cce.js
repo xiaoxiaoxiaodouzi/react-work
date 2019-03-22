@@ -1,7 +1,6 @@
 import C2Fetch from '../utils/Fetch';
 import {base} from './base'
 import constants from './constants'
-import {getChart} from './aip'
 
 let proxy = 'proxy/';
 
@@ -76,9 +75,16 @@ export function queryAppInfo(application){
 
   
 //获取集群
-export function getClusters(){
-  const url=proxy+`cce/v1/tenants/${base.tenant}/clusters`
+export function getClusters(tenant){
+  const url=proxy+`cce/v1/tenants/${tenant?tenant:base.tenant}/clusters`
   return C2Fetch.get(url,null,'获取集群出错')
+}
+
+//获取集群
+export function getClustersByTenant(tenantId){
+  let tenant = tenantId?tenantId:base.tenant
+  const url=proxy+`cce/v2/clusters`
+  return C2Fetch.get(url,{tenant:tenant},'获取集群出错')
 }
   
 //新建集群
@@ -130,6 +136,8 @@ export function queryBaseConfig(application){
   const url = proxy+`cce/v1/tenants/${base.tenant}/applications/${application}/base`;
   return C2Fetch.get(url,null,"获取容器基本配置信息出错！");
 }
+
+
 //查询获取容器网络配置信息 tenants=develop,application=apps-integration
 export function queryNetwork(application,queryParams){
   const url = proxy+`cce/v1/tenants/${base.tenant}/applications/${application}/network`;
@@ -455,11 +463,9 @@ export function queryAppVolumns(appCode){
   })
 }
 
-export async function getCreateAppConfig(){
-  return {cluster:await getClusters(),charts:await getChart(),nodePort:await getAMSPort({ num: 1 }),imageUrl:await getImage(),nfs:await getNFS()}
+export async function getCreateAppConfig(tenant){
+  return {cluster:await getClusters(tenant),nodePort:await getAMSPort({ num: 1 }), nodeName:await getNodeList() ,chartList:await componentContent('env')}
 }
-
-
 
 let quotaData;
 const appUtil = {
@@ -477,3 +483,120 @@ const appUtil = {
 }
 
 export default appUtil;
+
+//获取集群列表（new）
+export function getClusterList(queryParam){
+  const url=proxy+'cce/v2/clusters';
+  return C2Fetch.get(url,queryParam,'查询集群信息失败')
+}
+
+//修改集群类型
+export function editClusterType(name,bodyParams){
+  const url=proxy+`cce/v2/clusters/${name}`;
+  return C2Fetch.post(url,bodyParams,null,'修改类型失败')
+}
+
+//修改集群排序
+export function reorderClusters(bodyParams){
+  const url=proxy+`cce/v2/reorderclusters`;
+  return C2Fetch.put(url,bodyParams,null,'修改集群排序失败')
+}
+
+export function getCorecomponents(params){
+  // const url = proxy + 'cce/v1/corecomponents';
+  // return C2Fetch.get(url,params,'获取系统组件出错');
+  return new Promise((resolve,reject)=>{
+    if(params.env === 'cep')
+    resolve([{
+      "description": "包含平台及所有应用的部署、管理、运维与运营的功能界面",
+      "health": "health",
+      "healthDesc": "健康",
+      "icon": "",
+      "lightColor": "green",
+      "name": "amp",
+      "showName": "cep-amp",
+      "version": "2.2.2-r1"
+    }, {
+      "description": "基于Kubernetes的容器调度引擎",
+      "health": "health",
+      "healthDesc": "健康",
+      "icon": "",
+      "lightColor": "green",
+      "name": "cce",
+      "showName": "科创容器引擎",
+      "version": "2.1.3"
+    }, {
+      "description": "包含平台及所有应用的微服务管理",
+      "health": "health",
+      "healthDesc": "健康",
+      "icon": "",
+      "lightColor": "green",
+      "name": "apigateway",
+      "showName": "服务网关",
+      "version": "0.14.0-v1.9.8"
+    }, {
+      "description": "A Helm chart for monitor",
+      "health": "health",
+      "healthDesc": "健康",
+      "icon": "",
+      "lightColor": "green",
+      "name": "monitor",
+      "showName": "监控服务",
+      "version": "2.6.0-alpha.1"
+    }, {
+      "description": "日志服务",
+      "health": "health",
+      "healthDesc": "健康",
+      "lightColor": "green",
+      "name": "log",
+      "showName": "日志服务",
+      "version": "1.0.3"
+    }, {
+      "description": "提供应用性能监控能力",
+      "health": "health",
+      "healthDesc": "健康",
+      "icon": "",
+      "lightColor": "green",
+      "name": "apm",
+      "showName": "cep-apm",
+      "version": "v2.2.2-r5"
+    }]);
+    else resolve([{"description":"提供应用、认证、权限与功能管理的能力","health":"health","healthDesc":"健康","lightColor":"green","name":"ams","showName":"应用集成服务","version":"v2.2.2-alpha.1"},{"description":"包含平台及所有应用的微服务管理","health":"health","healthDesc":"健康","lightColor":"green","name":"apigateway","showName":"服务网关","version":"0.14.0-alpha.1"},{"description":"包含平台及所有应用的域名管理","health":"health","healthDesc":"健康","lightColor":"green","name":"route","showName":"应用路由","version":"0.14.0-v0.23-alpha.1"}])
+  })
+}
+
+
+//queryParams:{env:}
+export function deployCorecomponents(name,queryParams,bodyParams){
+  const url=proxy+`cce/v1/corecomponents/${name}`
+  return C2Fetch.post(url,bodyParams,queryParams,'组件部署失败')
+}
+
+
+
+//params:{name:,envCode:}
+export function componentStatus(name,envCode){
+  const url=proxy+`cce/v1/corecomponents/${name}/status`;
+  return C2Fetch.get(url,envCode,'查询组件状态失败')
+}
+
+export function deleteComponent(name,params){
+  const  url=proxy+`cce/v1/corecomponents/${name}`
+  return C2Fetch.delete(url,params,'删除组件失败')
+}
+
+export function componentContent(name,params){
+  const url=proxy+`cce/v1/corecomponents/${name}/content`
+  return C2Fetch.get(url,params,'查询组建content失败!')
+}
+
+export function getNodeList(){
+  const url=proxy+`cce/v2/nodelist`
+  return C2Fetch.get(url,null,'获取k8s节点报错')
+}
+
+//查询容器基本配置信息，tenants=develop,application=apps-integration
+export function queryChartBaseConfig(application,params){
+  const url = proxy+`cce/v1/tenants/${base.configs.manageTenantCode}/charts/${application}/base`;
+  return C2Fetch.get(url,params,"获取chart基本配置信息出错！");
+}

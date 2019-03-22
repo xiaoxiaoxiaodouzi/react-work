@@ -393,7 +393,7 @@ class SettingClusterList extends Component {
       }]
     return (
       <div>
-        <div style={{ marginBottom: 24 ,height:50}}>
+        <div style={{ marginBottom: 12 ,height:50}}>
           <Row>
             <Col span={4}>
               <span>支持https</span>
@@ -401,7 +401,7 @@ class SettingClusterList extends Component {
                 <Switch style={{ marginLeft: 24 }} checkedChildren="开" unCheckedChildren="关" checked={this.state.HttpCheckedValue} onChange={this.handleChecked} />
               </Authorized>
             </Col>
-            <Col span={12}>
+            {/* <Col span={12}>
             
                 {this.state.edit?
                 <span><Form layout="inline">
@@ -422,7 +422,6 @@ class SettingClusterList extends Component {
                             }else{
                               callback()
                             }
-                            
                            }
                         }],
                       })(
@@ -435,7 +434,7 @@ class SettingClusterList extends Component {
                 </span>:
                <span className='hover-editor'>应用上下文:<span style={{marginLeft:5}}>{this.state.ctx ? this.state.ctx : '/'}</span><Icon style={{marginLeft:10}} type='edit' onClick={()=>{this.setState({edit:true})}}/></span>
               }
-            </Col>
+            </Col> */}
           </Row>
         </div>
         <Table

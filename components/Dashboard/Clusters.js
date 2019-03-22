@@ -1,15 +1,13 @@
 import React, { Component, Fragment } from 'react';
-import { Row, Col, Card, Icon, Tooltip, Table, Progress, Badge, Divider, message, Spin } from 'antd';
+import { Row, Col, Card, Icon, Tooltip,message } from 'antd';
 import { ChartCard } from 'ant-design-pro/lib/Charts';
 import constants from '../../services/constants';
 import { base } from '../../services/base'
 import { queryAppAIP } from '../../services/aip';
 import {GrafanaModal} from '../../common/SimpleComponents'
-import { allClusterInfo, getClusterNode, getClusterInfoByTenant } from '../../services/monit';
+import { allClusterInfo, getClusterInfoByTenant } from '../../services/monit';
+import ServicesTable from '../../common/ServicesTable';
 import './Overview.less';
-
-const statusMap = ['success', 'warning', 'error'];
-const status = ['正常', '警告', '严重'];
 
 class ClustersDash extends Component {
   state = {
@@ -146,133 +144,7 @@ class ClustersDash extends Component {
       }
     })
   }
-  onRowExpand = (expanded, record) => {
-    if (expanded && !record.nodeDetail) {
-      record.loading = true;
-      this.setState({cluster:this.state.cluster});
-      let params = !this.props.isTenant ? record.nodeName : record.nodeName + `?tenant=${base.tenant}`;
-      getClusterNode(params).then(data => {
-        record.nodeDetail = data;
-        record.loading = false;
-        this.setState({cluster:this.state.cluster});
-      });
-    }
-  }
-  //渲染表格扩展的内容，传入表格行数据
-  renderExpandContent = (record) => {
-    if (record.loading) {
-      return <Spin />
-    } else if (record.nodeDetail) {
-      return (
-        <Fragment>
-          {record.nodeDetail.k8scontainers &&
-            <Row>
-              {
-                record.nodeDetail.k8scontainers.map((element, index) => {
-                  let status = 'success';
-                  let title = (
-                    <p key={index}>
-                      <span>CPU限值：{element.cpuTotal ? element.cpuTotal / 1000 + '核' : '未限定'}</span><br />
-                      <span>内存限值：{element.memoryTotal ? (element.memoryTotal / 1024 / 1024 / 1024).toFixed(0) + 'GB' : '未限定'}</span><br />
-                      <span>CPU使用率：{element.cpu}%</span><br />
-                      <span>内存使用率：{element.memory}%</span><br />
-                    </p>
-                  )
-                  if ((element.cpu >= constants.PROGRESS_STATUS[0]
-                    && element.cpu < constants.PROGRESS_STATUS[1])
-                    || (element.memory >= constants.PROGRESS_STATUS[0]
-                      && element.memory < constants.PROGRESS_STATUS[1])) {
-                    status = 'warning';
-                  } else if (element.cpu > constants.PROGRESS_STATUS[1]
-                    || element.memory > constants.PROGRESS_STATUS[1]) {
-                    status = 'error';
-                  }
-                  return (
-                    <Col key={index} span={6}>
-                      <Badge status={status} />
-                      <Tooltip title={title}>
-                        <span style={{ marginRight: 48 }}>{element.name}</span>
-                      </Tooltip>
-                    </Col>
-                  )
-                })
-              }
-            </Row>
-          }
-          <Divider style={{ marginBottom: 8, marginTop: 8 }} />
-          {record.nodeDetail.apps &&
-            <Row>
-              {
-                record.nodeDetail.apps.map((element, index) => {
-                  let status = 'success';
-                  let title = null;
-                  let flag = false;
-                  let name = element.containers[0].name.split('#')[0];
-                  element.containers.forEach(item => {
-                    if (item.name.split('#')[0] !== name) {
-                      flag = true;
-                    }
-                    if (status !== 'error' &&
-                      ((item.cpu >= constants.PROGRESS_STATUS[0]
-                        && item.cpu < constants.PROGRESS_STATUS[1])
-                        || (item.memory >= constants.PROGRESS_STATUS[0]
-                          && item.memory < constants.PROGRESS_STATUS[1]))
-                    ) {
-                      status = 'warning';
-                    } else if (item.cpu > constants.PROGRESS_STATUS[1]
-                      || item.memory > constants.PROGRESS_STATUS[1]) {
-                      status = 'error';
-                    }
-                  })
-                  if (!flag) {
-                    title = (
-                      <p>
-                        {element.containers.map((item, index) => {
-                          return (
-                            <span key={index} >{item.name.split('#')[1]}：<br />
-                              <span style={{ marginLeft: 24 }}>CPU限值：{item.cpuTotal ? item.cpuTotal / 1000 + '核' : '未限定'}</span><br />
-                              <span style={{ marginLeft: 24 }}>内存限值：{item.memoryTotal ? (item.memoryTotal / 1024 / 1024 / 1024).toFixed(0) + 'GB' : '未限定'}</span><br />
-                              <span style={{ marginLeft: 24 }}>CPU使用率：{item.cpu}%</span><br />
-                              <span style={{ marginLeft: 24 }}>内存使用率：{item.memory}%</span><br />
-                            </span>
-                          )
-                        })
-                        }
-                      </p>
-                    )
-                  } else {
-                    title = (
-                      <p>
-                        {element.containers.map((item, index) => {
-                          return (
-                            <span key={index} >{item.name.split('#')[1]}(实例{index + 1})：<br />
-                              <span style={{ marginLeft: 24 }}>CPU限值：{item.cpuTotal ? item.cpuTotal / 1000 + '核' : '未限定'}</span><br />
-                              <span style={{ marginLeft: 24 }}>内存限值：{item.memoryTotal ? (item.memoryTotal / 1024 / 1024 / 1024).toFixed(0) + 'GB' : '未限定'}</span><br />
-                              <span style={{ marginLeft: 24 }}>CPU使用率：{item.cpu}%</span><br />
-                              <span style={{ marginLeft: 24 }}>内存使用率：{item.memory}%</span><br />
-                            </span>
-                          )
-                        })
-                        }
-                      </p>
-                    )
-                  }
-                  return (
-                    <Col key={index} span={6}>
-                      <Badge status={status} />
-                      <Tooltip title={title}>
-                        <span onClick={() => this.onAppDetail(element.appCode, element)} style={{ marginRight: 48, cursor: 'pointer' }}>{element.appName}</span>
-                      </Tooltip>
-                    </Col>
-                  )
-                })
-              }
-            </Row>
-          }
-        </Fragment>
-      )
-    }
-  }
+
   //渲染集群tab页的内容
   renderTabContent = () => {
     let clusterTemp = [];
@@ -289,8 +161,8 @@ class ClustersDash extends Component {
         clusterTemp.containInfos.forEach(element => {
           let dockerVersion = element.containerRuntimeVersion;
           element.dockerVersion = dockerVersion.slice(dockerVersion.indexOf('://') + 3);
-          element.totalCPU = element.cpuTotal / 1000 + '核';
-          element.totalMemory = (element.memoryTotal / 1024 / 1024 / 1024).toFixed(0) + 'G';
+          element.totalCPU = element.cpuTotal / 1000 ;
+          element.totalMemory = (element.memoryTotal / 1024 / 1024 / 1024).toFixed(0) ;
           /* if(element.nodeDetail && element.nodeDetail.apps){
             appsCountTemp += element.nodeDetail.apps.length;
           } */
@@ -305,58 +177,15 @@ class ClustersDash extends Component {
             status = 2;
           }
           element.status = status;
+          // element.nodeStatus = status;
+          element.nodeCpuRate = element.cpu;
+          element.nodeCPU = element.totalCPU;
+          element.nodeMem = element.totalMemory;
+          element.nodeMemRate = element.memory;
         })
         this.setState({ cluster: clusterTemp, appsCount: appsCountTemp });
       }
       const { cluster } = this.state;
-      const columns = [{
-        title: '主机', dataIndex: 'nodeName', width: '20%',
-        render:(text,record)=>{
-          var ip = text;
-          if(text.indexOf('.node') !== -1){
-            ip = text.replace('.node','').replace(/-/g,'.');
-          }else if(text.indexOf('.master') !== -1){
-            ip = text.replace('.master','').replace(/-/g,'.');
-          }
-          
-          return <a onClick={e=>this.setState({grafanaNodeVisible:true,ip})}>{text}</a>;
-        }
-      }, {
-        title: '状态', dataIndex: 'status', width: '10%',
-        render: (text, record) => {
-          return <Badge status={statusMap[text]} text={status[text]} />;
-        }
-      }, {
-        title: 'Docker版本', dataIndex: 'dockerVersion', width: '10%'
-      }, {
-        title: 'CPU', dataIndex: 'totalCPU', width: '10%'
-      }, {
-        title: 'CPU使用率', dataIndex: 'cpu', width: '20%',
-        render: (value, record) => {
-          //value = parseInt(value, 10);
-          if (value < constants.PROGRESS_STATUS[0]) {
-            return <Progress percent={value} status='normal' className='normal' />
-          } else if (value >= constants.PROGRESS_STATUS[0] && value < constants.PROGRESS_STATUS[1]) {
-            return <Progress percent={value} status='normal' className='warning' />
-          } else {
-            return <Progress percent={value} status='normal' className='danger' />
-          }
-        }
-      }, {
-        title: '内存', dataIndex: 'totalMemory', width: '10%'
-      }, {
-        title: '内存使用率', dataIndex: 'memory', width: '20%',
-        render: (value, record) => {
-          // value = parseInt(value, 10);
-          if (value < constants.PROGRESS_STATUS[0]) {
-            return <Progress percent={value} status='normal' className='normal' />
-          } else if (value >= constants.PROGRESS_STATUS[0] && value < constants.PROGRESS_STATUS[1]) {
-            return <Progress percent={value} status='normal' className='warning' />
-          } else {
-            return <Progress percent={value} status='normal' className='danger' />
-          }
-        }
-      }];
       const topColResponsiveProps = { xs: 24, sm: 12, md: 12, lg: 12, xl: 6, style: { marginBottom: 24 } };
       return (
         <Fragment>
@@ -371,7 +200,7 @@ class ClustersDash extends Component {
                   />
                 )}
                 title={<Fragment><span style={{ marginRight: 16 }}>CPU总量</span><Tooltip title="当前集群各主机CPU核数总和"><Icon type="info-circle-o" /></Tooltip></Fragment>}
-                total={parseInt(cluster.cpuTotal, 10) / 1000 + '核'}
+                total={cluster.cpuTotal?(parseInt(cluster.cpuTotal, 10) / 1000 + '核'):'--'}
                 contentHeight={46} />
             </Col>
             <Col {...topColResponsiveProps}>
@@ -384,7 +213,7 @@ class ClustersDash extends Component {
                   />
                 )}
                 title={<Fragment><span style={{ marginRight: 16 }}>内存总量</span><Tooltip title="当前集群内各主机内存总和"><Icon type="info-circle-o" /></Tooltip></Fragment>}
-                total={(parseInt(cluster.memoryTotal, 10) / 1024 / 1024 / 1024).toFixed(0) + 'GB'}
+                total={cluster.memoryTotal?((parseInt(cluster.memoryTotal, 10) / 1024 / 1024 / 1024).toFixed(0) + 'GB'):'--'}
                 contentHeight={46} />
             </Col>
             <Col {...topColResponsiveProps}>
@@ -414,16 +243,7 @@ class ClustersDash extends Component {
                 contentHeight={46} />
             </Col>
           </Row>
-          <Table
-            size={'middle'}
-            columns={columns}
-            pagination={false}
-            onExpand={this.onRowExpand}
-            expandedRowKeys={this.state.expandedRowKeys}
-            onExpandedRowsChange={(expandedRows) => this.setState({ expandedRowKeys: expandedRows })}
-            expandedRowRender={record => this.renderExpandContent(record)}
-            dataSource={cluster.containInfos}
-          />
+          <ServicesTable nodeDetailList={cluster.containInfos} opType='look' {...this.props} {...this.state}/>
         </Fragment>
       )
     }

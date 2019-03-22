@@ -132,32 +132,31 @@ class Components extends Component {
     const columns = [{
       title: "姓名",
       dataIndex: "name",
-      width: "15%",
+      width: 100,
       render:(text,record)=>{
         return record.name?record.name:record.userName;
       }
     }, {
       title: "工号",
       dataIndex: "workno",
-      width: "15%"
+      width: 100
     }, {
       title: "邮箱",
       dataIndex: "email",
-      width: "25%"
     }, {
       title: "联系电话",
       dataIndex: "phone",
-      width: "15%",
+      width: 100,
     }, {
       title: "创建时间",
       dataIndex: "createAt",
-      width: "15%",
+      width: 180,
       render: (text, record) => {
         return moment(text).format("YYYY-MM-DD HH:mm");
       }
     }, {
       title: "操作",
-      width: "15%",
+      width: 80,
       render: (text, record) =>  
       <Authorized authority={'tenant_deleteUser'} noMatch={<a disabled='true'>删除</a>}>
         <Popconfirm title="是否要将此用户从当前租户移除？" onConfirm={() => this.onDelete(record.id)}>
@@ -185,11 +184,11 @@ class Components extends Component {
       },
     };
     return (
-      <Card style={{ margin: '24px 24px 0 24px' }}>
+      <Card style={{ margin: '24px 0 0' }} title={this.props.title?this.props.title:''}>
         <Row style={{ marginBottom: 24 }}>
           <Col span={8}>
             <Row type={'flex'} align='middle'>
-              <Col style={{width:70}} span={6}>用户名称:</Col>
+              <Col style={{width:70}} span={6}>用户姓名:</Col>
               <Col span={18}>
                 <Input
                   onPressEnter={e => { e.preventDefault();this.onSearchUser(e.target.value) }}

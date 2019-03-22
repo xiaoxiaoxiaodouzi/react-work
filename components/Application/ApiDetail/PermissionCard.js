@@ -105,7 +105,7 @@ export default class PermissionCard extends React.Component {
       }
     }];
 
-    if(base.allpermissions.includes('service_cancelAuthorization')){
+    if(base.checkPermission('service_cancelAuthorization')){
       cols.push({
         title: '操作',
         dataIndex: 'options',

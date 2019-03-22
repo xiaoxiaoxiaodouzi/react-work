@@ -125,7 +125,6 @@ export default class SettingTable extends Component {
         return; 
       }
     }
-    let name = this.state.name;
     let code = this.state.code;
     let array = [];
     let b = [];
@@ -146,8 +145,13 @@ export default class SettingTable extends Component {
         str+=i+(inputValue[index]?inputValue[index]:'');
       })
       array.push(str);
-    }else{
-      array.push(this.state.hosts)
+    }else if(this.state.demo ==='custom'){
+      if(this.state.hosts ){
+        array.push(this.state.hosts)
+      }else{
+        message.info('请先填写域名再保存');
+        return;
+      }  
     }
     if (this.state.context) {
       b.push(this.state.context)
@@ -159,13 +163,19 @@ export default class SettingTable extends Component {
     /* if(this.state.context.startsWith('/')) cont=this.state.context;
     else cont='/'+this.state.context; */
     let bodyParams = {
-      appCode:this.props.appCode,
-      hosts: array,
+      appCode:this.props.appDatas.code,
       name: record.name?record.name:this.state.id,
-      stripUri: this.state.CTXCheckValue,
+      stripPath: this.state.CTXCheckValue && this.state.CTXCheckValue!==''?this.state.CTXCheckValue:false,
       uris: b,
       upstreamUrl: ups + code,
+      paths:b,
       https_only: this.state.HttpCheckValue === 'http://' ? false : true,
+    }
+    if(array && array.length > 0){
+      bodyParams.hosts = array;
+    }
+    if(this.state.demo === 'any'){
+      delete bodyParams.hosts
     }
     if (record.new) {
       //调用新增接口
@@ -178,15 +188,14 @@ export default class SettingTable extends Component {
           let datas=this.state.datas;
           if(datas.length>0){
             let ary=[];
-            ary.push(record.hosts[0])
+            if(record.hosts && record.hosts.length > 0){
+              ary.push(record.hosts[0])
+            }
             datas.forEach(i=>{
-              ary.push(i.hosts[0])
+              if(i.hosts && i.hosts.length > 0){
+                ary.push(i.hosts[0])
+              }  
             })
-            // let queryParams = {
-            //   type: '2'
-            // }
-            //updateApp(this.state.id,queryParams,{hosts:ary.join(',')}).then(res=>{
-            //})
           }
           this.loadDatas();
         }
@@ -196,7 +205,16 @@ export default class SettingTable extends Component {
       })
     } else {
       //修改接口
-      updateRouters(name, bodyParams).then(data => {
+      record.uris = b;
+      record.paths = b;
+      if(this.state.demo === 'any'){
+        record.hosts = [];
+      }else{
+        record.hosts = array;
+      }
+
+      record.stripPath = this.state.CTXCheckValue;
+      updateRouters(record.id, record).then(data => {
         delete record.editable;
         delete record.new;
         message.success('修改域名成功');
@@ -204,7 +222,10 @@ export default class SettingTable extends Component {
         if(datas.length>0){
           let ary=[];
           datas.forEach(i=>{
-            ary.push(i.hosts[0])
+            if(i.hosts && i.hosts.length > 0){
+              ary.push(i.hosts[0])
+            }
+            
           })
           // let queryParams = {
           //   type: '2'
@@ -224,7 +245,7 @@ export default class SettingTable extends Component {
 
   handleCTXchange = (e) => {
     this.setState({
-      CTXCheckValue: !e.target.checked
+      CTXCheckValue: e.target.checked
     })
   }
 
@@ -248,37 +269,42 @@ export default class SettingTable extends Component {
 
   handleClick = (record) => {
     if (!this.state.isEditing) {
-      let name = record.hosts[0];
+      let name = record.hosts && record.hosts.length > 0 ? record.hosts[0] :'--';
       //反向匹配模板
       let demo = this.getDemo(record);
       let inputValue = this.state.inputValue;
-      if (!demo) {
-        demo = 'custom';
-        this.setState({HttpOption:['http://','https://']})
-      } else {
-        let ary = [];
-        if (demo.https) ary.push('https://');
-        if (demo.http) ary.push('http://');
-        this.setState({ HttpOption: ary })
-        //将原来*对应到的现在的然后塞到state里面去，方便生成input框有对应的值
-        let demoAry=demo.host.split('*');
-        demoAry.forEach((element, index) => {
-          //生成正則匹配表達式
-          if(index<demoAry.length-1){
-            let regPre=element;
-            let regSuf=demoAry[index+1];
-            let reg=new RegExp(regPre+'(\\S*)'+regSuf);
-            inputValue[index]=name.match(reg)[1]
-          }
-        });
-        demo=demo.host;
+      if(record.hosts && record.hosts.length > 0){
+        if (!demo) {
+          demo = 'custom';
+          this.setState({HttpOption:['http://','https://']})
+        } else {
+          let ary = [];
+          if (demo.https) ary.push('https://');
+          if (demo.http) ary.push('http://');
+          this.setState({ HttpOption: ary })
+          //将原来*对应到的现在的然后塞到state里面去，方便生成input框有对应的值
+          let demoAry=demo.host.split('*');
+          demoAry.forEach((element, index) => {
+            //生成正則匹配表達式
+            if(index<demoAry.length-1){
+              let regPre=element;
+              let regSuf=demoAry[index+1];
+              let reg=new RegExp(regPre+'(\\S*)'+regSuf);
+              inputValue[index]=name.match(reg)[1]
+            }
+          });
+          demo=demo.host;
+        }
+      }else{
+        demo = 'any';
       }
+     
       this.setState({
         demo: demo,
         isEditing: true,
         name: record.name,
-        hosts: record.hosts[0],
-        context:record.uris?record.uris[0]:'',
+        hosts: record.hosts && record.hosts.length>0?record.hosts[0]:null,
+        context:record.paths && record.paths.length > 0?record.paths[0]:'',
         CTXCheckValue: record.stripUri,
         inputValue: inputValue,
         HttpCheckValue: record.httpsOnly ? 'https://' : 'http://'
@@ -291,7 +317,7 @@ export default class SettingTable extends Component {
 
   //根据域名找到对应的模板
   getDemo = (record) => {
-    let name = record.hosts[0].split('.');
+    let name = record.hosts && record.hosts.length > 0?record.hosts[0].split('.'):'--';
     //获取域名列表
     let list = this.state.templateList;
     if (list.length > 0) {
@@ -361,7 +387,7 @@ export default class SettingTable extends Component {
             </Select>
           } else {
             let demo=this.getDemo(record);
-            return demo? (demo.name?demo.name:'自定义'):'自定义'
+            return record.hosts && record.hosts.length > 0 ?demo? (demo.name?demo.name:'自定义'):'自定义':'不限制'
           }
         }
       },
@@ -407,9 +433,9 @@ export default class SettingTable extends Component {
             // return <Input addonBefore={selectBefore} value={this.state.hosts} onChange={e => this.handleInputChange(e)} style={{ width: '60%' }} />
           } else {
             if (record.httpsOnly) {
-              return 'https://' + record.hosts[0]
+              return record.hosts && record.hosts.length > 0 ?'https://' + record.hosts[0] :'--'
             } else {
-              return 'http://' + record.hosts[0]
+              return record.hosts && record.hosts.length > 0?'http://' + record.hosts[0]:'--'
             }
           }
         }
@@ -417,24 +443,24 @@ export default class SettingTable extends Component {
       {
         title: '域名上下文',
         dataIndex: 'context',
-        width: '10%',
+        width: 150,
         render: (text, record) => {
           if (record.editable) {
             return <Input value={this.state.context} onChange={e => this.handleContextChange(e)} />
           } else {
-            return record.uris?record.uris[0]:'/';
+            return record.paths && record.paths.length>0?record.paths[0]:'/';
           }
         }
       },
       {
         title: '裁剪上下文',
-        dataIndex: 'stripUri',
-        width: '10%',
+        dataIndex: 'stripPath',
+        width:150,
         render: (text, record) => {
           if (record.editable) {
             return (
-              <Checkbox defaultChecked={!this.state.CTXCheckValue} onChange={this.handleCTXchange}>
-                否
+              <Checkbox defaultChecked={record.stripPath && record.stripPath!== ''?record.stripPath:false} onChange={this.handleCTXchange}>
+                是
               </Checkbox>
             )
           } else {
@@ -510,7 +536,6 @@ SettingTable.propTypes = {
   size: PropTypes.string,    //表格尺寸大小，有small跟default
   checked: PropTypes.bool,       //判断是否勾选中了https按钮
   width: PropTypes.string,          //表格宽度
-  appCode:PropTypes.string,  //应用code
 }
 
 SettingTable.defaultProps = {

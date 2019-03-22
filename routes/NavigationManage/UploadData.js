@@ -74,6 +74,7 @@ export default class UploadData extends Component{
             },
             fileList: this.state.fileList,
             className: 'upload-list-inline',
+            showUploadList:false
         }
         return (
             this.state.isBtn ?

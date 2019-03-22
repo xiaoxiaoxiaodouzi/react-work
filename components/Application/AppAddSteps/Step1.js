@@ -4,6 +4,7 @@ import TagManager from '../../../common/TagManager';
 import { queryTags, checkIdName,  } from '../../../services/aip';
 import { checkCodeName } from '../../../services/cce';
 import { base } from '../../../services/base'
+import CreateAppContext from '../../../context/CreateAppContext';
 
 const FormItem = Form.Item;
 const Option = Select.Option;
@@ -17,13 +18,6 @@ class Step1 extends React.Component {
 
 	enviroment=base.environment;
 
-	componentDidMount() {
-		/*  let tenant = base.tenant;
-		 let environment = base.currentEnvironment;
-		 this.setState({
-				 addbefore: tenant + '-' + 'environment'
-		 }) */
-	}
 	getTags = () => {
 		//if (this.state.allTags.length === 0) {
 			queryTags({},{'AMP-ENV-ID':this.enviroment}).then(data => {
@@ -67,7 +61,31 @@ class Step1 extends React.Component {
 						});
 					}
 					if (checked) {
-						this.props.submitstep1(values, this.state.selectedTags);
+
+						const newDeployment = { ...this.props.deployment };
+						newDeployment.metadata.annotations.name = values.name;
+						newDeployment.metadata.labels.application = values.id;
+						newDeployment.metadata.name = values.id;
+				
+						const newAppInfo = { ...this.props.appInfo };
+						newAppInfo.name = values.name;
+						newAppInfo.code = values.id;
+				
+						if (this.props.type === "middleware") {
+							newAppInfo.type = "middleware";
+						} else {
+							newAppInfo.type = values.type;
+						}
+						newAppInfo.tags = this.state.selectedTags;
+						newAppInfo.enviroment = values.enviroment;
+						this.props.stateChange({
+							appInfo: newAppInfo,
+							current: 1,
+							displayStep1: false,
+							displayStep2: true,
+							displayStep3: false,
+							deployment: newDeployment
+						})
 					}
 				})
 			}
@@ -117,7 +135,7 @@ class Step1 extends React.Component {
 		};
 		const labelName = this.props.type === 'app' ? '应用' : '中间件';
 		return (
-			<div style={{ display: this.props.display ? 'block' : 'none' }}>
+			<div style={{ display: this.props.displayStep1 ? 'block' : 'none' }}>
 				<Row>
 					<Col span={20} offset={2}>
 						<Alert
@@ -184,5 +202,10 @@ class Step1 extends React.Component {
 		);
 	}
 }
+const StepOne = Form.create()(Step1);
 
-export default Step1 = Form.create()(Step1);
+export default props => (
+  <CreateAppContext.Consumer>
+    {context => <StepOne {...props} {...context} />}
+  </CreateAppContext.Consumer>
+)

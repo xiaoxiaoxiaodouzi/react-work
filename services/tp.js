@@ -50,25 +50,12 @@ export function getTenantQuota(code){
   return C2Fetch.get(url,null,'获取租户配额信息失败');
 }
 
-  ///tp/v1/tenanttypes/{code}/quotas/  {quotaId}// 修改租户配额
-  /* 
-  {
-    "id": "string",
-    "name": "string",
-    "code": "string",
-    "dataType": "string",
-    "dataConfig": "string",
-    "step": 0,
-    "total": 0,
-    "unit": "string"
-  }
-  */
-  /* export function updateQuota(code,quotaId,params){
+export function updateQuota(code,quotaId,params){
     const url = proxyTp +`tp/v1/tenanttypes/${code}/quotas/${quotaId}`;
-    return C2Fetch.post(url,params,null,'修改租户配额失败');
-  } */
+    return C2Fetch.put(url,params,null,'修改租户配额失败');
+} 
 //tp/v1/tenants/{tenantId}/tenanttypes/{code}
-export function updateQuota(tenantId,code,params){
+export function updateTenant(tenantId,code,params){
   const url = proxyTp +`tp/v1/tenants/${tenantId}/tenanttypes/${code}`;
   return C2Fetch.post(url,params,null,'修改租户配额失败');
 }

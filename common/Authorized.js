@@ -7,7 +7,7 @@ import {base} from '../services/base'
 */
 export default (props)=>{
 	let permissions=props.permissions || base.allpermissions;
-	if(permissions.includes(props.authority)){
+	if(base.isAdmin || permissions.includes(props.authority)){
 		return props.children
 	}else{
 		return props.noMatch || ''

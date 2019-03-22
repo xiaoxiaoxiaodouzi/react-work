@@ -11,7 +11,7 @@ export default class componentName extends Component {
 	}
 
 	render() {
-		const breadcrumbTitle = BreadcrumbTitle([{name:'高级设置'},{name:'全局日志'}]);
+		const breadcrumbTitle = BreadcrumbTitle([{name:'平台管理'},{name:'全局日志'}]);
 		return (
 			<PageHeaderLayout
 				title={breadcrumbTitle}

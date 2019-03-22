@@ -5,19 +5,6 @@ export function formateValue(value){
   return value?value:value===0?0:'--'
 }
 
-export function deepClone(p){
-  var c = {};   //目标对象默认为空
-  for (var i in p) {       //遍历原对象中的所有可枚举key
-    if (typeof p[i] === 'object') {      //属性是否为对象或数组
-  　　  c[i] = (p[i].constructor === Array) ? [] : {};    // 将目标对象对应属性设置为空对象或空数组
-  　　  deepClone(p[i]);  //递归拷贝子对象的所有属性
-    } else {
-  　　  c[i] = p[i];         //如果为基本数据类型则直接赋值
-  　 }
-  }
-  return c;
-}
-
 export function getTimeDistance(type,num) {
   const oneDay = 1000 * 60 * 60 * 24;
   const oneHour = 1000 * 60 * 60;
@@ -46,62 +33,6 @@ export function getTimeDistance(type,num) {
   if (type === 'year') {
     return [moment(tempTime.getTime()-n *365*oneDay), moment(tempTime)];
   }
-}
-
-function getRelation(str1, str2) {
-  if (str1 === str2) {
-    console.warn('Two path are equal!');  // eslint-disable-line
-  }
-  const arr1 = str1.split('/');
-  const arr2 = str2.split('/');
-  if (arr2.every((item, index) => item === arr1[index])) {
-    return 1;
-  } else if (arr1.every((item, index) => item === arr2[index])) {
-    return 2;
-  }
-  return 3;
-}
-
-function getRenderArr(routes) {
-  let renderArr = [];
-  renderArr.push(routes[0]);
-  for (let i = 1; i < routes.length; i += 1) {
-    let isAdd = false;
-    // 是否包含
-    isAdd = renderArr.every(item => getRelation(item, routes[i]) === 3);
-    // 去重
-    renderArr = renderArr.filter(item => getRelation(item, routes[i]) !== 1);
-    if (isAdd) {
-      renderArr.push(routes[i]);
-    }
-  }
-  return renderArr;
-}
-
-/**
- * Get router routing configuration
- * { path:{name,...param}}=>Array<{name,path ...param}>
- * @param {string} path
- * @param {routerData} routerData
- */
-export function getRoutes(path, routerData) {
-  let routes = Object.keys(routerData).filter(routePath =>
-    routePath.indexOf(path) === 0 && routePath !== path);
-  // Replace path to '' eg. path='user' /user/name => name
-  routes = routes.map(item => item.replace(path, ''));
-  // Get the route to be rendered to remove the deep rendering
-  const renderArr = getRenderArr(routes);
-  // Conversion and stitching parameters
-  const renderRoutes = renderArr.map((item) => {
-    const exact = !routes.some(route => route !== item && getRelation(route, item) === 1);
-    return {
-      ...routerData[`${path}${item}`],
-      key: `${path}${item}`,
-      path: `${path}${item}`,
-      exact,
-    };
-  });
-  return renderRoutes;
 }
 
 
@@ -192,3 +123,94 @@ export var FastJson = {
       } else if (this.isArray(c)) for (f in c) b = d, g = c[f], b = b + "[" + f + "]", this._format(a, g, b, c, f); return a
   }
 };
+
+/**
+ * 从列表返回数据中获取分页对象
+ * @param {object} result 远程返回的Page对象，包括当前页数据和分页信息
+ * @param {event} pageChange(current, pageSize) 点击分页的回调函数，用来触发远程请求
+ */
+export function getPagination(result,pageChange){
+  const pageSizeOptions = ['10','20','50'];
+  if(result.totalPage>50)pageSizeOptions.push(result.totalPage.toString());
+  const pagination = {
+    current: result.pageIndex,
+    total: result.total,
+    pageSize: result.pageSize,
+    pageSizeOptions:pageSizeOptions,
+    showSizeChanger:true,
+    showTotal: (total, range) => `共 ${total} 条记录`,
+    onChange: pageChange,
+    onShowSizeChange:pageChange
+  }
+  return pagination;
+}
+
+/**
+ * 将查询条件放到当前url上
+ * @param {object} history 路由的history对象 
+ * @param {object} params 需要拼接到url的参数
+ */
+export function pushUrlParams(history,params){
+  const pathname = history.location.pathname;
+  
+  const urlParam = pathname.includes('?')?'&':'?'+objToUrlParam(params);
+  history.push(pathname+urlParam);
+}
+
+/**
+ * 将url上的参数转为对象
+ * @param {string} urlParamString url上的参数字符串，一般从路由对象中获取:history.location.search
+ * @return {object} url参数转换后的对象
+ */
+export function urlParamToObj(urlParamString){
+  if(urlParamString.startsWith('?'))urlParamString = urlParamString.substring(1);
+  let obj = {};
+  const paramStringArray = urlParamString.split('&');
+  paramStringArray.forEach(paramString=>{
+    const paramSplit = paramString.split('=');
+    if(paramSplit.length === 2){
+      const key = paramSplit[0].trim();
+      const value = decodeURI(paramSplit[1].trim());
+      if(obj[key]){
+        if(Array.isArray(obj[key]))obj[key].push(value);
+        else obj[key] = [obj[key],value];
+      }else{
+        obj[key] = value;
+      }
+    }
+  })
+  return obj;
+}
+
+export function objToUrlParam(obj){
+  let paramStringArray = [];
+  Object.keys(obj).forEach(key=>{
+    let value = obj[key];
+    if (Array.isArray(value)){
+      value.forEach(v => {
+        paramStringArray.push(key + "=" + encodeURI(v));
+      })
+    }else if(value!==undefined && value !== "")paramStringArray.push(key+'='+encodeURI(value));
+  })
+  return paramStringArray.join('&');
+}
+
+//转换成Gi
+export function quotaFormat(param){
+  if(param.indexOf('m')>0){
+    let i=(parseFloat(param.substring(0,param.length-1))/1024/1024/1024/1000).toFixed(2);
+    return i+'Gi'
+  }else if(param.indexOf('Mi')>0){
+     let i=(parseFloat(param.substring(0,param.length-2))/1024).toFixed(2);
+    return i+'Gi';
+  }else{
+    return param;
+  }
+}
+
+//转换成Mi
+export function quotaMiFormat(param){
+  if(param.indexOf('Gi')>0){
+    return parseFloat(param.substring(0,param.length-2))*1024+'Mi'
+  }
+}

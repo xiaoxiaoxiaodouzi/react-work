@@ -11,18 +11,26 @@ import constants from '../../../services/constants'
 import InputInline from '../../../common/Input'
 import { base } from '../../../services/base';
 import Authorized from '../../../common/Authorized';
+import { breadcrumbDataGenerate } from '../../../common/SimpleComponents';
 
 const { Description } = DescriptionList;
 const confirm = Modal.confirm;
 class FunctionalDetail extends React.Component {
-  state = {
-    data: {},
-    appName: '',
-    code: '',
-    desc: '',
-    name: '',
-    visibleModal: false,
-    userCollections: [],
+  
+  constructor(props){
+    super(props);
+    let breadcrumbList = breadcrumbDataGenerate(props.match,'role');
+
+    this.state = {
+      data: {},
+      appName: '',
+      code: '',
+      desc: '',
+      name: '',
+      visibleModal: false,
+      userCollections: [],
+      breadcrumbList
+    }
   }
 
   componentDidMount() {
@@ -146,12 +154,11 @@ class FunctionalDetail extends React.Component {
     );
 
     const title = this.state.name==='平台管理员' || this.state.name==='功能管理员' || this.state.name==='角色管理员'?this.state.name:<InputInline title={'角色名称 '} value={name} onCommit={(value) => this.handleDescChange(value, 'name')} dataType={'Input'} mode={'inline'} />
-
-    // const breadcrumbList = [{title:'应用列表',href:'#/applications'},{title:appName},{title:'角色详情'}];
     return (
       <div style={{ margin: '-24px -24px 0' }}>
         <PageHeader
           title={title}
+          breadcrumbList= {this.state.breadcrumbList}
           logo={<img alt="" src={constants.PIC.service} />}
           content={description}
           action={action}

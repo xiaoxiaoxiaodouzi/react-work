@@ -36,7 +36,7 @@ class Menus extends Component {
     
     return (
       <div>
-        <Card title='角色管理' style={{ margin: 24 }} bordered={false}>
+        <Card title='功能角色' style={{ margin: 24 }} bordered={false}>
           <Role flag={this.state.flag} appId={this.props.match.params.id} roleList={(roleList)=>{this.setState({roleList:roleList,refreshFlag:!this.state.refreshFlag})}} treeNode={this.state.treeNode} appname={this.state.appname}/>
         </Card>
 

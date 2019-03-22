@@ -587,6 +587,11 @@ export function getNavigations(search){
 	return C2Fetch.get(url,search,'查询全局导航错误');
 }
 
+export function getGlobalRoles(params){
+  const url = proxy + 'aip/v1/globalroles';
+  return C2Fetch.get(url,params,'查询全局角色错误');
+}
+
 export function exportNavigations(){
   const url = proxy+`aip/v1/navigationsexport/export`;
   C2Fetch.download(url,'全局导航.txt')
@@ -788,6 +793,12 @@ export function deleteWhiteUsers(appid,userid){
   const url=proxy+`aip/v1/apps/${appid}/whiteusers/${userid}`
   return C2Fetch.delete(url,null,"移除用户出错") 
 }
+
+//白名单替换接口
+export function putWhiteUsers(appId,userIds){
+  const url = proxy+`aip/v1/apps/${appId}/whitelist`;
+  return C2Fetch.put(url,userIds,{},'修改白名单失败');
+}
   
 //添加白名单用户
 export function addWhiteUsers(appid,queryParams){
@@ -839,4 +850,27 @@ export function previewSync(appId){
 export function getEnvHealth(envId){
   const url=proxy+`health`
   return C2Fetch.get(url,null,false,{'AMP-ENV-ID':envId})
+}
+
+export function getAllPermissons(params){
+  let url=proxy+`aip/v1/allpermissions`
+  return C2Fetch.get(url,params,'查询角色下的资源失败',{'AMP-ENV-ID':1});
+}
+
+//获取黑名单列表
+export function getBlacks(appId,page,rows){
+  let url =proxy+ `aip/v1/apps/${appId}/blacklist`;
+  return C2Fetch.get(url,{page:page,rows:rows},"查询黑名单失败");
+}
+
+//黑名单替换接口
+export function putBlacks(appId,userIds){
+  let url = proxy+`aip/v1/apps/${appId}/blacklist`;
+  return C2Fetch.put(url,userIds,{},'修改黑名单失败');
+}
+
+//讲用户从黑名单移除
+export function deleteBlacks(appId,userIds){
+  let url =proxy+ `aip/v1/apps/${appId}/blacklist`;
+  return C2Fetch.delete(url,{userId:userIds},"将用户从黑名单移除失败");
 }

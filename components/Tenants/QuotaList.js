@@ -1,8 +1,7 @@
 import React, { Component } from "react";
 import { Table, Card,message,Divider,InputNumber} from "antd";
-import { getTenantById, getTenantQuota, updateQuota } from '../../services/tp';
-import { getApplicationRes } from '../../services/cce';
-import constants from '../../services/constants';
+import { getTenantById, getTenantQuota, updateTenant } from '../../services/tp';
+import constants from "../../services/constants";
 
 export default class QuotaList extends Component {
   state = {
@@ -25,26 +24,27 @@ export default class QuotaList extends Component {
     let requests = [];
     requests.push(getTenantQuota('PAAS'));
     requests.push(getTenantById(tenantId));
-    requests.push(getApplicationRes(tenantCode));
+   // requests.push(getApplicationRes(tenantCode));
     this.setState({loading:true});
     Promise.all(requests).then(values=>{
-      let cpusUsing = values[2]['cpuUsedTotal'];
-      let ramsUsing = values[2]['memoryUsedTotal'];
+     // let cpusUsing = values[2]['cpuUsedTotal'];
+     // let ramsUsing = values[2]['memoryUsedTotal'];
       values[0].forEach(element => {
         element.key = element.id;
         element.editable = false;
-        if(constants.QUOTA_CODE.toString().indexOf(element.code) > -1){
+         //if(constants.QUOTA_CODE.toString().indexOf(element.code) > -1){
           arrayData.push(element);
-        } 
+        // } 
       });
       arrayData.forEach(element=>{
         element.quota = values[1][element.code];
-        if(element.code === 'cpus'){
-          element.using = cpusUsing;
-        }else if(element.code === 'rams'){
-          element.using = (parseFloat(ramsUsing)/(1024*1024*1024)).toFixed(1);
-        } 
+        // if(element.code === 'cpus'){
+        //   element.using = cpusUsing;
+        // }else if(element.code === 'rams'){
+        //   element.using = (parseFloat(ramsUsing)/(1024*1024*1024)).toFixed(1);
+        // } 
       });
+      console.log(arrayData);
       this.setState({ 
         data:arrayData,
         loading:false,
@@ -72,30 +72,23 @@ export default class QuotaList extends Component {
       this.setState({ data: newData });
     }
   }
-  saveRow=(e, key)=>{
+  saveRow=(e, key,paramKey)=>{
     const newData = this.state.data.map(item => ({ ...item }));
     const target = this.getRowByKey(key, newData);
-    if(parseFloat(target.quota) >parseFloat(target.using)){
+    if(parseFloat(target.total) >= parseFloat(target.quota)){
       this.toggleEditable(e,key);
-      if(target.code === 'cpus'){
-        updateQuota(this.props.tenantId,this.props.code,{cpus:target.quota}).then(data=>{
+      //if(target.code === 'cpus'){
+        let tenant = this.props.tenant;
+        tenant[paramKey] = target.quota;
+        updateTenant(this.props.tenantId,constants.TENANT_CODE[0],tenant).then(data=>{
           this.tempData = newData;
           message.success('修改配额成功');
         }).catch(err=>{
           this.setState({data:this.tempData});
-          /* this.loadData(this.props.code,this.props.tenantId,this.props.tenantCode); */
         });
-      }else if(target.code === 'rams'){
-        updateQuota(this.props.tenantId,this.props.code,{rams:target.quota}).then(data=>{
-          this.tempData = newData;
-          message.success('修改配额成功');
-        }).catch(err=>{
-          this.setState({data:this.tempData});
-          /* this.loadData(this.props.code,this.props.tenantId,this.props.tenantCode); */
-        });
-      }
+      //}
     }else{
-      message.error('配额必须大于使用量，请重新输入');
+      message.error('使用量必须小于或等于配额总量，请重新输入');
     }
   }
   cancel=(e,key)=>{
@@ -104,21 +97,24 @@ export default class QuotaList extends Component {
   }
   render() {
     const columns = [{
-      title: "配额编码",
-      dataIndex: "code",
-      width: "15%"
-    }, {
       title: "名称",
       dataIndex: "name",
-      width: "15%"
     }, {
+      title: "配额编码",
+      dataIndex: "code",
+    },{
       title: "单位",
       dataIndex: "unit",
-      width: "10%"
+      width: 100
     }, {
-      title: "配额",
+      title: "配额总量",
+      dataIndex: "total",
+      width: 100,
+      
+    }, {
+      title: "分配量",
       dataIndex: "quota",
-      width: "10%",
+      width:150,
       render: (text, record) => {
         if (record.editable) {
           return (
@@ -129,33 +125,18 @@ export default class QuotaList extends Component {
         }
         return text;
       }, 
-    }, {
-      title: "使用量",
-      dataIndex: "using",
-      width: "10%"
-    }, {
-      title: "配额使用率",
-      dataIndex: "usage",
-      width: "20%", 
-      render: (text, record) => {
-        let usage = 0;
-        if(record.using && record.quota){
-          usage = (parseFloat(record.using)/record.quota*100).toFixed(1) +'%';
-        }
-        return usage;
-      }, 
-    }, {
+    },{
       title: "操作",
-      width: "20%",
+      width: 150,
       render: (text, record) => {
         if(!record.editable){
           return (
-            <a onClick={e => this.toggleEditable(e, record.key)}>编辑</a>
+            <a disabled={record.dataType === 'Text'?true:false} onClick={e => this.toggleEditable(e, record.key)}>编辑</a>
           );
         }else{
           return (
             <span>
-              <a onClick={e => this.saveRow(e, record.key)}>保存</a>
+              <a onClick={e => this.saveRow(e, record.key,record['code'])}>保存</a>
               <Divider type="vertical" />
               <a onClick={e => this.cancel(e, record.key)}>取消</a>
             </span>
@@ -164,7 +145,7 @@ export default class QuotaList extends Component {
       }
     }];
     return (
-      <Card style={{margin:'24px 24px 0 24px'}}>
+      <Card  title={this.props.title?this.props.title:''}>
         <Table
           columns={columns}
           pagination={false}
